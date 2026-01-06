@@ -1,0 +1,129 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8"/>
+  <title>AI Video Storyboarder</title>
+  <meta name="viewport" content="width=device-width,initial-scale=1"/>
+  <style>
+    body{font-family:system-ui,Segoe UI,Roboto,Helvetica,Arial,sans-serif;margin:0;background:#111;color:#eee}
+    .tabs{display:flex;border-bottom:1px solid #444}
+    .tabs button{background:#222;border:none;color:#eee;padding:.75rem 1.5rem;cursor:pointer}
+    .tabs button.active{background:#444}
+    .panel{display:none;padding:1rem}
+    .panel.active{display:block}
+    label{display:block;margin:.5rem 0 .2rem;font-size:.9rem}
+    input,textarea,select{width:100%;padding:.5rem;border-radius:4px;border:1px solid #444;background:#1c1c1c;color:#eee;resize:vertical}
+    button.generate{background:#0a84ff;border:none;color:#fff;padding:.6rem 1.2rem;border-radius:4px;cursor:pointer;margin-top:1rem}
+    button.generate:disabled{opacity:.5;cursor:not-allowed}
+    .clips{margin-top:1rem;display:grid;grid-template-columns:repeat(auto-fill,minmax(160px,1fr));gap:.5rem}
+    video{width:100%;border-radius:4px;background:#000}
+    .log{font-size:.75rem;color:#aaa;margin-top:.5rem;max-height:120px;overflow:auto}
+  </style>
+</head>
+<body>
+
+<div class="tabs">
+  <button class="tabBtn active" data-panel="rescue">Dynamic Rescue</button>
+  <button class="tabBtn" data-panel="abandoned">Abandoned Characters</button>
+</div>
+
+<!-- Panel 1 : Dynamic Rescue -->
+<div id="rescue" class="panel active">
+  <h2>Body-cam Rescue Generator</h2>
+  <label>Prompt
+    <input id="rprompt" value="A bodycam video of a firefighter saving a little girl from a burning building">
+  </label>
+  <label>Duration
+    <input id="rdur" type="range" min="10" max="50" value="30" step="5">
+    <span id="rval">30 s</span>
+  </label>
+  <label>Shot list (auto-generated – edit if you want)
+    <textarea id="rshots" rows="5" readonly></textarea>
+  </label>
+  <button class="generate" id="rgen">Generate</button>
+  <div id="rlog" class="log"></div>
+  <div id="rclips" class="clips"></div>
+</div>
+
+<!-- Panel 2 : Abandoned Characters -->
+<div id="abandoned" class="panel">
+  <h2>Abandoned Characters Generator</h2>
+  <label>Show / IP
+    <input id="ashow" value="The Simpsons">
+  </label>
+  <label>Duration
+    <input id="adur" type="range" min="10" max="50" value="25" step="5">
+    <span id="aval">25 s</span>
+  </label>
+  <label>Shot list (auto-generated – edit if you want)
+    <textarea id="ashots" rows="5" readonly></textarea>
+  </label>
+  <button class="generate" id="agen">Generate</button>
+  <div id="alog" class="log"></div>
+  <div id="aclips" class="clips"></div>
+</div>
+
+<script>
+/* ---------- helpers ---------- */
+const sleep = ms => new Promise(r=>setTimeout(r,ms));
+function log(panelId,msg){
+  const box=document.getElementById(panelId+'log');
+  box.textContent+=msg+'\n';
+  box.scrollTop=box.scrollHeight;
+}
+
+/* ---------- shot-list builders ---------- */
+function buildRescueShots(prompt,dur){
+  const beats=[
+    "Firefighter gets out of the firetruck and runs inside the house.",
+    "Firefighter looks around and waters everything down.",
+    "Firefighter finds little girl trapped and rescues her.",
+    "They run outside fighting the smoke and he gets the girl to safety.",
+    "The girl is happy and hugs the firefighter."
+  ];
+  const scale=Math.max(1,Math.round(dur/10)); // 10s→1  50s→5
+  return beats.slice(0,scale).map((s,i)=>`${i+1}. ${s}`).join('\n');
+}
+function buildAbandonedShots(show,dur){
+  const loc=show.includes("Simpsons")?"742 Evergreen Terrace":`${show} house`;
+  const beats=[
+    `POV walks up cracked path toward the dark, abandoned ${loc}.`,
+    "Push door open; hinge creaks echo. Flashlight beam cuts through dust.",
+    "Pan across living-room: characters frozen mid-pose, cobwebs stringing them to furniture.",
+    "Close-up on a portrait – eyes scratched out; frame tilts, crashes.",
+    "Flashlight flickers: silhouettes seem to move; quick retreat to door."
+  ];
+  const scale=Math.max(1,Math.round(dur/10));
+  return beats.slice(0,scale).map((s,i)=>`${i+1}. ${s}`).join('\n');
+}
+
+/* ---------- auto-fill shot lists when slider moves ---------- */
+['r','a'].forEach(pre=>{
+  const dur=document.getElementById(pre+'dur');
+  const val=document.getElementById(pre+'val');
+  const shots=document.getElementById(pre+'shots');
+  dur.oninput=()=>{
+    val.textContent=dur.value+' s';
+    if(pre==='r') shots.value=buildRescueShots(document.getElementById('rprompt').value,dur.value);
+    else shots.value=buildAbandonedShots(document.getElementById('ashow').value,dur.value);
+  };
+  // initial fill
+  dur.oninput();
+});
+
+/* ---------- fake AI generator ---------- */
+async function fakeGenerate(panelId){
+  const btn=document.getElementById(panelId+'gen');
+  btn.disabled=true;
+  log(panelId,'Submitting shots to AI…');
+  await sleep(400);
+  const shots=document.getElementById(panelId+'shots').value.split('\n').filter(Boolean);
+  const container=document.getElementById(panelId+'clips');
+  container.innerHTML='';
+
+  for(let i=0;i<shots.length;i++){
+    log(panelId,`Generating clip ${i+1}/${shots.length} …`);
+    await sleep(3000); // simulate render time
+    // stub 5-s black webm (zero-byte video would break, so we use a real 1-frame webm)
+    const vid=document.createElement('video');
+    vid.src='data:video/webm;base64,GkXfowEAAAAAAAAfQoaBAUL3gQFC8oEEQvOBCEKChHdlYm1Ch4ECQoWBAhhTgGcIAAAAAAACBRlYnRthYPBl4E8I88vP3b3Mve7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7
