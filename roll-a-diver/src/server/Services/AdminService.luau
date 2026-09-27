@@ -42,7 +42,7 @@ end
 local commands: { [string]: (Player, { string }) -> string? } = {
 	cash = function(player, args)
 		local amount = tonumber(args[1]) or 1e6
-		Services.EconomyService.AddCash(player, amount)
+		Services.EconomyService.AddCash(player, amount, "Admin")
 		return "Added cash"
 	end,
 	rebirth = function(player)

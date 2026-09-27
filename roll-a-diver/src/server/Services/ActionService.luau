@@ -122,6 +122,33 @@ local handlers: { [string]: (Player, ...any) -> any } = {
 		end
 		return Services.UpgradeService.Buy(player, upgradeId)
 	end,
+	RedeemCode = function(player, code)
+		if type(code) ~= "string" or #code > 64 then
+			return result(false, "Enter a code")
+		end
+		return Services.RewardService.RedeemCode(player, code)
+	end,
+	ClaimDaily = function(player)
+		return Services.RewardService.ClaimDaily(player)
+	end,
+	Spin = function(player)
+		return Services.RewardService.Spin(player)
+	end,
+	ClaimGroup = function(player)
+		return Services.RewardService.ClaimGroup(player)
+	end,
+	SaveSettings = function(player, settings)
+		local data = Services.DataService.Get(player)
+		if not data or type(settings) ~= "table" then
+			return result(false)
+		end
+		for _, key in { "sfx", "lowGraphics", "hideOthers" } do
+			if type(settings[key]) == "boolean" then
+				data.settings[key] = settings[key]
+			end
+		end
+		return result(true)
+	end,
 	Rebirth = function(player)
 		return Services.RebirthService.Rebirth(player)
 	end,

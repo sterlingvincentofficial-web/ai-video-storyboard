@@ -5,6 +5,8 @@
 
 local SoundService = game:GetService("SoundService")
 
+local Settings = require(script.Parent.Settings)
+
 local Sounds = {}
 
 local IDS = {
@@ -17,7 +19,7 @@ local cache: { [string]: Sound } = {}
 
 function Sounds.play(name: string, volume: number?, pitch: number?)
 	local id = IDS[name]
-	if not id then
+	if not id or not Settings.is("sfx") then
 		return
 	end
 	local sound: Sound = cache[name] or Instance.new("Sound")

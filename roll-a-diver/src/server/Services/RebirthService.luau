@@ -39,6 +39,8 @@ function RebirthService.Rebirth(player: Player): { [string]: any }
 	data.chests = {}
 	data.cash = GameConfig.StartingCash
 	data.rebirths += 1
+	Services.AnalyticsService.Step(player, "FirstRebirth")
+	Services.AnalyticsService.Log(player, "Rebirth", tostring(data.rebirths))
 	Services.VaultService.ClearForRebirth(player)
 
 	if next(kept) == nil then

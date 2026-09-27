@@ -334,6 +334,62 @@ if kraken then
 end
 chat("/endevent lowtide")
 
+-- launch features: codes, daily, spin, settings, group, leaderboards --------------------------------------
+task.wait(0.1)
+local cashBeforeCode = data.cash
+local code = act(player, "RedeemCode", "  release ")
+check("code redeems (case/space-insensitive)", code.ok and data.cash > cashBeforeCode, code.err)
+check("code grants luck potion", data.luckPotionEnds > os.time())
+task.wait(0.1)
+check("code only once", act(player, "RedeemCode", "RELEASE").ok == false)
+task.wait(0.1)
+check("unknown code refused", act(player, "RedeemCode", "NOPE123").ok == false)
+task.wait(0.1)
+check("code with rebirth requirement refused", act(player, "RedeemCode", "DEEPER").ok == false)
+task.wait(0.1)
+check("bad code type refused", act(player, "RedeemCode", 42).ok == false)
+
+task.wait(0.1)
+local daily = act(player, "ClaimDaily")
+check("daily claim day 1", daily.ok and daily.day == 1 and data.daily.streak == 1, daily.err)
+task.wait(0.1)
+check("daily only once a day", act(player, "ClaimDaily").ok == false)
+data.daily.lastDay -= 1 -- pretend it was yesterday
+task.wait(0.1)
+local day2 = act(player, "ClaimDaily")
+check("daily streak continues", day2.ok and day2.day == 2, day2.day)
+data.daily.lastDay -= 3 -- missed days
+task.wait(0.1)
+local reset = act(player, "ClaimDaily")
+check("daily streak resets after a miss", reset.ok and reset.day == 1, reset.day)
+
+task.wait(0.1)
+local spin = act(player, "Spin")
+check("free spin", spin.ok and type(spin.index) == "number", spin.err)
+local extraBefore = data.spins.extra
+task.wait(0.1)
+local spin2 = act(player, "Spin")
+if extraBefore > 0 then
+	check("extra spin used", spin2.ok and data.spins.extra <= extraBefore + 2)
+else
+	check("no spin left refused", spin2.ok == false)
+end
+chat("/product SpinPack")
+check("spin pack product", data.spins.extra >= 3, data.spins.extra)
+task.wait(0.1)
+check("spin with pack", act(player, "Spin").ok)
+
+task.wait(0.1)
+check("save settings", act(player, "SaveSettings", { sfx = false, lowGraphics = true, junk = "x" }).ok)
+check("settings stored", data.settings.sfx == false and data.settings.lowGraphics == true and data.settings.junk == nil)
+task.wait(0.1)
+check("group reward off by default", act(player, "ClaimGroup").ok == false)
+
+Registry.LeaderboardService.Write(player)
+local earnedStore = Mock.orderedStores["RollADiver_TopEarned_v1"]
+check("leaderboard score written", earnedStore and earnedStore["u_101"] ~= nil)
+check("save data version 2", data.version == 2)
+
 -- rebirth ---------------------------------------------------------------------------------------------
 task.wait(0.1)
 data.cash = 0

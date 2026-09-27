@@ -383,6 +383,7 @@ local function surface(player: Player, record: Record)
 	local data = Services.DataService.Get(player)
 	if data then
 		data.stats.dives += 1
+		Services.AnalyticsService.Step(player, "FirstDive")
 		local contents = record.contents or {}
 		if #contents > 0 and record.chestId then
 			Services.ChestService.Grant(player, contents)
@@ -539,7 +540,7 @@ function DiverService.Sell(player: Player, uid: string): (boolean, string?)
 	end
 	local value = Formulas.diverSellValue(data.divers[uid])
 	data.divers[uid] = nil
-	Services.EconomyService.AddCash(player, value)
+	Services.EconomyService.AddCash(player, value, "SellDiver")
 	DiverService.Refresh(player)
 	return true
 end
@@ -560,7 +561,7 @@ function DiverService.SellUnplaced(player: Player, maxRank: number): (number, nu
 		end
 	end
 	if total > 0 then
-		Services.EconomyService.AddCash(player, total)
+		Services.EconomyService.AddCash(player, total, "SellDiver")
 	end
 	DiverService.Refresh(player)
 	return sold, total

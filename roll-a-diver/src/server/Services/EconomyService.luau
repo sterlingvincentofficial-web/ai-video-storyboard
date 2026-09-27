@@ -7,6 +7,7 @@ local Formulas = require(Shared.Formulas)
 local Format = require(Shared.Util.Format)
 local GameConfig = require(Shared.Config.Game)
 local Zones = require(Shared.Config.Zones)
+local Rewards = require(Shared.Config.Rewards)
 
 local Services = require(script.Parent.Parent.Registry)
 
@@ -50,23 +51,28 @@ function EconomyService.RefreshDisplay(player: Player)
 	end
 end
 
-function EconomyService.AddCash(player: Player, amount: number)
+-- `reason` (optional) is logged to Roblox economy analytics; leave it nil for per-second income.
+function EconomyService.AddCash(player: Player, amount: number, reason: string?)
 	local data = Services.DataService.Get(player)
-	if not data or amount ~= amount or amount <= 0 then
+	if not data or amount ~= amount or amount <= 0 or amount == math.huge then
 		return
 	end
 	data.cash += amount
 	data.totalEarned += amount
 	refreshCashDisplay(player, data)
+	if reason then
+		Services.AnalyticsService.Economy(player, true, amount, reason)
+	end
 end
 
-function EconomyService.TrySpend(player: Player, amount: number): boolean
+function EconomyService.TrySpend(player: Player, amount: number, reason: string?): boolean
 	local data = Services.DataService.Get(player)
 	if not data or amount ~= amount or amount < 0 or data.cash < amount then
 		return false
 	end
 	data.cash -= amount
 	refreshCashDisplay(player, data)
+	Services.AnalyticsService.Economy(player, false, amount, reason or "Spend")
 	return true
 end
 
@@ -99,6 +105,9 @@ function EconomyService.RollLuck(player: Player): number
 	end
 	if Services.MarketService.HasPass(player, "LuckyDiver") then
 		luck *= 1.5
+	end
+	if player:GetAttribute("InGroup") then
+		luck *= 1 + Rewards.GroupLuckBonus
 	end
 	return luck
 end

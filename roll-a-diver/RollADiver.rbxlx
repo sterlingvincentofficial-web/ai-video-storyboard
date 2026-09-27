@@ -697,6 +697,13 @@ local passes: { Pass } = {
 
 local products: { Product } = {
 	{
+		id = "SpinPack",
+		name = "3 Wheel Spins",
+		description = "Three extra spins on the reward wheel.",
+		assetId = 0,
+		robux = 49,
+	},
+	{
 		id = "StarterPack",
 		name = "Starter Pack",
 		description = "A Deep Sea Suit diver + $5,000. One per player.",
@@ -803,6 +810,134 @@ return {
         </Item>
         <Item class="ModuleScript" referent="10">
           <Properties>
+            <string name="Name">Rewards</string>
+            <string name="Source"><![CDATA[--[[
+	Codes, daily login streak, spin wheel and group reward.
+
+	A reward is a table with any of:
+	  cash           flat cash
+	  incomeMinutes  cash equal to N minutes of the player's current income (min: `cash` or 0)
+	  potionMinutes  minutes of x2 Luck Potion
+	  spins          extra wheel spins
+	  chests         number of chests from the player's deepest unlocked zone
+]]
+
+export type Reward = {
+	cash: number?,
+	incomeMinutes: number?,
+	potionMinutes: number?,
+	spins: number?,
+	chests: number?,
+}
+
+export type Code = {
+	reward: Reward,
+	expires: number?, -- os.time() after which the code stops working (nil = never)
+	minRebirths: number?,
+}
+
+export type Segment = {
+	id: string,
+	label: string,
+	weight: number,
+	color: Color3,
+	reward: Reward,
+}
+
+local Rewards = {}
+
+-- Codes are case-insensitive. Add new ones here for updates / YouTuber promos.
+Rewards.Codes = {
+	RELEASE = { reward = { cash = 5000, potionMinutes = 15 } },
+	DIVEIN = { reward = { cash = 2500, spins = 2 } },
+	KRAKEN = { reward = { chests = 3, spins = 1 } },
+	DEEPER = { reward = { incomeMinutes = 30, potionMinutes = 10 }, minRebirths = 1 },
+} :: { [string]: Code }
+
+-- Day 1..7 of the login streak. After day 7 the streak loops back to day 1.
+Rewards.Daily = {
+	{ cash = 500, incomeMinutes = 5 },
+	{ cash = 1000, incomeMinutes = 10, spins = 1 },
+	{ chests = 2, incomeMinutes = 10 },
+	{ cash = 2500, potionMinutes = 10 },
+	{ incomeMinutes = 30, spins = 2 },
+	{ chests = 4, potionMinutes = 15 },
+	{ incomeMinutes = 60, chests = 6, spins = 3, potionMinutes = 30 },
+} :: { Reward }
+
+Rewards.FreeSpinHours = 4
+
+-- Spin wheel segments (weights are relative).
+Rewards.Wheel = {
+	{
+		id = "SmallCash",
+		label = "5m Cash",
+		weight = 30,
+		color = Color3.fromRGB(70, 200, 90),
+		reward = { incomeMinutes = 5, cash = 300 },
+	},
+	{
+		id = "Chests2",
+		label = "2 Chests",
+		weight = 22,
+		color = Color3.fromRGB(200, 140, 60),
+		reward = { chests = 2 },
+	},
+	{
+		id = "Potion10",
+		label = "Luck 10m",
+		weight = 16,
+		color = Color3.fromRGB(80, 220, 120),
+		reward = { potionMinutes = 10 },
+	},
+	{
+		id = "MedCash",
+		label = "20m Cash",
+		weight = 14,
+		color = Color3.fromRGB(60, 150, 255),
+		reward = { incomeMinutes = 20, cash = 1000 },
+	},
+	{
+		id = "Chests5",
+		label = "5 Chests",
+		weight = 8,
+		color = Color3.fromRGB(175, 85, 255),
+		reward = { chests = 5 },
+	},
+	{
+		id = "Respin",
+		label = "+2 Spins",
+		weight = 6,
+		color = Color3.fromRGB(255, 190, 40),
+		reward = { spins = 2 },
+	},
+	{
+		id = "BigCash",
+		label = "2h Cash",
+		weight = 3,
+		color = Color3.fromRGB(255, 80, 160),
+		reward = { incomeMinutes = 120, cash = 10000 },
+	},
+	{
+		id = "Jackpot",
+		label = "JACKPOT",
+		weight = 1,
+		color = Color3.fromRGB(235, 40, 45),
+		reward = { chests = 15, potionMinutes = 30 },
+	},
+} :: { Segment }
+
+-- Join-the-group reward. Set GroupId to your Roblox group id to enable it (0 = off).
+Rewards.GroupId = 0
+Rewards.GroupLuckBonus = 0.1
+Rewards.GroupJoinReward = { cash = 2500, spins = 2 } :: Reward
+
+return Rewards
+]]></string>
+          </Properties>
+        </Item>
+        <Item class="ModuleScript" referent="11">
+          <Properties>
             <string name="Name">Sets</string>
             <string name="Source"><![CDATA[--[[
 	Treasure sets. When every treasure of a set is displayed in the vault at the same time,
@@ -851,7 +986,7 @@ return {
 ]]></string>
           </Properties>
         </Item>
-        <Item class="ModuleScript" referent="11">
+        <Item class="ModuleScript" referent="12">
           <Properties>
             <string name="Name">Treasures</string>
             <string name="Source"><![CDATA[--[[
@@ -1439,7 +1574,7 @@ return {
 ]]></string>
           </Properties>
         </Item>
-        <Item class="ModuleScript" referent="12">
+        <Item class="ModuleScript" referent="13">
           <Properties>
             <string name="Name">Upgrades</string>
             <string name="Source"><![CDATA[--[[
@@ -1505,7 +1640,7 @@ return {
 ]]></string>
           </Properties>
         </Item>
-        <Item class="ModuleScript" referent="13">
+        <Item class="ModuleScript" referent="14">
           <Properties>
             <string name="Name">Zones</string>
             <string name="Source"><![CDATA[--[[
@@ -1684,7 +1819,7 @@ return {
           </Properties>
         </Item>
       </Item>
-      <Item class="ModuleScript" referent="14">
+      <Item class="ModuleScript" referent="15">
         <Properties>
           <string name="Name">Formulas</string>
           <string name="Source"><![CDATA[--[[
@@ -1704,6 +1839,7 @@ local Crates = require(Config.Crates)
 local Sets = require(Config.Sets)
 local Upgrades = require(Config.Upgrades)
 local Rarities = require(Config.Rarities)
+local Rewards = require(Config.Rewards)
 
 local Formulas = {}
 
@@ -2010,6 +2146,38 @@ function Formulas.indexProgress(index: IndexData): (number, number, number, numb
 	return found, #Treasures.List, variants, #Treasures.List * #Conditions.List
 end
 
+-- Daily rewards / wheel ---------------------------------------------------------------------
+
+-- UTC day number for a unix timestamp.
+function Formulas.dayNumber(unixTime: number): number
+	return math.floor(unixTime / 86400)
+end
+
+-- Given the last claimed day and current streak, returns (canClaim, newStreak) for `today`.
+-- Missing a day resets the streak to 1; the 7-day calendar loops.
+function Formulas.dailyStreak(lastDay: number, streak: number, today: number): (boolean, number)
+	if lastDay == today then
+		return false, streak
+	end
+	if lastDay == today - 1 then
+		return true, (streak % #Rewards.Daily) + 1
+	end
+	return true, 1
+end
+
+function Formulas.pickWheelSegment(rand: Rand): number
+	local weights = {}
+	for index, segment in Rewards.Wheel do
+		weights[index] = segment.weight
+	end
+	return Formulas.pickWeighted(weights, rand)
+end
+
+-- Seconds until the next free spin is ready (0 = ready now).
+function Formulas.freeSpinWait(lastFreeSpin: number, now: number): number
+	return math.max(0, lastFreeSpin + Rewards.FreeSpinHours * 3600 - now)
+end
+
 function Formulas.offlineEarnings(seconds: number, incomePerSecond: number, vip: boolean?): number
 	local capHours = if vip then GameConfig.OfflineCapHoursVIP else GameConfig.OfflineCapHours
 	local capped = math.clamp(seconds, 0, capHours * 3600)
@@ -2020,7 +2188,7 @@ return Formulas
 ]]></string>
         </Properties>
       </Item>
-      <Item class="ModuleScript" referent="15">
+      <Item class="ModuleScript" referent="16">
         <Properties>
           <string name="Name">ModelFactory</string>
           <string name="Source"><![CDATA[--[[
@@ -3120,7 +3288,7 @@ return ModelFactory
 ]]></string>
         </Properties>
       </Item>
-      <Item class="ModuleScript" referent="16">
+      <Item class="ModuleScript" referent="17">
         <Properties>
           <string name="Name">Remotes</string>
           <string name="Source"><![CDATA[--[[
@@ -3187,11 +3355,11 @@ return Remotes
 ]]></string>
         </Properties>
       </Item>
-      <Item class="Folder" referent="17">
+      <Item class="Folder" referent="18">
         <Properties>
           <string name="Name">Util</string>
         </Properties>
-        <Item class="ModuleScript" referent="18">
+        <Item class="ModuleScript" referent="19">
           <Properties>
             <string name="Name">Format</string>
             <string name="Source"><![CDATA[--[[
@@ -3276,7 +3444,7 @@ return Format
 ]]></string>
           </Properties>
         </Item>
-        <Item class="ModuleScript" referent="19">
+        <Item class="ModuleScript" referent="20">
           <Properties>
             <string name="Name">Signal</string>
             <string name="Source"><![CDATA[--[[
@@ -3332,15 +3500,15 @@ return Signal
       </Item>
     </Item>
   </Item>
-  <Item class="ServerScriptService" referent="20">
+  <Item class="ServerScriptService" referent="21">
     <Properties>
       <string name="Name">ServerScriptService</string>
     </Properties>
-    <Item class="Folder" referent="21">
+    <Item class="Folder" referent="22">
       <Properties>
         <string name="Name">Server</string>
       </Properties>
-      <Item class="ModuleScript" referent="22">
+      <Item class="ModuleScript" referent="23">
         <Properties>
           <string name="Name">Layout</string>
           <string name="Source"><![CDATA[--[[
@@ -3411,7 +3579,7 @@ return Layout
 ]]></string>
         </Properties>
       </Item>
-      <Item class="Script" referent="23">
+      <Item class="Script" referent="24">
         <Properties>
           <string name="Name">Main</string>
           <token name="RunContext">0</token>
@@ -3428,6 +3596,9 @@ local ORDER = {
 	"PlotService",
 	"DataService",
 	"EconomyService",
+	"AnalyticsService",
+	"RewardService",
+	"LeaderboardService",
 	"MarketService",
 	"AnnouncementService",
 	"EventService",
@@ -3447,17 +3618,26 @@ for _, name in ORDER do
 	Services[name] = (require :: any)(folder:WaitForChild(name))
 end
 
+-- Each service starts in isolation: one failing optional system (e.g. leaderboards when
+-- DataStores are down) must never stop players from loading in.
+local function run(phase: string, name: string, fn: () -> ())
+	local ok, err = pcall(fn :: any)
+	if not ok then
+		warn(("[Roll a Diver] %s.%s failed: %s"):format(name, phase, tostring(err)))
+	end
+end
+
 for _, name in ORDER do
 	local service = Services[name]
 	if service.Init then
-		service.Init()
+		run("Init", name, service.Init)
 	end
 end
 
 for _, name in ORDER do
 	local service = Services[name]
 	if service.Start then
-		service.Start()
+		run("Start", name, service.Start)
 	end
 end
 
@@ -3465,7 +3645,7 @@ print("[Roll a Diver] server ready")
 ]]></string>
         </Properties>
       </Item>
-      <Item class="ModuleScript" referent="24">
+      <Item class="ModuleScript" referent="25">
         <Properties>
           <string name="Name">Registry</string>
           <string name="Source"><![CDATA[--[[
@@ -3477,11 +3657,11 @@ return {} :: { [string]: any }
 ]]></string>
         </Properties>
       </Item>
-      <Item class="Folder" referent="25">
+      <Item class="Folder" referent="26">
         <Properties>
           <string name="Name">Services</string>
         </Properties>
-        <Item class="ModuleScript" referent="26">
+        <Item class="ModuleScript" referent="27">
           <Properties>
             <string name="Name">ActionService</string>
             <string name="Source"><![CDATA[--[[
@@ -3608,6 +3788,33 @@ local handlers: { [string]: (Player, ...any) -> any } = {
 		end
 		return Services.UpgradeService.Buy(player, upgradeId)
 	end,
+	RedeemCode = function(player, code)
+		if type(code) ~= "string" or #code > 64 then
+			return result(false, "Enter a code")
+		end
+		return Services.RewardService.RedeemCode(player, code)
+	end,
+	ClaimDaily = function(player)
+		return Services.RewardService.ClaimDaily(player)
+	end,
+	Spin = function(player)
+		return Services.RewardService.Spin(player)
+	end,
+	ClaimGroup = function(player)
+		return Services.RewardService.ClaimGroup(player)
+	end,
+	SaveSettings = function(player, settings)
+		local data = Services.DataService.Get(player)
+		if not data or type(settings) ~= "table" then
+			return result(false)
+		end
+		for _, key in { "sfx", "lowGraphics", "hideOthers" } do
+			if type(settings[key]) == "boolean" then
+				data.settings[key] = settings[key]
+			end
+		end
+		return result(true)
+	end,
 	Rebirth = function(player)
 		return Services.RebirthService.Rebirth(player)
 	end,
@@ -3643,7 +3850,7 @@ return ActionService
 ]]></string>
           </Properties>
         </Item>
-        <Item class="ModuleScript" referent="27">
+        <Item class="ModuleScript" referent="28">
           <Properties>
             <string name="Name">AdminService</string>
             <string name="Source"><![CDATA[--[[
@@ -3690,7 +3897,7 @@ end
 local commands: { [string]: (Player, { string }) -> string? } = {
 	cash = function(player, args)
 		local amount = tonumber(args[1]) or 1e6
-		Services.EconomyService.AddCash(player, amount)
+		Services.EconomyService.AddCash(player, amount, "Admin")
 		return "Added cash"
 	end,
 	rebirth = function(player)
@@ -3819,7 +4026,86 @@ return AdminService
 ]]></string>
           </Properties>
         </Item>
-        <Item class="ModuleScript" referent="28">
+        <Item class="ModuleScript" referent="29">
+          <Properties>
+            <string name="Name">AnalyticsService</string>
+            <string name="Source"><![CDATA[--[[
+	Roblox Analytics: the new-player funnel, economy sources/sinks and a few custom events,
+	so after launch the Creator Dashboard shows where players drop off.
+	Every call is wrapped in pcall; analytics must never break gameplay.
+]]
+
+local RobloxAnalytics = game:GetService("AnalyticsService")
+
+local Services = require(script.Parent.Parent.Registry)
+
+local AnalyticsService = {}
+
+-- Onboarding funnel steps, in order. Each is logged once per player (tracked in save data).
+AnalyticsService.Funnel = {
+	"Joined",
+	"FirstDive",
+	"FirstChestOpened",
+	"FirstCollect",
+	"FirstRoll",
+	"FirstUpgrade",
+	"FirstRebirth",
+}
+
+local function safe(fn: () -> ())
+	local ok, err = pcall(fn :: any)
+	if not ok then
+		-- analytics can be unavailable in Studio; ignore quietly
+		local _ = err
+	end
+end
+
+function AnalyticsService.Log(player: Player, eventName: string, label: string?)
+	safe(function()
+		local fields = if label then { CustomField01 = label } else nil;
+		(RobloxAnalytics :: any):LogCustomEvent(player, eventName, 1, fields)
+	end)
+end
+
+-- Logs a funnel step once per player, in order.
+function AnalyticsService.Step(player: Player, stepName: string)
+	local data = Services.DataService.Get(player)
+	if not data then
+		return
+	end
+	local step = table.find(AnalyticsService.Funnel, stepName)
+	if not step or data.funnel[stepName] then
+		return
+	end
+	data.funnel[stepName] = true
+	safe(function()
+		(RobloxAnalytics :: any):LogOnboardingFunnelStepEvent(player, step, stepName)
+	end)
+end
+
+-- Economy: `amount` of cash gained (source) or spent (sink) for `reason`.
+function AnalyticsService.Economy(player: Player, isSource: boolean, amount: number, reason: string)
+	local data = Services.DataService.Get(player)
+	if not data or amount <= 0 then
+		return
+	end
+	safe(function()
+		(RobloxAnalytics :: any):LogEconomyEvent(
+			player,
+			if isSource then Enum.AnalyticsEconomyFlowType.Source else Enum.AnalyticsEconomyFlowType.Sink,
+			"Cash",
+			math.floor(amount),
+			math.floor(data.cash),
+			reason
+		)
+	end)
+end
+
+return AnalyticsService
+]]></string>
+          </Properties>
+        </Item>
+        <Item class="ModuleScript" referent="30">
           <Properties>
             <string name="Name">AnnouncementService</string>
             <string name="Source"><![CDATA[--[[
@@ -3875,7 +4161,7 @@ return AnnouncementService
 ]]></string>
           </Properties>
         </Item>
-        <Item class="ModuleScript" referent="29">
+        <Item class="ModuleScript" referent="31">
           <Properties>
             <string name="Name">ChestService</string>
             <string name="Source"><![CDATA[--[[
@@ -3912,6 +4198,7 @@ local function openContent(player: Player, content: Content)
 	local data = Services.DataService.Get(player)
 	if data then
 		data.stats.chestsOpened += 1
+		Services.AnalyticsService.Step(player, "FirstChestOpened")
 	end
 	return Services.VaultService.AddTreasure(player, content.t, content.v)
 end
@@ -4000,7 +4287,7 @@ return ChestService
 ]]></string>
           </Properties>
         </Item>
-        <Item class="ModuleScript" referent="30">
+        <Item class="ModuleScript" referent="32">
           <Properties>
             <string name="Name">DataService</string>
             <string name="Source"><![CDATA[--[[
@@ -4038,10 +4325,32 @@ local releasing: { [number]: boolean } = {}
 local store: DataStore? = nil
 local shuttingDown = false
 
+DataService.CurrentVersion = 2
+
+-- Upgrades old saves step by step. Add a new step (and bump CurrentVersion) whenever the
+-- save format changes in a way reconcile() can't handle (renames, moved data, etc.).
+local MIGRATIONS: { [number]: (data: { [string]: any }) -> () } = {
+	-- v1 -> v2: launch update added codes, daily streak, spins, settings, group reward, funnel.
+	-- reconcile() fills the new tables; nothing to move.
+	[1] = function(_data) end,
+}
+
+function DataService.Migrate(data: { [string]: any })
+	local version = tonumber(data.version) or 1
+	while version < DataService.CurrentVersion do
+		local step = MIGRATIONS[version]
+		if step then
+			step(data)
+		end
+		version += 1
+	end
+	data.version = DataService.CurrentVersion
+end
+
 -- Fresh save for a brand new player. Keys are strings so it serialises cleanly.
 function DataService.Template(): { [string]: any }
 	return {
-		version = 1,
+		version = DataService.CurrentVersion,
 		cash = GameConfig.StartingCash,
 		totalEarned = 0,
 		rebirths = 0,
@@ -4058,7 +4367,13 @@ function DataService.Template(): { [string]: any }
 		starterPackClaimed = false,
 		receipts = {}, -- recent purchase ids, newest last
 		devPasses = {}, -- Studio-only pass overrides for testing
-		stats = { dives = 0, chestsOpened = 0, rolls = 0, collected = 0, krakenHits = 0 },
+		stats = { dives = 0, chestsOpened = 0, rolls = 0, collected = 0, krakenHits = 0, spins = 0 },
+		codes = {}, -- [CODE] = true once redeemed
+		daily = { lastDay = 0, streak = 0 },
+		spins = { lastFree = 0, extra = 0 },
+		settings = { sfx = true, lowGraphics = false, hideOthers = false },
+		groupClaimed = false,
+		funnel = {}, -- analytics onboarding steps already logged
 		lastOnline = 0,
 		lock = nil,
 	}
@@ -4158,6 +4473,7 @@ function DataService.Load(player: Player): boolean
 	end
 
 	local loaded = data or DataService.Template()
+	DataService.Migrate(loaded)
 	reconcile(loaded, DataService.Template())
 	profiles[player] = {
 		data = loaded,
@@ -4296,7 +4612,7 @@ return DataService
 ]]></string>
           </Properties>
         </Item>
-        <Item class="ModuleScript" referent="31">
+        <Item class="ModuleScript" referent="33">
           <Properties>
             <string name="Name">DiverService</string>
             <string name="Source"><![CDATA[--[[
@@ -4684,6 +5000,7 @@ local function surface(player: Player, record: Record)
 	local data = Services.DataService.Get(player)
 	if data then
 		data.stats.dives += 1
+		Services.AnalyticsService.Step(player, "FirstDive")
 		local contents = record.contents or {}
 		if #contents > 0 and record.chestId then
 			Services.ChestService.Grant(player, contents)
@@ -4840,7 +5157,7 @@ function DiverService.Sell(player: Player, uid: string): (boolean, string?)
 	end
 	local value = Formulas.diverSellValue(data.divers[uid])
 	data.divers[uid] = nil
-	Services.EconomyService.AddCash(player, value)
+	Services.EconomyService.AddCash(player, value, "SellDiver")
 	DiverService.Refresh(player)
 	return true
 end
@@ -4861,7 +5178,7 @@ function DiverService.SellUnplaced(player: Player, maxRank: number): (number, nu
 		end
 	end
 	if total > 0 then
-		Services.EconomyService.AddCash(player, total)
+		Services.EconomyService.AddCash(player, total, "SellDiver")
 	end
 	DiverService.Refresh(player)
 	return sold, total
@@ -4903,7 +5220,7 @@ return DiverService
 ]]></string>
           </Properties>
         </Item>
-        <Item class="ModuleScript" referent="32">
+        <Item class="ModuleScript" referent="34">
           <Properties>
             <string name="Name">EconomyService</string>
             <string name="Source"><![CDATA[--[[
@@ -4915,6 +5232,7 @@ local Formulas = require(Shared.Formulas)
 local Format = require(Shared.Util.Format)
 local GameConfig = require(Shared.Config.Game)
 local Zones = require(Shared.Config.Zones)
+local Rewards = require(Shared.Config.Rewards)
 
 local Services = require(script.Parent.Parent.Registry)
 
@@ -4958,23 +5276,28 @@ function EconomyService.RefreshDisplay(player: Player)
 	end
 end
 
-function EconomyService.AddCash(player: Player, amount: number)
+-- `reason` (optional) is logged to Roblox economy analytics; leave it nil for per-second income.
+function EconomyService.AddCash(player: Player, amount: number, reason: string?)
 	local data = Services.DataService.Get(player)
-	if not data or amount ~= amount or amount <= 0 then
+	if not data or amount ~= amount or amount <= 0 or amount == math.huge then
 		return
 	end
 	data.cash += amount
 	data.totalEarned += amount
 	refreshCashDisplay(player, data)
+	if reason then
+		Services.AnalyticsService.Economy(player, true, amount, reason)
+	end
 end
 
-function EconomyService.TrySpend(player: Player, amount: number): boolean
+function EconomyService.TrySpend(player: Player, amount: number, reason: string?): boolean
 	local data = Services.DataService.Get(player)
 	if not data or amount ~= amount or amount < 0 or data.cash < amount then
 		return false
 	end
 	data.cash -= amount
 	refreshCashDisplay(player, data)
+	Services.AnalyticsService.Economy(player, false, amount, reason or "Spend")
 	return true
 end
 
@@ -5007,6 +5330,9 @@ function EconomyService.RollLuck(player: Player): number
 	end
 	if Services.MarketService.HasPass(player, "LuckyDiver") then
 		luck *= 1.5
+	end
+	if player:GetAttribute("InGroup") then
+		luck *= 1 + Rewards.GroupLuckBonus
 	end
 	return luck
 end
@@ -5056,7 +5382,7 @@ return EconomyService
 ]]></string>
           </Properties>
         </Item>
-        <Item class="ModuleScript" referent="33">
+        <Item class="ModuleScript" referent="35">
           <Properties>
             <string name="Name">EventService</string>
             <string name="Source"><![CDATA[--[[
@@ -5236,7 +5562,7 @@ return EventService
 ]]></string>
           </Properties>
         </Item>
-        <Item class="ModuleScript" referent="34">
+        <Item class="ModuleScript" referent="36">
           <Properties>
             <string name="Name">KrakenService</string>
             <string name="Source"><![CDATA[--[[
@@ -5426,7 +5752,220 @@ return KrakenService
 ]]></string>
           </Properties>
         </Item>
-        <Item class="ModuleScript" referent="35">
+        <Item class="ModuleScript" referent="37">
+          <Properties>
+            <string name="Name">LeaderboardService</string>
+            <string name="Source"><![CDATA[--[[
+	Global leaderboards (all servers) for total cash earned and rebirths.
+	Scores are written to OrderedDataStores every few minutes and on leave; the top 10 are
+	read every minute, shown on boards in the world and published for the client UI.
+]]
+
+local DataStoreService = game:GetService("DataStoreService")
+local HttpService = game:GetService("HttpService")
+local Players = game:GetService("Players")
+local ReplicatedStorage = game:GetService("ReplicatedStorage")
+local Workspace = game:GetService("Workspace")
+
+local Shared = ReplicatedStorage.Shared
+local Format = require(Shared.Util.Format)
+
+local Server = script.Parent.Parent
+local Services = require(Server.Registry)
+local Layout = require(Server.Layout)
+
+local LeaderboardService = {}
+
+local BOARDS = {
+	{ id = "Earned", title = "💰 Top Earners", store = "RollADiver_TopEarned_v1", field = "totalEarned" },
+	{ id = "Rebirths", title = "♻ Top Rebirths", store = "RollADiver_TopRebirths_v1", field = "rebirths" },
+}
+local TOP_COUNT = 10
+local WRITE_INTERVAL = 180
+local READ_INTERVAL = 60
+local MAX_SCORE = 2 ^ 53
+
+type Entry = { name: string, value: number }
+
+local stores: { [string]: OrderedDataStore } = {}
+local tops: { [string]: { Entry } } = {}
+local lastWrite: { [Player]: number } = {}
+local nameCache: { [number]: string } = {}
+local boardLabels: { [string]: { TextLabel } } = {}
+
+local function scoreFor(data, field: string): number
+	return math.clamp(math.floor(data[field] or 0), 0, MAX_SCORE)
+end
+
+function LeaderboardService.Write(player: Player)
+	local data = Services.DataService.Get(player)
+	if not data or not Services.DataService.IsSaving(player) then
+		return
+	end
+	lastWrite[player] = os.clock()
+	for _, board in BOARDS do
+		local store = stores[board.id]
+		if store then
+			local score = scoreFor(data, board.field)
+			pcall(function()
+				store:SetAsync("u_" .. player.UserId, score)
+			end)
+		end
+	end
+end
+
+local function nameOf(userId: number): string
+	if nameCache[userId] then
+		return nameCache[userId]
+	end
+	local ok, name = pcall(function()
+		return Players:GetNameFromUserIdAsync(userId)
+	end)
+	local result = if ok and name then name else "Player"
+	nameCache[userId] = result
+	return result
+end
+
+local function publish()
+	local payload = {}
+	for _, board in BOARDS do
+		payload[board.id] = { title = board.title, entries = tops[board.id] or {} }
+	end
+	ReplicatedStorage:SetAttribute("Leaderboards", HttpService:JSONEncode(payload))
+	for _, board in BOARDS do
+		local labels = boardLabels[board.id]
+		local entries = tops[board.id] or {}
+		if labels then
+			for rank, label in labels do
+				local entry = entries[rank]
+				if entry then
+					local value = if board.id == "Earned" then Format.money(entry.value) else Format.number(entry.value)
+					label.Text = ("#%d  %s  %s"):format(rank, entry.name, value)
+				else
+					label.Text = ("#%d  ---"):format(rank)
+				end
+			end
+		end
+	end
+end
+
+local function read()
+	for _, board in BOARDS do
+		local store = stores[board.id]
+		if store then
+			local ok, pages = pcall(function()
+				return store:GetSortedAsync(false, TOP_COUNT)
+			end)
+			if ok and pages then
+				local entries = {}
+				for _, item in pages:GetCurrentPage() do
+					local userId = tonumber(string.sub(item.key, 3))
+					if userId then
+						table.insert(entries, { name = nameOf(userId), value = item.value })
+					end
+				end
+				tops[board.id] = entries
+			end
+		end
+	end
+	publish()
+end
+
+local function buildBoard(board: { id: string, title: string }, cframe: CFrame)
+	local part = Instance.new("Part")
+	part.Name = board.id .. "Leaderboard"
+	part.Anchored = true
+	part.Size = Vector3.new(26, 32, 1)
+	part.CFrame = cframe
+	part.Color = Color3.fromRGB(30, 45, 85)
+	part.Material = Enum.Material.SmoothPlastic
+	part.Parent = Workspace
+	local post = Instance.new("Part")
+	post.Name = "BoardPost"
+	post.Anchored = true
+	post.Size = Vector3.new(3, 60, 3)
+	post.CFrame = cframe * CFrame.new(0, -30, 1)
+	post.Color = Color3.fromRGB(115, 75, 45)
+	post.Material = Enum.Material.Wood
+	post.Parent = part
+	local gui = Instance.new("SurfaceGui")
+	gui.Face = Enum.NormalId.Front
+	gui.SizingMode = Enum.SurfaceGuiSizingMode.PixelsPerStud
+	gui.PixelsPerStud = 25
+	gui.Parent = part
+	local list = Instance.new("UIListLayout")
+	list.Padding = UDim.new(0, 4)
+	list.SortOrder = Enum.SortOrder.LayoutOrder
+	list.Parent = gui
+	local function label(text: string, order: number, height: number, color: Color3): TextLabel
+		local l = Instance.new("TextLabel")
+		l.BackgroundTransparency = 1
+		l.Size = UDim2.new(1, -20, 0, height)
+		l.Font = Enum.Font.FredokaOne
+		l.TextScaled = true
+		l.Text = text
+		l.TextColor3 = color
+		l.LayoutOrder = order
+		local stroke = Instance.new("UIStroke")
+		stroke.Thickness = 2
+		stroke.Parent = l
+		l.Parent = gui
+		return l
+	end
+	label(board.title, 0, 50, Color3.fromRGB(255, 220, 90))
+	local labels = {}
+	for rank = 1, TOP_COUNT do
+		labels[rank] = label(
+			("#%d  ---"):format(rank),
+			rank,
+			36,
+			if rank <= 3 then Color3.fromRGB(255, 240, 180) else Color3.new(1, 1, 1)
+		)
+	end
+	boardLabels[board.id] = labels
+end
+
+function LeaderboardService.Init()
+	for _, board in BOARDS do
+		local ok, store = pcall(function()
+			return DataStoreService:GetOrderedDataStore(board.store)
+		end)
+		if ok then
+			stores[board.id] = store
+		end
+	end
+	-- one board at each end of the channel, facing the docks
+	for index, board in BOARDS do
+		local side = if index == 1 then -1 else 1
+		local position = Vector3.new(side * 250, Layout.DeckTop + 22, 0)
+		buildBoard(board, CFrame.lookAt(position, Vector3.new(0, position.Y, 0)))
+	end
+	publish()
+end
+
+function LeaderboardService.Start()
+	task.spawn(function()
+		task.wait(5)
+		while true do
+			read()
+			for _, player in Players:GetPlayers() do
+				if os.clock() - (lastWrite[player] or 0) >= WRITE_INTERVAL then
+					task.spawn(LeaderboardService.Write, player)
+				end
+			end
+			task.wait(READ_INTERVAL)
+		end
+	end)
+	Players.PlayerRemoving:Connect(function(player)
+		lastWrite[player] = nil
+	end)
+end
+
+return LeaderboardService
+]]></string>
+          </Properties>
+        </Item>
+        <Item class="ModuleScript" referent="38">
           <Properties>
             <string name="Name">MarketService</string>
             <string name="Source"><![CDATA[--[[
@@ -5530,8 +6069,12 @@ local productHandlers: { [string]: (Player, { [string]: any }) -> () } = {
 			data.starterPackClaimed = true
 			Services.DiverService.AddDiver(player, "DeepSeaSuit")
 		end
-		Services.EconomyService.AddCash(player, 5000)
+		Services.EconomyService.AddCash(player, 5000, "Product")
 		Services.PlayerService.Notify(player, "Starter Pack claimed! Deep Sea Suit + $5,000", "Success")
+	end,
+	SpinPack = function(player, data)
+		data.spins.extra += 3
+		Services.PlayerService.Notify(player, "+3 wheel spins!", "Success")
 	end,
 	LuckPotion = function(player, data)
 		data.luckPotionEnds = math.max(data.luckPotionEnds, os.time()) + GameConfig.LuckPotionSeconds
@@ -5546,12 +6089,12 @@ local productHandlers: { [string]: (Player, { [string]: any }) -> () } = {
 	end,
 	CashSmall = function(player)
 		local amount = math.max(1000, currentIncome(player) * 600)
-		Services.EconomyService.AddCash(player, amount)
+		Services.EconomyService.AddCash(player, amount, "Product")
 		Services.PlayerService.Notify(player, "+" .. Format.money(amount), "Success")
 	end,
 	CashLarge = function(player)
 		local amount = math.max(20000, currentIncome(player) * 7200)
-		Services.EconomyService.AddCash(player, amount)
+		Services.EconomyService.AddCash(player, amount, "Product")
 		Services.PlayerService.Notify(player, "+" .. Format.money(amount), "Success")
 	end,
 }
@@ -5625,7 +6168,7 @@ return MarketService
 ]]></string>
           </Properties>
         </Item>
-        <Item class="ModuleScript" referent="36">
+        <Item class="ModuleScript" referent="39">
           <Properties>
             <string name="Name">PlayerService</string>
             <string name="Source"><![CDATA[--[[
@@ -5739,13 +6282,15 @@ local function onPlayerAdded(player: Player)
 				Services.MarketService.HasPass(player, "VIP")
 			)
 			if amount > 0 then
-				Services.EconomyService.AddCash(player, amount)
+				Services.EconomyService.AddCash(player, amount, "Offline")
 				Remotes.event("OfflineEarnings"):FireClient(player, away, amount)
 			end
 		end
 	end
 	data.lastOnline = os.time()
 
+	Services.RewardService.OnPlayerReady(player)
+	Services.AnalyticsService.Step(player, "Joined")
 	ready[player] = true
 	player:SetAttribute("Ready", true)
 	sync(player)
@@ -5760,6 +6305,7 @@ end
 
 local function beforeRelease(player: Player)
 	Services.VaultService.CollectAll(player)
+	pcall(Services.LeaderboardService.Write, player)
 	local data = Services.DataService.Get(player)
 	if data then
 		data.lastOnline = os.time()
@@ -5811,7 +6357,7 @@ return PlayerService
 ]]></string>
           </Properties>
         </Item>
-        <Item class="ModuleScript" referent="37">
+        <Item class="ModuleScript" referent="40">
           <Properties>
             <string name="Name">PlotService</string>
             <string name="Source"><![CDATA[--[[
@@ -6173,7 +6719,7 @@ return PlotService
 ]]></string>
           </Properties>
         </Item>
-        <Item class="ModuleScript" referent="38">
+        <Item class="ModuleScript" referent="41">
           <Properties>
             <string name="Name">RebirthService</string>
             <string name="Source"><![CDATA[--[[
@@ -6217,6 +6763,8 @@ function RebirthService.Rebirth(player: Player): { [string]: any }
 	data.chests = {}
 	data.cash = GameConfig.StartingCash
 	data.rebirths += 1
+	Services.AnalyticsService.Step(player, "FirstRebirth")
+	Services.AnalyticsService.Log(player, "Rebirth", tostring(data.rebirths))
 	Services.VaultService.ClearForRebirth(player)
 
 	if next(kept) == nil then
@@ -6249,7 +6797,192 @@ return RebirthService
 ]]></string>
           </Properties>
         </Item>
-        <Item class="ModuleScript" referent="39">
+        <Item class="ModuleScript" referent="42">
+          <Properties>
+            <string name="Name">RewardService</string>
+            <string name="Source"><![CDATA[--[[
+	Codes, daily login streak, spin wheel and the group reward.
+	All of them hand out rewards through RewardService.Grant.
+]]
+
+local Shared = game:GetService("ReplicatedStorage").Shared
+local Formulas = require(Shared.Formulas)
+local Format = require(Shared.Util.Format)
+local Rewards = require(Shared.Config.Rewards)
+
+local Services = require(script.Parent.Parent.Registry)
+
+local RewardService = {}
+
+local MAX_CODE_LENGTH = 32
+
+local random = Random.new()
+local function rand(): number
+	return random:NextNumber()
+end
+
+-- Gives a reward table and returns a short human description of it.
+function RewardService.Grant(player: Player, reward: Rewards.Reward): string
+	local data = Services.DataService.Get(player)
+	if not data then
+		return ""
+	end
+	local parts = {}
+	local cash = reward.cash or 0
+	if reward.incomeMinutes then
+		cash = math.max(cash, Services.VaultService.IncomePerSecond(player) * 60 * reward.incomeMinutes)
+	end
+	cash = math.floor(cash)
+	if cash > 0 then
+		Services.EconomyService.AddCash(player, cash, "Reward")
+		table.insert(parts, "+" .. Format.money(cash))
+	end
+	if reward.potionMinutes then
+		data.luckPotionEnds = math.max(data.luckPotionEnds, os.time()) + reward.potionMinutes * 60
+		table.insert(parts, ("x2 Luck %dm"):format(reward.potionMinutes))
+	end
+	if reward.spins then
+		data.spins.extra += reward.spins
+		table.insert(parts, ("+%d spins"):format(reward.spins))
+	end
+	if reward.chests then
+		local luck = Services.EconomyService.LuckMult(player) * 2
+		Services.ChestService.GrantFromZone(player, Services.EconomyService.ZoneCap(player), reward.chests, luck)
+		table.insert(parts, ("+%d chests"):format(reward.chests))
+	end
+	Services.DataService.MarkDirty(player)
+	return table.concat(parts, ", ")
+end
+
+-- Codes --------------------------------------------------------------------------------------
+
+function RewardService.RedeemCode(player: Player, rawCode: string): { [string]: any }
+	local data = Services.DataService.Get(player)
+	if not data then
+		return { ok = false, err = "Still loading" }
+	end
+	local code = string.upper((string.gsub(rawCode, "%s", "")))
+	if #code == 0 or #code > MAX_CODE_LENGTH then
+		return { ok = false, err = "Enter a code" }
+	end
+	local entry = Rewards.Codes[code]
+	if not entry then
+		return { ok = false, err = "That code doesn't exist" }
+	end
+	if entry.expires and os.time() > entry.expires then
+		return { ok = false, err = "That code has expired" }
+	end
+	if data.codes[code] then
+		return { ok = false, err = "You already used that code" }
+	end
+	if entry.minRebirths and data.rebirths < entry.minRebirths then
+		return { ok = false, err = ("Reach Rebirth %d to use this code"):format(entry.minRebirths) }
+	end
+	data.codes[code] = true
+	local text = RewardService.Grant(player, entry.reward)
+	Services.AnalyticsService.Log(player, "CodeRedeemed", code)
+	return { ok = true, text = text }
+end
+
+-- Daily streak -------------------------------------------------------------------------------
+
+function RewardService.DailyStatus(data: { [string]: any }): (boolean, number)
+	return Formulas.dailyStreak(data.daily.lastDay, data.daily.streak, Formulas.dayNumber(os.time()))
+end
+
+function RewardService.ClaimDaily(player: Player): { [string]: any }
+	local data = Services.DataService.Get(player)
+	if not data then
+		return { ok = false, err = "Still loading" }
+	end
+	local canClaim, streak = RewardService.DailyStatus(data)
+	if not canClaim then
+		return { ok = false, err = "Come back tomorrow for your next reward!" }
+	end
+	data.daily.lastDay = Formulas.dayNumber(os.time())
+	data.daily.streak = streak
+	local text = RewardService.Grant(player, Rewards.Daily[streak])
+	Services.AnalyticsService.Log(player, "DailyClaimed", "Day" .. streak)
+	return { ok = true, day = streak, text = text }
+end
+
+-- Spin wheel ---------------------------------------------------------------------------------
+
+function RewardService.Spin(player: Player): { [string]: any }
+	local data = Services.DataService.Get(player)
+	if not data then
+		return { ok = false, err = "Still loading" }
+	end
+	local now = os.time()
+	local free = Formulas.freeSpinWait(data.spins.lastFree, now) == 0
+	if free then
+		data.spins.lastFree = now
+	elseif data.spins.extra > 0 then
+		data.spins.extra -= 1
+	else
+		return {
+			ok = false,
+			err = "No spins left. Next free spin in "
+				.. Format.duration(Formulas.freeSpinWait(data.spins.lastFree, now)),
+		}
+	end
+	local index = Formulas.pickWheelSegment(rand)
+	local segment = Rewards.Wheel[index]
+	local text = RewardService.Grant(player, segment.reward)
+	data.stats.spins = (data.stats.spins or 0) + 1
+	Services.AnalyticsService.Log(player, "WheelSpin", segment.id)
+	if segment.id == "Jackpot" then
+		Services.AnnouncementService.Announce(
+			player.DisplayName .. " hit the JACKPOT on the wheel!",
+			Color3.fromRGB(255, 200, 50),
+			false
+		)
+	end
+	return { ok = true, index = index, text = text }
+end
+
+-- Group reward -------------------------------------------------------------------------------
+
+function RewardService.RefreshGroup(player: Player)
+	if Rewards.GroupId == 0 then
+		player:SetAttribute("InGroup", false)
+		return
+	end
+	local ok, inGroup = pcall(function()
+		return player:IsInGroup(Rewards.GroupId)
+	end)
+	player:SetAttribute("InGroup", ok and inGroup == true)
+end
+
+function RewardService.ClaimGroup(player: Player): { [string]: any }
+	local data = Services.DataService.Get(player)
+	if not data then
+		return { ok = false, err = "Still loading" }
+	end
+	if Rewards.GroupId == 0 then
+		return { ok = false, err = "Group rewards are coming soon" }
+	end
+	RewardService.RefreshGroup(player)
+	if not player:GetAttribute("InGroup") then
+		return { ok = false, err = "Join the group first, then press claim" }
+	end
+	if data.groupClaimed then
+		return { ok = true, text = "Group luck bonus active!" }
+	end
+	data.groupClaimed = true
+	local text = RewardService.Grant(player, Rewards.GroupJoinReward)
+	return { ok = true, text = text }
+end
+
+function RewardService.OnPlayerReady(player: Player)
+	RewardService.RefreshGroup(player)
+end
+
+return RewardService
+]]></string>
+          </Properties>
+        </Item>
+        <Item class="ModuleScript" referent="43">
           <Properties>
             <string name="Name">RollService</string>
             <string name="Source"><![CDATA[--[[
@@ -6285,13 +7018,14 @@ function RollService.Roll(player: Player, crateId: string): { [string]: any }
 	if Services.DiverService.DiverCount(data) >= GameConfig.MaxDivers then
 		return { ok = false, err = "Your diver inventory is full. Sell some divers first" }
 	end
-	if not Services.EconomyService.TrySpend(player, crate.price) then
+	if not Services.EconomyService.TrySpend(player, crate.price, "Roll:" .. crate.id) then
 		return { ok = false, err = "Not enough cash" }
 	end
 
 	local diverId = Formulas.rollCrate(crate.id, Services.EconomyService.RollLuck(player), rand)
 	local uid, isNew = Services.DiverService.AddDiver(player, diverId)
 	data.stats.rolls += 1
+	Services.AnalyticsService.Step(player, "FirstRoll")
 	Services.DataService.MarkDirty(player)
 
 	local diver = Divers.ById[diverId]
@@ -6323,7 +7057,7 @@ return RollService
 ]]></string>
           </Properties>
         </Item>
-        <Item class="ModuleScript" referent="40">
+        <Item class="ModuleScript" referent="44">
           <Properties>
             <string name="Name">UpgradeService</string>
             <string name="Source"><![CDATA[--[[
@@ -6348,10 +7082,11 @@ function UpgradeService.Buy(player: Player, upgradeId: string): { [string]: any 
 	if not cost then
 		return { ok = false, err = "Already maxed" }
 	end
-	if not Services.EconomyService.TrySpend(player, cost) then
+	if not Services.EconomyService.TrySpend(player, cost, "Upgrade:" .. upgradeId) then
 		return { ok = false, err = "Not enough cash" }
 	end
 	data.upgrades[upgradeId] = level + 1
+	Services.AnalyticsService.Step(player, "FirstUpgrade")
 	if upgradeId == "DiveSlots" then
 		Services.DiverService.Refresh(player)
 	elseif upgradeId == "Pedestals" then
@@ -6365,7 +7100,7 @@ return UpgradeService
 ]]></string>
           </Properties>
         </Item>
-        <Item class="ModuleScript" referent="41">
+        <Item class="ModuleScript" referent="45">
           <Properties>
             <string name="Name">VaultService</string>
             <string name="Source"><![CDATA[--[[
@@ -6569,6 +7304,7 @@ function VaultService.CollectPedestal(player: Player, index: number)
 	state.stored[index] = 0
 	Services.EconomyService.AddCash(player, amount)
 	data.stats.collected += amount
+	Services.AnalyticsService.Step(player, "FirstCollect")
 	local plot = Services.PlotService.Get(player)
 	if plot then
 		Remotes.event("CollectFx"):FireClient(player, plot.pedestals[index].pad.CFrame.Position, amount)
@@ -6662,7 +7398,7 @@ function VaultService.AddTreasure(player: Player, treasureId: string, conditionI
 
 	if treasureCount(data) >= GameConfig.MaxTreasures then
 		result.autoSold = true
-		Services.EconomyService.AddCash(player, result.sellValue)
+		Services.EconomyService.AddCash(player, result.sellValue, "SellTreasure")
 		Services.PlayerService.Notify(
 			player,
 			"Treasure storage full: sold " .. treasure.name .. " for " .. Format.money(result.sellValue),
@@ -6763,7 +7499,7 @@ function VaultService.Sell(player: Player, uid: string): (boolean, string?)
 		data.pedestals[tostring(index)] = nil
 	end
 	data.treasures[uid] = nil
-	Services.EconomyService.AddCash(player, Formulas.treasureSellValue(item.id, item.c))
+	Services.EconomyService.AddCash(player, Formulas.treasureSellValue(item.id, item.c), "SellTreasure")
 	VaultService.Refresh(player)
 	return true
 end
@@ -6783,7 +7519,7 @@ function VaultService.SellUnplaced(player: Player): (number, number)
 		end
 	end
 	if total > 0 then
-		Services.EconomyService.AddCash(player, total)
+		Services.EconomyService.AddCash(player, total, "SellTreasure")
 	end
 	VaultService.Refresh(player)
 	return sold, total
@@ -6841,7 +7577,7 @@ return VaultService
 ]]></string>
           </Properties>
         </Item>
-        <Item class="ModuleScript" referent="42">
+        <Item class="ModuleScript" referent="46">
           <Properties>
             <string name="Name">WorldBuilder</string>
             <string name="Source"><![CDATA[--[[
@@ -7058,23 +7794,23 @@ return WorldBuilder
       </Item>
     </Item>
   </Item>
-  <Item class="StarterPlayer" referent="43">
+  <Item class="StarterPlayer" referent="47">
     <Properties>
       <string name="Name">StarterPlayer</string>
     </Properties>
-    <Item class="StarterPlayerScripts" referent="44">
+    <Item class="StarterPlayerScripts" referent="48">
       <Properties>
         <string name="Name">StarterPlayerScripts</string>
       </Properties>
-      <Item class="Folder" referent="45">
+      <Item class="Folder" referent="49">
         <Properties>
           <string name="Name">Client</string>
         </Properties>
-        <Item class="Folder" referent="46">
+        <Item class="Folder" referent="50">
           <Properties>
             <string name="Name">Controllers</string>
           </Properties>
-          <Item class="ModuleScript" referent="47">
+          <Item class="ModuleScript" referent="51">
             <Properties>
               <string name="Name">ChatTags</string>
               <string name="Source"><![CDATA[--[[
@@ -7106,7 +7842,7 @@ return ChatTags
 ]]></string>
             </Properties>
           </Item>
-          <Item class="ModuleScript" referent="48">
+          <Item class="ModuleScript" referent="52">
             <Properties>
               <string name="Name">DiverAnimator</string>
               <string name="Source"><![CDATA[--[[
@@ -7123,8 +7859,12 @@ local CollectionService = game:GetService("CollectionService")
 local RunService = game:GetService("RunService")
 local Workspace = game:GetService("Workspace")
 
+local Players = game:GetService("Players")
+
 local Shared = game:GetService("ReplicatedStorage").Shared
 local Format = require(Shared.Util.Format)
+
+local Settings = require(script.Parent.Parent.Settings)
 
 local DiverAnimator = {}
 
@@ -7177,13 +7917,13 @@ local function setLights(model: Model, underwater: boolean, glowColor: Color3?, 
 		end
 		local bubbles = head:FindFirstChild("Bubbles") :: ParticleEmitter?
 		if bubbles then
-			bubbles.Enabled = underwater
+			bubbles.Enabled = underwater and not Settings.is("lowGraphics")
 		end
 	end
 	if root then
 		local glow = root:FindFirstChild("Glow") :: PointLight?
 		if glow then
-			glow.Enabled = glowColor ~= nil and glowStrength > 0
+			glow.Enabled = glowColor ~= nil and glowStrength > 0 and not Settings.is("lowGraphics")
 			if glowColor then
 				glow.Color = glowColor
 				glow.Brightness = 1 + glowStrength * 6
@@ -7284,6 +8024,26 @@ local function update(entry: Tracked, now: number)
 	setLights(model, position.Y < -1, if typeof(glowColor) == "Color3" then glowColor else nil, glowStrength)
 end
 
+local function isMine(model: Model): boolean
+	local player = Players.LocalPlayer
+	return player ~= nil and model:GetAttribute("OwnerId") == player.UserId
+end
+
+-- "Hide other docks": other players' divers are made invisible locally and not animated.
+local function setHidden(model: Model, hidden: boolean)
+	for _, descendant in model:GetDescendants() do
+		if descendant:IsA("BasePart") then
+			descendant.LocalTransparencyModifier = if hidden then 1 else 0
+		elseif descendant:IsA("BillboardGui") then
+			descendant.Enabled = not hidden
+		end
+	end
+end
+
+local function shouldHide(model: Model): boolean
+	return Settings.is("hideOthers") and not isMine(model)
+end
+
 local function track(model: Instance)
 	if model:IsA("Model") then
 		tracked[model] = {
@@ -7300,6 +8060,11 @@ local function track(model: Instance)
 end
 
 function DiverAnimator.start()
+	Settings.Changed:Connect(function()
+		for model in tracked do
+			setHidden(model, shouldHide(model))
+		end
+	end)
 	for _, model in CollectionService:GetTagged("Diver") do
 		track(model)
 	end
@@ -7321,7 +8086,11 @@ function DiverAnimator.start()
 			-- far away divers update less often
 			local home = model:GetAttribute("Home")
 			local far = typeof(home) == "CFrame" and (home.Position - cameraPosition).Magnitude > FAR_DISTANCE
-			if not far or entry.frame % 10 == 0 then
+			if shouldHide(model) then
+				if entry.frame % 30 == 0 then
+					setHidden(model, true)
+				end
+			elseif not far or entry.frame % 10 == 0 then
 				update(entry, now)
 			end
 		end
@@ -7332,7 +8101,7 @@ return DiverAnimator
 ]]></string>
             </Properties>
           </Item>
-          <Item class="ModuleScript" referent="49">
+          <Item class="ModuleScript" referent="53">
             <Properties>
               <string name="Name">WorldFx</string>
               <string name="Source"><![CDATA[--[[
@@ -7353,6 +8122,7 @@ local Remotes = require(Shared.Remotes)
 local Zones = require(Shared.Config.Zones)
 
 local Sounds = require(script.Parent.Parent.Sounds)
+local Settings = require(script.Parent.Parent.Settings)
 
 local WorldFx = {}
 
@@ -7414,6 +8184,9 @@ local function chestPop(diver: Instance?, chestId: string, count: number, glow: 
 	if camera and (camera.CFrame.Position - home.Position).Magnitude > 200 then
 		return
 	end
+	if Settings.is("lowGraphics") then
+		return
+	end
 	local chest = Zones.ChestById[chestId]
 	if not chest then
 		return
@@ -7433,8 +8206,20 @@ local function chestPop(diver: Instance?, chestId: string, count: number, glow: 
 	floatingText(start.Position, text, glow or chest.glow)
 end
 
+local function applyEffects(model: Model)
+	local on = not Settings.is("lowGraphics")
+	for _, descendant in model:GetDescendants() do
+		if descendant:IsA("ParticleEmitter") then
+			descendant.Enabled = on
+		elseif descendant:IsA("PointLight") then
+			descendant.Enabled = on
+		end
+	end
+end
+
 local function addSpinner(model: Instance)
 	if model:IsA("Model") then
+		applyEffects(model)
 		spinners[model] = {
 			model = model,
 			base = model:GetPivot(),
@@ -7451,6 +8236,11 @@ local function addTentacle(model: Instance)
 end
 
 function WorldFx.start()
+	Settings.Changed:Connect(function()
+		for model in spinners do
+			applyEffects(model)
+		end
+	end)
 	for _, model in CollectionService:GetTagged("SpinTreasure") do
 		addSpinner(model)
 	end
@@ -7514,7 +8304,7 @@ return WorldFx
             </Properties>
           </Item>
         </Item>
-        <Item class="LocalScript" referent="50">
+        <Item class="LocalScript" referent="54">
           <Properties>
             <string name="Name">Main</string>
             <string name="Source"><![CDATA[--[[
@@ -7542,7 +8332,7 @@ end
 ]]></string>
           </Properties>
         </Item>
-        <Item class="ModuleScript" referent="51">
+        <Item class="ModuleScript" referent="55">
           <Properties>
             <string name="Name">Net</string>
             <string name="Source"><![CDATA[--[[
@@ -7577,7 +8367,55 @@ return Net
 ]]></string>
           </Properties>
         </Item>
-        <Item class="ModuleScript" referent="52">
+        <Item class="ModuleScript" referent="56">
+          <Properties>
+            <string name="Name">Settings</string>
+            <string name="Source"><![CDATA[--[[
+	Client settings (sound, low graphics, hide other docks). Loaded from save data on the
+	first sync, changed from the Settings panel, read by the sound and effects code.
+]]
+
+local Shared = game:GetService("ReplicatedStorage").Shared
+local Signal = require(Shared.Util.Signal)
+
+local Settings = {}
+
+Settings.Changed = Signal.new()
+
+local current = { sfx = true, lowGraphics = false, hideOthers = false }
+local loaded = false
+
+function Settings.get(): { [string]: boolean }
+	return table.clone(current)
+end
+
+function Settings.is(key: string): boolean
+	return current[key] == true
+end
+
+function Settings.apply(values: { [string]: any })
+	for key in current do
+		if type(values[key]) == "boolean" then
+			current[key] = values[key]
+		end
+	end
+	Settings.Changed:Fire(Settings.get())
+end
+
+-- Called with every state sync; only the first one loads the saved settings.
+function Settings.load(data: { [string]: any }?)
+	if loaded or not data or type(data.settings) ~= "table" then
+		return
+	end
+	loaded = true
+	Settings.apply(data.settings)
+end
+
+return Settings
+]]></string>
+          </Properties>
+        </Item>
+        <Item class="ModuleScript" referent="57">
           <Properties>
             <string name="Name">Sounds</string>
             <string name="Source"><![CDATA[--[[
@@ -7586,6 +8424,8 @@ return Net
 ]]
 
 local SoundService = game:GetService("SoundService")
+
+local Settings = require(script.Parent.Settings)
 
 local Sounds = {}
 
@@ -7599,7 +8439,7 @@ local cache: { [string]: Sound } = {}
 
 function Sounds.play(name: string, volume: number?, pitch: number?)
 	local id = IDS[name]
-	if not id then
+	if not id or not Settings.is("sfx") then
 		return
 	end
 	local sound: Sound = cache[name] or Instance.new("Sound")
@@ -7617,7 +8457,7 @@ return Sounds
 ]]></string>
           </Properties>
         </Item>
-        <Item class="ModuleScript" referent="53">
+        <Item class="ModuleScript" referent="58">
           <Properties>
             <string name="Name">State</string>
             <string name="Source"><![CDATA[--[[
@@ -7688,11 +8528,11 @@ return State
 ]]></string>
           </Properties>
         </Item>
-        <Item class="Folder" referent="54">
+        <Item class="Folder" referent="59">
           <Properties>
             <string name="Name">UI</string>
           </Properties>
-          <Item class="ModuleScript" referent="55">
+          <Item class="ModuleScript" referent="60">
             <Properties>
               <string name="Name">App</string>
               <string name="Source"><![CDATA[--[[
@@ -7719,6 +8559,7 @@ local Client = script.Parent.Parent
 local State = require(Client.State)
 local Net = require(Client.Net)
 local Sounds = require(Client.Sounds)
+local Settings = require(Client.Settings)
 
 local App = {}
 
@@ -7739,8 +8580,13 @@ local MENU = {
 	{ id = "Index", icon = "📖", label = "Index", color = Theme.Gold },
 	{ id = "Upgrades", icon = "⬆", label = "Upgrade", color = Theme.Green },
 	{ id = "Rebirth", icon = "♻", label = "Rebirth", color = Color3.fromRGB(255, 170, 40) },
+	{ id = "Rewards", icon = "🎁", label = "Rewards", color = Color3.fromRGB(230, 90, 200) },
+	{ id = "Top", icon = "🏆", label = "Top", color = Color3.fromRGB(220, 170, 40) },
 	{ id = "Shop", icon = "🛒", label = "Shop", color = Theme.Red },
 }
+
+-- Panels opened from somewhere other than the side menu.
+local EXTRA_PANELS = { "Settings" }
 
 local panels: { [string]: PanelModule } = {}
 local panelContent: { [string]: Frame } = {}
@@ -7846,7 +8692,15 @@ local function buildWindow(root: Frame)
 		OnClick = App.close,
 	})
 
+	local ids = {}
 	for _, entry in MENU do
+		table.insert(ids, entry.id)
+	end
+	for _, id in EXTRA_PANELS do
+		table.insert(ids, id)
+	end
+	for _, id in ids do
+		local entry = { id = id }
 		local module = (require :: any)(Panels:WaitForChild(entry.id)) :: PanelModule
 		panels[entry.id] = module
 		local content = Kit.new("Frame", {
@@ -7869,7 +8723,7 @@ local function buildMenu(root: Frame)
 		Name = "Menu",
 		AnchorPoint = Vector2.new(0, 0.5),
 		Position = UDim2.new(0, 10, 0.52, 0),
-		Size = UDim2.fromOffset(160, 400),
+		Size = UDim2.fromOffset(160, 420),
 		BackgroundTransparency = 1,
 		Parent = root,
 	})
@@ -8127,6 +8981,10 @@ local function updateHud()
 	badges.Chests.Text = if chests > 99 then "99+" else tostring(chests)
 	local canRebirth = State.cash() >= Formulas.rebirthCost(data.rebirths)
 	badges.Rebirth.Visible = canRebirth
+	local rewards = panels.Rewards :: any
+	badges.Rewards.Visible = rewards.hasClaimable()
+	badges.Rewards.Text = "!"
+	Settings.load(data)
 
 	local text = tutorialText(data)
 	tutorialFrame.Visible = text ~= nil
@@ -8180,6 +9038,18 @@ function App.start()
 	buildMenu(root)
 	buildWindow(root)
 	buildQuickShop(root)
+	-- settings gear (top right)
+	Kit.button({
+		Text = "⚙",
+		Color = Theme.Grey,
+		AnchorPoint = Vector2.new(1, 0),
+		Position = UDim2.new(1, -10, 0, 10),
+		Size = UDim2.fromOffset(52, 52),
+		Parent = root,
+		OnClick = function()
+			App.open("Settings")
+		end,
+	})
 
 	Net.onError = function(message)
 		Notifications.toast(message, "Error")
@@ -8200,7 +9070,15 @@ function App.start()
 
 	-- refresh the open panel when data changes (throttled)
 	local pending = false
+	local remindedDaily = false
 	State.Changed:Connect(function()
+		if not remindedDaily and State.data() then
+			remindedDaily = true
+			local rewards = panels.Rewards :: any
+			if rewards.hasClaimable() then
+				task.delay(3, Notifications.toast, "🎁 Your daily reward is ready! Tap Rewards", "New")
+			end
+		end
 		updateHud()
 		if openPanel and not pending then
 			pending = true
@@ -8231,7 +9109,7 @@ return App
 ]]></string>
             </Properties>
           </Item>
-          <Item class="ModuleScript" referent="56">
+          <Item class="ModuleScript" referent="61">
             <Properties>
               <string name="Name">Kit</string>
               <string name="Source"><![CDATA[--[[
@@ -8478,7 +9356,7 @@ return Kit
 ]]></string>
             </Properties>
           </Item>
-          <Item class="ModuleScript" referent="57">
+          <Item class="ModuleScript" referent="62">
             <Properties>
               <string name="Name">Notifications</string>
               <string name="Source"><![CDATA[--[[
@@ -8630,11 +9508,11 @@ return Notifications
 ]]></string>
             </Properties>
           </Item>
-          <Item class="Folder" referent="58">
+          <Item class="Folder" referent="63">
             <Properties>
               <string name="Name">Panels</string>
             </Properties>
-            <Item class="ModuleScript" referent="59">
+            <Item class="ModuleScript" referent="64">
               <Properties>
                 <string name="Name">Chests</string>
                 <string name="Source"><![CDATA[--[[
@@ -8815,7 +9693,7 @@ return Panel
 ]]></string>
               </Properties>
             </Item>
-            <Item class="ModuleScript" referent="60">
+            <Item class="ModuleScript" referent="65">
               <Properties>
                 <string name="Name">Divers</string>
                 <string name="Source"><![CDATA[--[[
@@ -9042,7 +9920,7 @@ return Panel
 ]]></string>
               </Properties>
             </Item>
-            <Item class="ModuleScript" referent="61">
+            <Item class="ModuleScript" referent="66">
               <Properties>
                 <string name="Name">Index</string>
                 <string name="Source"><![CDATA[--[[
@@ -9271,7 +10149,7 @@ return Panel
 ]]></string>
               </Properties>
             </Item>
-            <Item class="ModuleScript" referent="62">
+            <Item class="ModuleScript" referent="67">
               <Properties>
                 <string name="Name">Rebirth</string>
                 <string name="Source"><![CDATA[--[[
@@ -9425,7 +10303,345 @@ return Panel
 ]]></string>
               </Properties>
             </Item>
-            <Item class="ModuleScript" referent="63">
+            <Item class="ModuleScript" referent="68">
+              <Properties>
+                <string name="Name">Rewards</string>
+                <string name="Source"><![CDATA[--[[
+	Rewards panel: 7-day login calendar, spin wheel, code redemption and the group reward.
+]]
+
+local RunService = game:GetService("RunService")
+
+local Shared = game:GetService("ReplicatedStorage").Shared
+local Formulas = require(Shared.Formulas)
+local Format = require(Shared.Util.Format)
+local Rewards = require(Shared.Config.Rewards)
+
+local UI = script.Parent.Parent
+local Kit = require(UI.Kit)
+local Theme = require(UI.Theme)
+local Notifications = require(UI.Notifications)
+local Client = UI.Parent
+local State = require(Client.State)
+local Net = require(Client.Net)
+local Sounds = require(Client.Sounds)
+
+local Panel = {
+	title = "🎁 Rewards",
+	color = Theme.Purple,
+}
+
+local dayCells: { Frame } = {}
+local claimButton: TextButton
+local spinButton: TextButton
+local spinInfo: TextLabel
+local wheel: Frame
+local codeBox: TextBox
+local groupButton: TextButton
+local spinning = false
+
+local function describe(reward: Rewards.Reward): string
+	local parts = {}
+	if reward.cash then
+		table.insert(parts, Format.money(reward.cash))
+	end
+	if reward.incomeMinutes then
+		table.insert(parts, reward.incomeMinutes .. "m cash")
+	end
+	if reward.chests then
+		table.insert(parts, reward.chests .. " chests")
+	end
+	if reward.spins then
+		table.insert(parts, reward.spins .. " spins")
+	end
+	if reward.potionMinutes then
+		table.insert(parts, "Luck " .. reward.potionMinutes .. "m")
+	end
+	return table.concat(parts, "\n")
+end
+
+local function section(parent: Instance, title: string, position: UDim2, size: UDim2): Frame
+	local frame = Kit.new("Frame", {
+		Position = position,
+		Size = size,
+		BackgroundColor3 = Theme.CardDark,
+		Parent = parent,
+	}, { Kit.corner(12), Kit.stroke(2) })
+	Kit.text({
+		Text = title,
+		Position = UDim2.fromOffset(10, 6),
+		Size = UDim2.new(1, -20, 0, 26),
+		TextXAlignment = Enum.TextXAlignment.Left,
+		TextColor3 = Theme.Gold,
+		MaxTextSize = 24,
+		Parent = frame,
+	})
+	return frame
+end
+
+local function spinTo(index: number)
+	-- the pointer is at the top; rotate so the chosen segment ends under it
+	local count = #Rewards.Wheel
+	local slice = 360 / count
+	local target = 360 * 5 + (360 - (index - 1) * slice)
+	local start = wheel.Rotation % 360
+	local started = os.clock()
+	local duration = 3
+	while os.clock() - started < duration do
+		local t = (os.clock() - started) / duration
+		local eased = 1 - (1 - t) ^ 3
+		wheel.Rotation = start + (target - start) * eased
+		RunService.RenderStepped:Wait()
+	end
+	wheel.Rotation = target % 360
+end
+
+local function doSpin()
+	if spinning then
+		return
+	end
+	spinning = true
+	local response = Net.try("Spin")
+	if response.ok then
+		spinTo(response.index)
+		Sounds.play("Reveal", 0.6, 1.1)
+		local segment = Rewards.Wheel[response.index]
+		Notifications.toast("Wheel: " .. segment.label .. "! " .. (response.text or ""), "Success")
+	end
+	spinning = false
+	Panel.refresh()
+end
+
+function Panel.build(content: Frame)
+	-- daily calendar
+	local daily = section(content, "📅 Daily Rewards", UDim2.fromScale(0, 0), UDim2.new(1, 0, 0.36, -6))
+	local row = Kit.new("Frame", {
+		Position = UDim2.fromOffset(10, 36),
+		Size = UDim2.new(1, -170, 1, -44),
+		BackgroundTransparency = 1,
+		Parent = daily,
+	})
+	Kit.new("UIListLayout", {
+		FillDirection = Enum.FillDirection.Horizontal,
+		Padding = UDim.new(0, 6),
+		SortOrder = Enum.SortOrder.LayoutOrder,
+		Parent = row,
+	})
+	for day, reward in Rewards.Daily do
+		local cell = Kit.new("Frame", {
+			Size = UDim2.new(1 / #Rewards.Daily, -6, 1, 0),
+			BackgroundColor3 = Theme.Card,
+			LayoutOrder = day,
+			Parent = row,
+		}, { Kit.corner(10), Kit.stroke(2) })
+		Kit.text({
+			Name = "Day",
+			Text = "Day " .. day,
+			Position = UDim2.fromScale(0.05, 0.02),
+			Size = UDim2.fromScale(0.9, 0.24),
+			MaxTextSize = 18,
+			Parent = cell,
+		})
+		Kit.text({
+			Text = describe(reward),
+			Position = UDim2.fromScale(0.05, 0.3),
+			Size = UDim2.fromScale(0.9, 0.66),
+			TextColor3 = Theme.SubText,
+			TextWrapped = true,
+			MaxTextSize = 14,
+			Parent = cell,
+		})
+		dayCells[day] = cell
+	end
+	claimButton = Kit.button({
+		Text = "CLAIM",
+		Color = Theme.Green,
+		AnchorPoint = Vector2.new(1, 0.5),
+		Position = UDim2.new(1, -10, 0.58, 0),
+		Size = UDim2.fromOffset(140, 56),
+		Parent = daily,
+		OnClick = function()
+			local response = Net.try("ClaimDaily")
+			if response.ok then
+				Sounds.play("Coin", 0.6)
+				Notifications.toast(("Day %d reward: %s"):format(response.day, response.text or ""), "Success")
+			end
+			Panel.refresh()
+		end,
+	})
+
+	-- spin wheel
+	local spin = section(content, "🎡 Spin Wheel", UDim2.fromScale(0, 0.36), UDim2.new(0.55, -6, 0.64, 0))
+	local wheelHolder = Kit.new("Frame", {
+		AnchorPoint = Vector2.new(0, 0.5),
+		Position = UDim2.new(0, 14, 0.56, 0),
+		Size = UDim2.fromScale(0.5, 0.78),
+		BackgroundTransparency = 1,
+		Parent = spin,
+	})
+	Kit.new("UIAspectRatioConstraint", { AspectRatio = 1, Parent = wheelHolder })
+	wheel = Kit.new("Frame", {
+		Size = UDim2.fromScale(1, 1),
+		BackgroundColor3 = Theme.Panel,
+		Parent = wheelHolder,
+	}, { Kit.corner(999), Kit.stroke(4, Theme.Gold) })
+	local count = #Rewards.Wheel
+	for index, segment in Rewards.Wheel do
+		local angle = math.rad((index - 1) * 360 / count)
+		local x, y = 0.5 + math.sin(angle) * 0.33, 0.5 - math.cos(angle) * 0.33
+		local label = Kit.text({
+			Text = segment.label,
+			AnchorPoint = Vector2.new(0.5, 0.5),
+			Position = UDim2.fromScale(x, y),
+			Size = UDim2.fromScale(0.34, 0.16),
+			Rotation = (index - 1) * 360 / count,
+			BackgroundTransparency = 0,
+			BackgroundColor3 = segment.color,
+			MaxTextSize = 16,
+			Parent = wheel,
+		})
+		Kit.corner(8).Parent = label
+	end
+	Kit.text({
+		Text = "▼",
+		AnchorPoint = Vector2.new(0.5, 1),
+		Position = UDim2.fromScale(0.5, 0.06),
+		Size = UDim2.fromScale(0.16, 0.14),
+		TextColor3 = Theme.Red,
+		MaxTextSize = 34,
+		ZIndex = 3,
+		Parent = wheelHolder,
+	})
+	spinButton = Kit.button({
+		Text = "SPIN",
+		Color = Theme.Orange,
+		AnchorPoint = Vector2.new(1, 0),
+		Position = UDim2.new(1, -12, 0.3, 0),
+		Size = UDim2.new(0.42, 0, 0, 56),
+		Parent = spin,
+		OnClick = function()
+			task.spawn(doSpin)
+		end,
+	})
+	spinInfo = Kit.text({
+		Text = "",
+		AnchorPoint = Vector2.new(1, 0),
+		Position = UDim2.new(1, -12, 0.3, 64),
+		Size = UDim2.new(0.42, 0, 0, 44),
+		TextColor3 = Theme.SubText,
+		TextWrapped = true,
+		MaxTextSize = 18,
+		Parent = spin,
+	})
+
+	-- codes
+	local codes = section(content, "🔑 Codes", UDim2.new(0.55, 6, 0.36, 0), UDim2.new(0.45, -6, 0.3, -6))
+	codeBox = Kit.new("TextBox", {
+		Position = UDim2.new(0, 10, 0, 40),
+		Size = UDim2.new(0.62, -10, 0, 42),
+		BackgroundColor3 = Theme.Panel,
+		PlaceholderText = "Enter code",
+		PlaceholderColor3 = Theme.SubText,
+		Text = "",
+		TextColor3 = Theme.Text,
+		Font = Theme.Font,
+		TextScaled = true,
+		ClearTextOnFocus = false,
+		Parent = codes,
+	}, { Kit.corner(8), Kit.stroke(2), Kit.new("UITextSizeConstraint", { MaxTextSize = 24 }) })
+	Kit.button({
+		Text = "REDEEM",
+		Color = Theme.Green,
+		AnchorPoint = Vector2.new(1, 0),
+		Position = UDim2.new(1, -10, 0, 40),
+		Size = UDim2.new(0.38, -10, 0, 42),
+		Parent = codes,
+		OnClick = function()
+			local response = Net.try("RedeemCode", codeBox.Text)
+			if response.ok then
+				Sounds.play("Coin", 0.6)
+				Notifications.toast("Code redeemed! " .. (response.text or ""), "Success")
+				codeBox.Text = ""
+			end
+		end,
+	})
+
+	-- group
+	local group = section(content, "👥 Group Bonus", UDim2.new(0.55, 6, 0.66, 0), UDim2.new(0.45, -6, 0.34, 0))
+	Kit.text({
+		Text = ("Join our group for +%d%% luck forever!"):format(math.floor(Rewards.GroupLuckBonus * 100)),
+		Position = UDim2.fromOffset(10, 36),
+		Size = UDim2.new(1, -20, 0, 26),
+		TextColor3 = Theme.SubText,
+		MaxTextSize = 18,
+		Parent = group,
+	})
+	groupButton = Kit.button({
+		Text = "CLAIM",
+		Color = Theme.Blue,
+		Position = UDim2.new(0, 10, 0, 70),
+		Size = UDim2.new(1, -20, 0, 42),
+		Parent = group,
+		OnClick = function()
+			local response = Net.try("ClaimGroup")
+			if response.ok then
+				Notifications.toast(response.text or "Group bonus active!", "Success")
+			end
+			Panel.refresh()
+		end,
+	})
+end
+
+function Panel.refresh()
+	local data = State.data()
+	if not data then
+		return
+	end
+	local today = Formulas.dayNumber(State.osTime())
+	local canClaim, nextStreak = Formulas.dailyStreak(data.daily.lastDay, data.daily.streak, today)
+	local current = if canClaim then nextStreak else data.daily.streak
+	for day, cell in dayCells do
+		local claimed = if canClaim then day < nextStreak else day <= current
+		cell.BackgroundColor3 = if day == current and canClaim
+			then Theme.Gold
+			elseif claimed then Theme.Green
+			else Theme.Card
+	end
+	Kit.setButton(claimButton, if canClaim then "CLAIM" else "Tomorrow!", if canClaim then Theme.Green else Theme.Grey)
+
+	local wait = Formulas.freeSpinWait(data.spins.lastFree, State.osTime())
+	local total = data.spins.extra + (if wait == 0 then 1 else 0)
+	spinInfo.Text = if wait == 0
+		then ("Free spin ready! (+%d extra)"):format(data.spins.extra)
+		else ("%d spins • free in %s"):format(data.spins.extra, Format.duration(wait))
+	Kit.setButton(spinButton, if total > 0 then "SPIN" else "No spins", if total > 0 then Theme.Orange else Theme.Grey)
+
+	if Rewards.GroupId == 0 then
+		Kit.setButton(groupButton, "Coming soon", Theme.Grey)
+	elseif data.groupClaimed then
+		Kit.setButton(groupButton, "Bonus active ✓", Theme.Green)
+	else
+		Kit.setButton(groupButton, "CLAIM", Theme.Blue)
+	end
+end
+
+-- Whether something on this panel is ready to claim (for the menu badge).
+function Panel.hasClaimable(): boolean
+	local data = State.data()
+	if not data then
+		return false
+	end
+	local canClaim = Formulas.dailyStreak(data.daily.lastDay, data.daily.streak, Formulas.dayNumber(State.osTime()))
+	return canClaim or Formulas.freeSpinWait(data.spins.lastFree, State.osTime()) == 0 or data.spins.extra > 0
+end
+
+function Panel.onClose() end
+
+return Panel
+]]></string>
+              </Properties>
+            </Item>
+            <Item class="ModuleScript" referent="69">
               <Properties>
                 <string name="Name">Roll</string>
                 <string name="Source"><![CDATA[--[[
@@ -9649,7 +10865,93 @@ return Panel
 ]]></string>
               </Properties>
             </Item>
-            <Item class="ModuleScript" referent="64">
+            <Item class="ModuleScript" referent="70">
+              <Properties>
+                <string name="Name">Settings</string>
+                <string name="Source"><![CDATA[--[[
+	Settings panel: sound effects, low graphics and hiding other players' divers.
+	Saved on the server so they follow the player between sessions.
+]]
+
+local UI = script.Parent.Parent
+local Kit = require(UI.Kit)
+local Theme = require(UI.Theme)
+local Client = UI.Parent
+local State = require(Client.State)
+local Net = require(Client.Net)
+local Settings = require(Client.Settings)
+
+local Panel = {
+	title = "⚙ Settings",
+	color = Theme.Grey,
+}
+
+local OPTIONS = {
+	{ key = "sfx", label = "Sound effects", description = "Clicks, coins and reveal sounds" },
+	{ key = "lowGraphics", label = "Low graphics", description = "Fewer lights and particles for smoother play" },
+	{ key = "hideOthers", label = "Hide other docks", description = "Only animate your own divers" },
+}
+
+local buttons: { [string]: TextButton } = {}
+
+function Panel.build(content: Frame)
+	local list = Kit.list(content, 10)
+	for order, option in OPTIONS do
+		local row = Kit.new("Frame", {
+			Size = UDim2.new(1, -12, 0, 76),
+			BackgroundColor3 = Theme.Card,
+			LayoutOrder = order,
+			Parent = list,
+		}, { Kit.corner(12), Kit.stroke(2) })
+		Kit.text({
+			Text = option.label,
+			Position = UDim2.fromOffset(14, 8),
+			Size = UDim2.new(0.6, 0, 0, 30),
+			TextXAlignment = Enum.TextXAlignment.Left,
+			MaxTextSize = 26,
+			Parent = row,
+		})
+		Kit.text({
+			Text = option.description,
+			Position = UDim2.fromOffset(14, 42),
+			Size = UDim2.new(0.6, 0, 0, 22),
+			TextXAlignment = Enum.TextXAlignment.Left,
+			TextColor3 = Theme.SubText,
+			MaxTextSize = 18,
+			Parent = row,
+		})
+		buttons[option.key] = Kit.button({
+			Text = "",
+			AnchorPoint = Vector2.new(1, 0.5),
+			Position = UDim2.new(1, -12, 0.5, 0),
+			Size = UDim2.fromOffset(120, 46),
+			Parent = row,
+			OnClick = function()
+				local current = Settings.get()
+				current[option.key] = not current[option.key]
+				Settings.apply(current)
+				Panel.refresh()
+				Net.try("SaveSettings", current)
+			end,
+		})
+	end
+end
+
+function Panel.refresh()
+	local current = Settings.get()
+	for key, button in buttons do
+		Kit.setButton(button, if current[key] then "ON" else "OFF", if current[key] then Theme.Green else Theme.Grey)
+	end
+	local _ = State
+end
+
+function Panel.onClose() end
+
+return Panel
+]]></string>
+              </Properties>
+            </Item>
+            <Item class="ModuleScript" referent="71">
               <Properties>
                 <string name="Name">Shop</string>
                 <string name="Source"><![CDATA[--[[
@@ -9832,7 +11134,125 @@ return Panel
 ]]></string>
               </Properties>
             </Item>
-            <Item class="ModuleScript" referent="65">
+            <Item class="ModuleScript" referent="72">
+              <Properties>
+                <string name="Name">Top</string>
+                <string name="Source"><![CDATA[--[[
+	Top panel: global leaderboards (all servers), published by the server as a JSON attribute.
+]]
+
+local HttpService = game:GetService("HttpService")
+local ReplicatedStorage = game:GetService("ReplicatedStorage")
+
+local Shared = ReplicatedStorage.Shared
+local Format = require(Shared.Util.Format)
+
+local UI = script.Parent.Parent
+local Kit = require(UI.Kit)
+local Theme = require(UI.Theme)
+
+local Panel = {
+	title = "🏆 Top Divers",
+	color = Theme.Gold,
+}
+
+local columns: { [string]: ScrollingFrame } = {}
+local lastRaw = ""
+
+local ORDER = { "Earned", "Rebirths" }
+local TITLES = { Earned = "💰 Top Earners", Rebirths = "♻ Top Rebirths" }
+
+function Panel.build(content: Frame)
+	for index, id in ORDER do
+		local column = Kit.new("Frame", {
+			Position = UDim2.new((index - 1) * 0.5, if index == 1 then 0 else 6, 0, 0),
+			Size = UDim2.new(0.5, -6, 1, 0),
+			BackgroundColor3 = Theme.CardDark,
+			Parent = content,
+		}, { Kit.corner(12), Kit.stroke(2) })
+		Kit.text({
+			Text = TITLES[id],
+			Position = UDim2.fromOffset(10, 6),
+			Size = UDim2.new(1, -20, 0, 32),
+			TextColor3 = Theme.Gold,
+			MaxTextSize = 28,
+			Parent = column,
+		})
+		local body = Kit.new("Frame", {
+			Position = UDim2.fromOffset(0, 44),
+			Size = UDim2.new(1, 0, 1, -44),
+			BackgroundTransparency = 1,
+			Parent = column,
+		})
+		columns[id] = Kit.list(body, 4)
+	end
+end
+
+function Panel.refresh()
+	local raw = ReplicatedStorage:GetAttribute("Leaderboards")
+	if type(raw) ~= "string" or raw == lastRaw then
+		return
+	end
+	lastRaw = raw
+	local ok, payload = pcall(HttpService.JSONDecode, HttpService, raw)
+	if not ok or type(payload) ~= "table" then
+		return
+	end
+	for _, id in ORDER do
+		local list = columns[id]
+		Kit.clear(list)
+		local board = payload[id]
+		local entries = if board then board.entries else {}
+		if #entries == 0 then
+			Kit.text({
+				Text = "No scores yet. Be the first!",
+				Size = UDim2.new(1, -12, 0, 30),
+				TextColor3 = Theme.SubText,
+				MaxTextSize = 20,
+				Parent = list,
+			})
+		end
+		for rank, entry in entries do
+			local value = if id == "Earned" then Format.money(entry.value) else Format.number(entry.value)
+			local row = Kit.new("Frame", {
+				Size = UDim2.new(1, -12, 0, 34),
+				BackgroundColor3 = if rank <= 3 then Theme.Card else Theme.Panel,
+				LayoutOrder = rank,
+				Parent = list,
+			}, { Kit.corner(8) })
+			local medal = if rank == 1
+				then "🥇"
+				elseif rank == 2 then "🥈"
+				elseif rank == 3 then "🥉"
+				else "#" .. rank
+			Kit.text({
+				Text = medal .. "  " .. tostring(entry.name),
+				Position = UDim2.fromOffset(8, 3),
+				Size = UDim2.new(0.62, -8, 1, -6),
+				TextXAlignment = Enum.TextXAlignment.Left,
+				MaxTextSize = 20,
+				Parent = row,
+			})
+			Kit.text({
+				Text = value,
+				Position = UDim2.new(0.62, 0, 0, 3),
+				Size = UDim2.new(0.38, -8, 1, -6),
+				TextXAlignment = Enum.TextXAlignment.Right,
+				TextColor3 = Theme.Money,
+				MaxTextSize = 20,
+				Parent = row,
+			})
+		end
+	end
+end
+
+function Panel.onClose() end
+
+return Panel
+]]></string>
+              </Properties>
+            </Item>
+            <Item class="ModuleScript" referent="73">
               <Properties>
                 <string name="Name">Upgrades</string>
                 <string name="Source"><![CDATA[--[[
@@ -9936,7 +11356,7 @@ return Panel
 ]]></string>
               </Properties>
             </Item>
-            <Item class="ModuleScript" referent="66">
+            <Item class="ModuleScript" referent="74">
               <Properties>
                 <string name="Name">Vault</string>
                 <string name="Source"><![CDATA[--[[
@@ -10151,7 +11571,7 @@ return Panel
               </Properties>
             </Item>
           </Item>
-          <Item class="ModuleScript" referent="67">
+          <Item class="ModuleScript" referent="75">
             <Properties>
               <string name="Name">Reveal</string>
               <string name="Source"><![CDATA[--[[
@@ -10447,7 +11867,7 @@ return Reveal
 ]]></string>
             </Properties>
           </Item>
-          <Item class="ModuleScript" referent="68">
+          <Item class="ModuleScript" referent="76">
             <Properties>
               <string name="Name">Theme</string>
               <string name="Source"><![CDATA[--[[
@@ -10483,7 +11903,7 @@ return {
       </Item>
     </Item>
   </Item>
-  <Item class="Workspace" referent="69">
+  <Item class="Workspace" referent="77">
     <Properties>
       <string name="Name">Workspace</string>
       <bool name="NeedsPivotMigration">false</bool>

@@ -12,8 +12,12 @@ local CollectionService = game:GetService("CollectionService")
 local RunService = game:GetService("RunService")
 local Workspace = game:GetService("Workspace")
 
+local Players = game:GetService("Players")
+
 local Shared = game:GetService("ReplicatedStorage").Shared
 local Format = require(Shared.Util.Format)
+
+local Settings = require(script.Parent.Parent.Settings)
 
 local DiverAnimator = {}
 
@@ -66,13 +70,13 @@ local function setLights(model: Model, underwater: boolean, glowColor: Color3?, 
 		end
 		local bubbles = head:FindFirstChild("Bubbles") :: ParticleEmitter?
 		if bubbles then
-			bubbles.Enabled = underwater
+			bubbles.Enabled = underwater and not Settings.is("lowGraphics")
 		end
 	end
 	if root then
 		local glow = root:FindFirstChild("Glow") :: PointLight?
 		if glow then
-			glow.Enabled = glowColor ~= nil and glowStrength > 0
+			glow.Enabled = glowColor ~= nil and glowStrength > 0 and not Settings.is("lowGraphics")
 			if glowColor then
 				glow.Color = glowColor
 				glow.Brightness = 1 + glowStrength * 6
@@ -173,6 +177,26 @@ local function update(entry: Tracked, now: number)
 	setLights(model, position.Y < -1, if typeof(glowColor) == "Color3" then glowColor else nil, glowStrength)
 end
 
+local function isMine(model: Model): boolean
+	local player = Players.LocalPlayer
+	return player ~= nil and model:GetAttribute("OwnerId") == player.UserId
+end
+
+-- "Hide other docks": other players' divers are made invisible locally and not animated.
+local function setHidden(model: Model, hidden: boolean)
+	for _, descendant in model:GetDescendants() do
+		if descendant:IsA("BasePart") then
+			descendant.LocalTransparencyModifier = if hidden then 1 else 0
+		elseif descendant:IsA("BillboardGui") then
+			descendant.Enabled = not hidden
+		end
+	end
+end
+
+local function shouldHide(model: Model): boolean
+	return Settings.is("hideOthers") and not isMine(model)
+end
+
 local function track(model: Instance)
 	if model:IsA("Model") then
 		tracked[model] = {
@@ -189,6 +213,11 @@ local function track(model: Instance)
 end
 
 function DiverAnimator.start()
+	Settings.Changed:Connect(function()
+		for model in tracked do
+			setHidden(model, shouldHide(model))
+		end
+	end)
 	for _, model in CollectionService:GetTagged("Diver") do
 		track(model)
 	end
@@ -210,7 +239,11 @@ function DiverAnimator.start()
 			-- far away divers update less often
 			local home = model:GetAttribute("Home")
 			local far = typeof(home) == "CFrame" and (home.Position - cameraPosition).Magnitude > FAR_DISTANCE
-			if not far or entry.frame % 10 == 0 then
+			if shouldHide(model) then
+				if entry.frame % 30 == 0 then
+					setHidden(model, true)
+				end
+			elseif not far or entry.frame % 10 == 0 then
 				update(entry, now)
 			end
 		end

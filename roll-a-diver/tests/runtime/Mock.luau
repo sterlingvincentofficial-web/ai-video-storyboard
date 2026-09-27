@@ -222,6 +222,9 @@ function Mock.install()
 	roblox.implementMethod("Player", "GetRankInGroup", function()
 		return 0
 	end)
+	roblox.implementMethod("Player", "IsInGroup", function()
+		return true
+	end)
 	roblox.implementMethod("RemoteEvent", "FireClient", function(remote, player, ...)
 		table.insert(Mock.remoteLog, { remote = remote.Name, target = player, args = table.pack(...) })
 		if Mock.clientEvents and player == Mock.services.Players.LocalPlayer then
@@ -314,6 +317,36 @@ function DataStoreService:GetDataStore(name)
 	return store
 end
 
+Mock.orderedStores = {} :: { [string]: { [string]: number } }
+function DataStoreService:GetOrderedDataStore(name)
+	Mock.orderedStores[name] = Mock.orderedStores[name] or {}
+	local storage = Mock.orderedStores[name]
+	local store = {}
+	function store:SetAsync(key, value)
+		assert(type(value) == "number" and value == math.floor(value), "OrderedDataStore values must be integers")
+		storage[key] = value
+	end
+	function store:GetSortedAsync(ascending, pageSize)
+		local items = {}
+		for key, value in storage do
+			table.insert(items, { key = key, value = value })
+		end
+		table.sort(items, function(a, b)
+			return if ascending then a.value < b.value else a.value > b.value
+		end)
+		local page = {}
+		for i = 1, math.min(pageSize, #items) do
+			page[i] = items[i]
+		end
+		return {
+			GetCurrentPage = function()
+				return page
+			end,
+		}
+	end
+	return store
+end
+
 local playersInstance -- real Players instance (so player.Parent works)
 local Players = {
 	PlayerAdded = Signal.new(),
@@ -331,6 +364,9 @@ function Players:GetPlayerByUserId(userId)
 		end
 	end
 	return nil
+end
+function Players:GetNameFromUserIdAsync(userId)
+	return "User" .. tostring(userId)
 end
 function Players:GetPlayerFromCharacter(character)
 	for _, player in self.list do
@@ -441,6 +477,12 @@ function CollectionService:GetInstanceRemovedSignal(tag)
 end
 
 local HttpService = {}
+function HttpService:JSONEncode(value)
+	return serde.encode("json", value)
+end
+function HttpService:JSONDecode(text)
+	return serde.decode("json", text)
+end
 local guidCounter = 0
 function HttpService:GenerateGUID()
 	guidCounter += 1

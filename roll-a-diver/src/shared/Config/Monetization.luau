@@ -70,6 +70,13 @@ local passes: { Pass } = {
 
 local products: { Product } = {
 	{
+		id = "SpinPack",
+		name = "3 Wheel Spins",
+		description = "Three extra spins on the reward wheel.",
+		assetId = 0,
+		robux = 49,
+	},
+	{
 		id = "StarterPack",
 		name = "Starter Pack",
 		description = "A Deep Sea Suit diver + $5,000. One per player.",

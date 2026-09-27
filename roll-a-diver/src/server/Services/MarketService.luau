@@ -99,8 +99,12 @@ local productHandlers: { [string]: (Player, { [string]: any }) -> () } = {
 			data.starterPackClaimed = true
 			Services.DiverService.AddDiver(player, "DeepSeaSuit")
 		end
-		Services.EconomyService.AddCash(player, 5000)
+		Services.EconomyService.AddCash(player, 5000, "Product")
 		Services.PlayerService.Notify(player, "Starter Pack claimed! Deep Sea Suit + $5,000", "Success")
+	end,
+	SpinPack = function(player, data)
+		data.spins.extra += 3
+		Services.PlayerService.Notify(player, "+3 wheel spins!", "Success")
 	end,
 	LuckPotion = function(player, data)
 		data.luckPotionEnds = math.max(data.luckPotionEnds, os.time()) + GameConfig.LuckPotionSeconds
@@ -115,12 +119,12 @@ local productHandlers: { [string]: (Player, { [string]: any }) -> () } = {
 	end,
 	CashSmall = function(player)
 		local amount = math.max(1000, currentIncome(player) * 600)
-		Services.EconomyService.AddCash(player, amount)
+		Services.EconomyService.AddCash(player, amount, "Product")
 		Services.PlayerService.Notify(player, "+" .. Format.money(amount), "Success")
 	end,
 	CashLarge = function(player)
 		local amount = math.max(20000, currentIncome(player) * 7200)
-		Services.EconomyService.AddCash(player, amount)
+		Services.EconomyService.AddCash(player, amount, "Product")
 		Services.PlayerService.Notify(player, "+" .. Format.money(amount), "Success")
 	end,
 }

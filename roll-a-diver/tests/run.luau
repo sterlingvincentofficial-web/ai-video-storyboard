@@ -289,6 +289,53 @@ test("index progress and zone completion", function()
 	eq(variants, found + 1)
 end)
 
+test("daily streak rules", function()
+	local ok, streak = Formulas.dailyStreak(0, 0, 100)
+	assert(ok and streak == 1, "first claim")
+	ok, streak = Formulas.dailyStreak(100, 1, 100)
+	assert(not ok and streak == 1, "same day")
+	ok, streak = Formulas.dailyStreak(99, 3, 100)
+	assert(ok and streak == 4, "next day continues")
+	ok, streak = Formulas.dailyStreak(97, 3, 100)
+	assert(ok and streak == 1, "missed day resets")
+	ok, streak = Formulas.dailyStreak(99, 7, 100)
+	assert(ok and streak == 1, "loops after day 7")
+end)
+
+test("wheel weights and free spin timer", function()
+	local Rewards = Loader.require(Config.Rewards)
+	local counts = {}
+	for _ = 1, 20000 do
+		local index = Formulas.pickWheelSegment(rand)
+		counts[index] = (counts[index] or 0) + 1
+	end
+	assert((counts[1] or 0) > (counts[#Rewards.Wheel] or 0) * 5, "common segment far more likely than jackpot")
+	eq(Formulas.freeSpinWait(0, 1000000), 0)
+	eq(Formulas.freeSpinWait(1000, 1000), Rewards.FreeSpinHours * 3600)
+end)
+
+test("every code and daily reward is valid", function()
+	local Rewards = Loader.require(Config.Rewards)
+	local keys = { cash = true, incomeMinutes = true, potionMinutes = true, spins = true, chests = true }
+	local function validate(reward, label)
+		assert(next(reward) ~= nil, label .. " is empty")
+		for key, value in reward do
+			assert(keys[key], label .. " has unknown key " .. key)
+			assert(type(value) == "number" and value > 0, label .. "." .. key)
+		end
+	end
+	for code, entry in Rewards.Codes do
+		assert(code == string.upper(code), "codes must be upper case: " .. code)
+		validate(entry.reward, code)
+	end
+	for day, reward in Rewards.Daily do
+		validate(reward, "day " .. day)
+	end
+	for _, segment in Rewards.Wheel do
+		validate(segment.reward, segment.id)
+	end
+end)
+
 print(("\n%d passed, %d failed"):format(passed, failed))
 if failed > 0 then
 	error("tests failed")

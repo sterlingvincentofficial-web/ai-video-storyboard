@@ -15,6 +15,7 @@ local Crates = require(Config.Crates)
 local Sets = require(Config.Sets)
 local Upgrades = require(Config.Upgrades)
 local Rarities = require(Config.Rarities)
+local Rewards = require(Config.Rewards)
 
 local Formulas = {}
 
@@ -319,6 +320,38 @@ function Formulas.indexProgress(index: IndexData): (number, number, number, numb
 		end
 	end
 	return found, #Treasures.List, variants, #Treasures.List * #Conditions.List
+end
+
+-- Daily rewards / wheel ---------------------------------------------------------------------
+
+-- UTC day number for a unix timestamp.
+function Formulas.dayNumber(unixTime: number): number
+	return math.floor(unixTime / 86400)
+end
+
+-- Given the last claimed day and current streak, returns (canClaim, newStreak) for `today`.
+-- Missing a day resets the streak to 1; the 7-day calendar loops.
+function Formulas.dailyStreak(lastDay: number, streak: number, today: number): (boolean, number)
+	if lastDay == today then
+		return false, streak
+	end
+	if lastDay == today - 1 then
+		return true, (streak % #Rewards.Daily) + 1
+	end
+	return true, 1
+end
+
+function Formulas.pickWheelSegment(rand: Rand): number
+	local weights = {}
+	for index, segment in Rewards.Wheel do
+		weights[index] = segment.weight
+	end
+	return Formulas.pickWeighted(weights, rand)
+end
+
+-- Seconds until the next free spin is ready (0 = ready now).
+function Formulas.freeSpinWait(lastFreeSpin: number, now: number): number
+	return math.max(0, lastFreeSpin + Rewards.FreeSpinHours * 3600 - now)
 end
 
 function Formulas.offlineEarnings(seconds: number, incomePerSecond: number, vip: boolean?): number

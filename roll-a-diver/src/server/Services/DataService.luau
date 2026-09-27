@@ -33,10 +33,32 @@ local releasing: { [number]: boolean } = {}
 local store: DataStore? = nil
 local shuttingDown = false
 
+DataService.CurrentVersion = 2
+
+-- Upgrades old saves step by step. Add a new step (and bump CurrentVersion) whenever the
+-- save format changes in a way reconcile() can't handle (renames, moved data, etc.).
+local MIGRATIONS: { [number]: (data: { [string]: any }) -> () } = {
+	-- v1 -> v2: launch update added codes, daily streak, spins, settings, group reward, funnel.
+	-- reconcile() fills the new tables; nothing to move.
+	[1] = function(_data) end,
+}
+
+function DataService.Migrate(data: { [string]: any })
+	local version = tonumber(data.version) or 1
+	while version < DataService.CurrentVersion do
+		local step = MIGRATIONS[version]
+		if step then
+			step(data)
+		end
+		version += 1
+	end
+	data.version = DataService.CurrentVersion
+end
+
 -- Fresh save for a brand new player. Keys are strings so it serialises cleanly.
 function DataService.Template(): { [string]: any }
 	return {
-		version = 1,
+		version = DataService.CurrentVersion,
 		cash = GameConfig.StartingCash,
 		totalEarned = 0,
 		rebirths = 0,
@@ -53,7 +75,13 @@ function DataService.Template(): { [string]: any }
 		starterPackClaimed = false,
 		receipts = {}, -- recent purchase ids, newest last
 		devPasses = {}, -- Studio-only pass overrides for testing
-		stats = { dives = 0, chestsOpened = 0, rolls = 0, collected = 0, krakenHits = 0 },
+		stats = { dives = 0, chestsOpened = 0, rolls = 0, collected = 0, krakenHits = 0, spins = 0 },
+		codes = {}, -- [CODE] = true once redeemed
+		daily = { lastDay = 0, streak = 0 },
+		spins = { lastFree = 0, extra = 0 },
+		settings = { sfx = true, lowGraphics = false, hideOthers = false },
+		groupClaimed = false,
+		funnel = {}, -- analytics onboarding steps already logged
 		lastOnline = 0,
 		lock = nil,
 	}
@@ -153,6 +181,7 @@ function DataService.Load(player: Player): boolean
 	end
 
 	local loaded = data or DataService.Template()
+	DataService.Migrate(loaded)
 	reconcile(loaded, DataService.Template())
 	profiles[player] = {
 		data = loaded,

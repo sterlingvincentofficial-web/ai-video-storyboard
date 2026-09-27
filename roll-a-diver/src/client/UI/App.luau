@@ -22,6 +22,7 @@ local Client = script.Parent.Parent
 local State = require(Client.State)
 local Net = require(Client.Net)
 local Sounds = require(Client.Sounds)
+local Settings = require(Client.Settings)
 
 local App = {}
 
@@ -42,8 +43,13 @@ local MENU = {
 	{ id = "Index", icon = "📖", label = "Index", color = Theme.Gold },
 	{ id = "Upgrades", icon = "⬆", label = "Upgrade", color = Theme.Green },
 	{ id = "Rebirth", icon = "♻", label = "Rebirth", color = Color3.fromRGB(255, 170, 40) },
+	{ id = "Rewards", icon = "🎁", label = "Rewards", color = Color3.fromRGB(230, 90, 200) },
+	{ id = "Top", icon = "🏆", label = "Top", color = Color3.fromRGB(220, 170, 40) },
 	{ id = "Shop", icon = "🛒", label = "Shop", color = Theme.Red },
 }
+
+-- Panels opened from somewhere other than the side menu.
+local EXTRA_PANELS = { "Settings" }
 
 local panels: { [string]: PanelModule } = {}
 local panelContent: { [string]: Frame } = {}
@@ -149,7 +155,15 @@ local function buildWindow(root: Frame)
 		OnClick = App.close,
 	})
 
+	local ids = {}
 	for _, entry in MENU do
+		table.insert(ids, entry.id)
+	end
+	for _, id in EXTRA_PANELS do
+		table.insert(ids, id)
+	end
+	for _, id in ids do
+		local entry = { id = id }
 		local module = (require :: any)(Panels:WaitForChild(entry.id)) :: PanelModule
 		panels[entry.id] = module
 		local content = Kit.new("Frame", {
@@ -172,7 +186,7 @@ local function buildMenu(root: Frame)
 		Name = "Menu",
 		AnchorPoint = Vector2.new(0, 0.5),
 		Position = UDim2.new(0, 10, 0.52, 0),
-		Size = UDim2.fromOffset(160, 400),
+		Size = UDim2.fromOffset(160, 420),
 		BackgroundTransparency = 1,
 		Parent = root,
 	})
@@ -430,6 +444,10 @@ local function updateHud()
 	badges.Chests.Text = if chests > 99 then "99+" else tostring(chests)
 	local canRebirth = State.cash() >= Formulas.rebirthCost(data.rebirths)
 	badges.Rebirth.Visible = canRebirth
+	local rewards = panels.Rewards :: any
+	badges.Rewards.Visible = rewards.hasClaimable()
+	badges.Rewards.Text = "!"
+	Settings.load(data)
 
 	local text = tutorialText(data)
 	tutorialFrame.Visible = text ~= nil
@@ -483,6 +501,18 @@ function App.start()
 	buildMenu(root)
 	buildWindow(root)
 	buildQuickShop(root)
+	-- settings gear (top right)
+	Kit.button({
+		Text = "⚙",
+		Color = Theme.Grey,
+		AnchorPoint = Vector2.new(1, 0),
+		Position = UDim2.new(1, -10, 0, 10),
+		Size = UDim2.fromOffset(52, 52),
+		Parent = root,
+		OnClick = function()
+			App.open("Settings")
+		end,
+	})
 
 	Net.onError = function(message)
 		Notifications.toast(message, "Error")
@@ -503,7 +533,15 @@ function App.start()
 
 	-- refresh the open panel when data changes (throttled)
 	local pending = false
+	local remindedDaily = false
 	State.Changed:Connect(function()
+		if not remindedDaily and State.data() then
+			remindedDaily = true
+			local rewards = panels.Rewards :: any
+			if rewards.hasClaimable() then
+				task.delay(3, Notifications.toast, "🎁 Your daily reward is ready! Tap Rewards", "New")
+			end
+		end
 		updateHud()
 		if openPanel and not pending then
 			pending = true

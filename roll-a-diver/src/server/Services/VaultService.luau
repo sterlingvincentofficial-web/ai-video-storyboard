@@ -199,6 +199,7 @@ function VaultService.CollectPedestal(player: Player, index: number)
 	state.stored[index] = 0
 	Services.EconomyService.AddCash(player, amount)
 	data.stats.collected += amount
+	Services.AnalyticsService.Step(player, "FirstCollect")
 	local plot = Services.PlotService.Get(player)
 	if plot then
 		Remotes.event("CollectFx"):FireClient(player, plot.pedestals[index].pad.CFrame.Position, amount)
@@ -292,7 +293,7 @@ function VaultService.AddTreasure(player: Player, treasureId: string, conditionI
 
 	if treasureCount(data) >= GameConfig.MaxTreasures then
 		result.autoSold = true
-		Services.EconomyService.AddCash(player, result.sellValue)
+		Services.EconomyService.AddCash(player, result.sellValue, "SellTreasure")
 		Services.PlayerService.Notify(
 			player,
 			"Treasure storage full: sold " .. treasure.name .. " for " .. Format.money(result.sellValue),
@@ -393,7 +394,7 @@ function VaultService.Sell(player: Player, uid: string): (boolean, string?)
 		data.pedestals[tostring(index)] = nil
 	end
 	data.treasures[uid] = nil
-	Services.EconomyService.AddCash(player, Formulas.treasureSellValue(item.id, item.c))
+	Services.EconomyService.AddCash(player, Formulas.treasureSellValue(item.id, item.c), "SellTreasure")
 	VaultService.Refresh(player)
 	return true
 end
@@ -413,7 +414,7 @@ function VaultService.SellUnplaced(player: Player): (number, number)
 		end
 	end
 	if total > 0 then
-		Services.EconomyService.AddCash(player, total)
+		Services.EconomyService.AddCash(player, total, "SellTreasure")
 	end
 	VaultService.Refresh(player)
 	return sold, total

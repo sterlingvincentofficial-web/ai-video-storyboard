@@ -11,6 +11,9 @@ local ORDER = {
 	"PlotService",
 	"DataService",
 	"EconomyService",
+	"AnalyticsService",
+	"RewardService",
+	"LeaderboardService",
 	"MarketService",
 	"AnnouncementService",
 	"EventService",
@@ -30,17 +33,26 @@ for _, name in ORDER do
 	Services[name] = (require :: any)(folder:WaitForChild(name))
 end
 
+-- Each service starts in isolation: one failing optional system (e.g. leaderboards when
+-- DataStores are down) must never stop players from loading in.
+local function run(phase: string, name: string, fn: () -> ())
+	local ok, err = pcall(fn :: any)
+	if not ok then
+		warn(("[Roll a Diver] %s.%s failed: %s"):format(name, phase, tostring(err)))
+	end
+end
+
 for _, name in ORDER do
 	local service = Services[name]
 	if service.Init then
-		service.Init()
+		run("Init", name, service.Init)
 	end
 end
 
 for _, name in ORDER do
 	local service = Services[name]
 	if service.Start then
-		service.Start()
+		run("Start", name, service.Start)
 	end
 end
 

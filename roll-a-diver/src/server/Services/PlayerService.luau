@@ -109,13 +109,15 @@ local function onPlayerAdded(player: Player)
 				Services.MarketService.HasPass(player, "VIP")
 			)
 			if amount > 0 then
-				Services.EconomyService.AddCash(player, amount)
+				Services.EconomyService.AddCash(player, amount, "Offline")
 				Remotes.event("OfflineEarnings"):FireClient(player, away, amount)
 			end
 		end
 	end
 	data.lastOnline = os.time()
 
+	Services.RewardService.OnPlayerReady(player)
+	Services.AnalyticsService.Step(player, "Joined")
 	ready[player] = true
 	player:SetAttribute("Ready", true)
 	sync(player)
@@ -130,6 +132,7 @@ end
 
 local function beforeRelease(player: Player)
 	Services.VaultService.CollectAll(player)
+	pcall(Services.LeaderboardService.Write, player)
 	local data = Services.DataService.Get(player)
 	if data then
 		data.lastOnline = os.time()

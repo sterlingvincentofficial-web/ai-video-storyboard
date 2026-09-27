@@ -31,13 +31,14 @@ function RollService.Roll(player: Player, crateId: string): { [string]: any }
 	if Services.DiverService.DiverCount(data) >= GameConfig.MaxDivers then
 		return { ok = false, err = "Your diver inventory is full. Sell some divers first" }
 	end
-	if not Services.EconomyService.TrySpend(player, crate.price) then
+	if not Services.EconomyService.TrySpend(player, crate.price, "Roll:" .. crate.id) then
 		return { ok = false, err = "Not enough cash" }
 	end
 
 	local diverId = Formulas.rollCrate(crate.id, Services.EconomyService.RollLuck(player), rand)
 	local uid, isNew = Services.DiverService.AddDiver(player, diverId)
 	data.stats.rolls += 1
+	Services.AnalyticsService.Step(player, "FirstRoll")
 	Services.DataService.MarkDirty(player)
 
 	local diver = Divers.ById[diverId]

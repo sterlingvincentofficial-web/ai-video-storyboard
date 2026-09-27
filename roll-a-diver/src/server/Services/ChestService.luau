@@ -32,6 +32,7 @@ local function openContent(player: Player, content: Content)
 	local data = Services.DataService.Get(player)
 	if data then
 		data.stats.chestsOpened += 1
+		Services.AnalyticsService.Step(player, "FirstChestOpened")
 	end
 	return Services.VaultService.AddTreasure(player, content.t, content.v)
 end

@@ -115,7 +115,9 @@ local function click(button)
 end
 
 -- open every panel
-for _, id in { "Roll", "Divers", "Vault", "Chests", "Index", "Upgrades", "Rebirth", "Shop" } do
+for _, id in
+	{ "Roll", "Divers", "Vault", "Chests", "Index", "Upgrades", "Rebirth", "Rewards", "Top", "Shop", "Settings" }
+do
 	App.open(id)
 	Mock.pump(0.3)
 	local content = gui.Root.Window:FindFirstChild(id)
@@ -191,6 +193,65 @@ check(
 	"upgrade bought from UI",
 	data.upgrades.DiveSlots + data.upgrades.Pedestals + data.upgrades.Luck + data.upgrades.Oxygen > 0
 )
+
+-- rewards: claim the daily and spin the wheel from the UI
+App.open("Rewards")
+Mock.pump(0.3)
+local claim = findButton(gui.Root.Window.Rewards, "CLAIM")
+check("daily claim button", claim ~= nil)
+if claim then
+	click(claim)
+	check(
+		"daily claimed from UI",
+		waitFor(function()
+			return data.daily.streak == 1
+		end, 3)
+	)
+end
+task.wait(0.2) -- a human can't click faster than the anti-spam limit
+local spinButton = findButton(gui.Root.Window.Rewards, "SPIN")
+check("spin button", spinButton ~= nil)
+if spinButton then
+	click(spinButton)
+	check(
+		"spun from UI",
+		waitFor(function()
+			return (data.stats.spins or 0) >= 1
+		end, 3)
+	)
+	Mock.pump(3.5)
+end
+App.close()
+
+-- settings toggle round-trips to the server
+App.open("Settings")
+Mock.pump(0.3)
+local toggles = {}
+for _, descendant in gui.Root.Window.Settings:GetDescendants() do
+	if descendant.ClassName == "TextButton" then
+		local label = descendant:FindFirstChild("Label")
+		if label and (label.Text == "ON" or label.Text == "OFF") then
+			table.insert(toggles, descendant)
+		end
+	end
+end
+check("settings toggles", #toggles == 3, #toggles)
+if toggles[1] then
+	local before = table.clone(data.settings)
+	click(toggles[1])
+	check(
+		"setting saved",
+		waitFor(function()
+			for key, value in before do
+				if data.settings[key] ~= value then
+					return true
+				end
+			end
+			return false
+		end, 3)
+	)
+end
+App.close()
 
 -- index tabs
 App.open("Index")

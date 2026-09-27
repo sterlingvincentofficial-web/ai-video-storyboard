@@ -20,10 +20,11 @@ function UpgradeService.Buy(player: Player, upgradeId: string): { [string]: any 
 	if not cost then
 		return { ok = false, err = "Already maxed" }
 	end
-	if not Services.EconomyService.TrySpend(player, cost) then
+	if not Services.EconomyService.TrySpend(player, cost, "Upgrade:" .. upgradeId) then
 		return { ok = false, err = "Not enough cash" }
 	end
 	data.upgrades[upgradeId] = level + 1
+	Services.AnalyticsService.Step(player, "FirstUpgrade")
 	if upgradeId == "DiveSlots" then
 		Services.DiverService.Refresh(player)
 	elseif upgradeId == "Pedestals" then

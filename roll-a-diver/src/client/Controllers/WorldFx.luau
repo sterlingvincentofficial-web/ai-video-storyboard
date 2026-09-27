@@ -16,6 +16,7 @@ local Remotes = require(Shared.Remotes)
 local Zones = require(Shared.Config.Zones)
 
 local Sounds = require(script.Parent.Parent.Sounds)
+local Settings = require(script.Parent.Parent.Settings)
 
 local WorldFx = {}
 
@@ -77,6 +78,9 @@ local function chestPop(diver: Instance?, chestId: string, count: number, glow: 
 	if camera and (camera.CFrame.Position - home.Position).Magnitude > 200 then
 		return
 	end
+	if Settings.is("lowGraphics") then
+		return
+	end
 	local chest = Zones.ChestById[chestId]
 	if not chest then
 		return
@@ -96,8 +100,20 @@ local function chestPop(diver: Instance?, chestId: string, count: number, glow: 
 	floatingText(start.Position, text, glow or chest.glow)
 end
 
+local function applyEffects(model: Model)
+	local on = not Settings.is("lowGraphics")
+	for _, descendant in model:GetDescendants() do
+		if descendant:IsA("ParticleEmitter") then
+			descendant.Enabled = on
+		elseif descendant:IsA("PointLight") then
+			descendant.Enabled = on
+		end
+	end
+end
+
 local function addSpinner(model: Instance)
 	if model:IsA("Model") then
+		applyEffects(model)
 		spinners[model] = {
 			model = model,
 			base = model:GetPivot(),
@@ -114,6 +130,11 @@ local function addTentacle(model: Instance)
 end
 
 function WorldFx.start()
+	Settings.Changed:Connect(function()
+		for model in spinners do
+			applyEffects(model)
+		end
+	end)
 	for _, model in CollectionService:GetTagged("SpinTreasure") do
 		addSpinner(model)
 	end
