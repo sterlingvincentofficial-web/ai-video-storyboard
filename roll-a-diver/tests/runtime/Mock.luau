@@ -169,6 +169,19 @@ function Mock.install()
 			part.CFrame = target * pivot:ToObjectSpace(part.CFrame)
 		end
 	end)
+	roblox.implementMethod("Model", "GetScale", function(model)
+		return model:GetAttribute("__mockScale") or 1
+	end)
+	roblox.implementMethod("Model", "ScaleTo", function(model, scale)
+		local factor = scale / (model:GetAttribute("__mockScale") or 1)
+		local pivot = getPivot(model)
+		for _, part in modelParts(model) do
+			local relative = pivot:ToObjectSpace(part.CFrame)
+			part.Size = part.Size * factor
+			part.CFrame = pivot * (relative - relative.Position + relative.Position * factor)
+		end
+		model:SetAttribute("__mockScale", scale)
+	end)
 	roblox.implementMethod("Model", "GetBoundingBox", function(model)
 		local minV, maxV
 		for _, part in modelParts(model) do

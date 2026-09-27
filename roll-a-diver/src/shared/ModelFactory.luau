@@ -6,6 +6,8 @@
 	at the model's base (feet for divers, centre for treasures and chests).
 ]]
 
+local ReplicatedStorage = game:GetService("ReplicatedStorage")
+
 local Config = script.Parent.Config
 local Divers = require(Config.Divers)
 local Treasures = require(Config.Treasures)
@@ -74,6 +76,98 @@ end
 
 local function cf(x: number, y: number, z: number, rx: number?, ry: number?, rz: number?): CFrame
 	return CFrame.new(x, y, z) * CFrame.Angles(math.rad(rx or 0), math.rad(ry or 0), math.rad(rz or 0))
+end
+
+-- Imported models -------------------------------------------------------------------------------
+--[[
+	If ReplicatedStorage.Assets.Models contains a model (or MeshPart) named e.g. "Diver_Poseidon",
+	"Treasure_GoldenDuck", "Chest_PirateChest" or "Kraken", it replaces the built-in look.
+	The built-in parts stay (invisible) so every light, tag, click target and effect keeps working.
+	Optional attributes on the imported model: YRotation (degrees, default per kind), Scale (multiplier).
+]]
+
+local IMPORT_RULES = {
+	Diver = { size = 5.6, measure = "height", align = "bottom", yRotation = 180 },
+	Treasure = { size = 2.8, measure = "max", align = "center", yRotation = 180 },
+	Chest = { size = 2.8, measure = "max", align = "center", yRotation = 180 },
+	Kraken = { size = 80, measure = "max", align = "bottom", yRotation = 180, yOffset = -6 },
+}
+
+local function findImported(name: string): Instance?
+	local assets = ReplicatedStorage:FindFirstChild("Assets")
+	local folder = assets and assets:FindFirstChild("Models")
+	return folder and folder:FindFirstChild(name)
+end
+
+function ModelFactory.hasImported(name: string): boolean
+	return findImported(name) ~= nil
+end
+
+-- Swaps the visible parts of `model` for the imported asset `name`. Returns true if it did.
+local function applyImported(model: Model, root: BasePart, name: string, kind: string): boolean
+	local source = findImported(name)
+	if not source then
+		return false
+	end
+	local rule = IMPORT_RULES[kind]
+	local container: Model
+	if source:IsA("Model") then
+		container = source:Clone()
+	elseif source:IsA("BasePart") then
+		container = Instance.new("Model")
+		source:Clone().Parent = container
+	else
+		return false
+	end
+	local importedParts = {}
+	for _, descendant in container:GetDescendants() do
+		if descendant:IsA("BasePart") then
+			descendant.Anchored = true
+			descendant.CanCollide = false
+			descendant.CanQuery = false
+			descendant.CanTouch = false
+			descendant.CastShadow = false
+			table.insert(importedParts, descendant)
+		end
+	end
+	if #importedParts == 0 then
+		container:Destroy()
+		return false
+	end
+
+	-- scale to the target size
+	local yRotation = source:GetAttribute("YRotation")
+	local extraScale = source:GetAttribute("Scale")
+	container:PivotTo(CFrame.Angles(0, math.rad(if type(yRotation) == "number" then yRotation else rule.yRotation), 0))
+	local _, size = container:GetBoundingBox()
+	local measured = if rule.measure == "height" then size.Y else math.max(size.X, size.Y, size.Z)
+	if measured > 0 then
+		local factor = rule.size / measured * (if type(extraScale) == "number" then extraScale else 1)
+		container:ScaleTo(container:GetScale() * factor)
+	end
+
+	-- place it on the root: feet on the root for characters, centred for items
+	local boxCFrame, boxSize = container:GetBoundingBox()
+	local target = root.CFrame.Position + Vector3.new(0, rule.yOffset or 0, 0)
+	local offset = if rule.align == "bottom"
+		then target - (boxCFrame.Position - Vector3.new(0, boxSize.Y / 2, 0))
+		else target - boxCFrame.Position
+	container:PivotTo(container:GetPivot() + offset)
+
+	-- hide the built-in look but keep its parts (lights, tags, click targets live on them)
+	for _, descendant in model:GetDescendants() do
+		if descendant:IsA("BasePart") and descendant ~= root then
+			descendant.Transparency = 1
+		elseif descendant:IsA("Decal") then
+			descendant.Transparency = 1
+		end
+	end
+	for _, part in importedParts do
+		part.Parent = model
+	end
+	container:Destroy()
+	model:SetAttribute("Imported", true)
+	return true
 end
 
 -- Divers ---------------------------------------------------------------------------------------
@@ -406,6 +500,7 @@ function ModelFactory.diver(diverId: string): Model
 	end
 
 	model:SetAttribute("DiverId", diverId)
+	applyImported(model, root, "Diver_" .. diverId, "Diver")
 	return model
 end
 
@@ -945,6 +1040,7 @@ function ModelFactory.treasure(treasureId: string, conditionId: string?): Model
 	local builder = SHAPES[treasure.shape] or SHAPES.Orb
 	builder(model, root, treasure.color, material)
 	applyCondition(model, root, conditionId)
+	applyImported(model, root, "Treasure_" .. treasureId, "Treasure")
 	model:SetAttribute("TreasureId", treasureId)
 	model:SetAttribute("Condition", conditionId or "Barnacled")
 	return model
@@ -996,6 +1092,7 @@ function ModelFactory.chest(chestId: string): Model
 	light.Brightness = 2
 	light.Parent = root
 	model:SetAttribute("ChestId", chestId)
+	applyImported(model, root, "Chest_" .. chestId, "Chest")
 	return model
 end
 
@@ -1088,6 +1185,7 @@ function ModelFactory.kraken(): Model
 		end
 		tentacle:Destroy()
 	end
+	applyImported(model, root, "Kraken", "Kraken")
 	return model
 end
 

@@ -393,12 +393,23 @@ check("policy checked on join", player:GetAttribute("PaidRandomRestricted") == f
 chat("/product SpinPack")
 check("spin pack product", data.spins.extra >= 3, data.spins.extra)
 player:SetAttribute("PaidRandomRestricted", true)
-local spinsBefore, potionBefore, cashBeforePack = data.spins.extra, data.luckPotionEnds, data.cash
+local spinsBefore, potionBefore = data.spins.extra, data.luckPotionEnds
+-- watch for product cash specifically (passive income can still arrive during the pump)
+local realAddCash = Registry.EconomyService.AddCash
+local productCash = 0
+Registry.EconomyService.AddCash = function(who, amount, reason)
+	if reason == "Product" then
+		productCash += amount
+	end
+	return realAddCash(who, amount, reason)
+end
 chat("/product SpinPack")
 chat("/product CashSmall")
+Registry.EconomyService.AddCash = realAddCash
 check(
 	"restricted region: no random spins or roll cash, luck potion instead",
-	data.spins.extra == spinsBefore and data.cash <= cashBeforePack + 1 and data.luckPotionEnds > potionBefore
+	data.spins.extra == spinsBefore and productCash == 0 and data.luckPotionEnds > potionBefore,
+	productCash
 )
 player:SetAttribute("PaidRandomRestricted", false)
 task.wait(0.1)
@@ -499,6 +510,52 @@ Mock.signalFor(rejoin, "Chatted"):Fire("/wipe")
 Mock.pump(0.3)
 local wiped = Registry.DataService.Get(rejoin)
 check("wipe resets", wiped.rebirths == 0 and wiped.cash == GameConfig.StartingCash)
+
+-- imported 3D models ------------------------------------------------------------------------------------
+do
+	local ModelFactory = Mock.require(ReplicatedStorage.Shared.ModelFactory)
+	local assets = roblox.Instance.new("Folder")
+	assets.Name = "Assets"
+	local models = roblox.Instance.new("Folder")
+	models.Name = "Models"
+	models.Parent = assets
+	local fake = roblox.Instance.new("Model")
+	fake.Name = "Diver_SnorkelSam"
+	local mesh = roblox.Instance.new("Part")
+	mesh.Name = "Mesh"
+	mesh.Size = roblox.Vector3.new(1, 2, 1)
+	mesh.CFrame = roblox.CFrame.new(50, 50, 50)
+	mesh.Parent = fake
+	fake.Parent = models
+	assets.Parent = ReplicatedStorage
+
+	check("imported model detected", ModelFactory.hasImported("Diver_SnorkelSam"))
+	local diver = ModelFactory.diver("SnorkelSam")
+	check("imported model applied", diver:GetAttribute("Imported") == true)
+	local imported = diver:FindFirstChild("Mesh")
+	check("imported mesh moved into the diver", imported ~= nil)
+	if imported then
+		check("imported mesh scaled to diver height", math.abs(imported.Size.Y - 5.6) < 0.01, imported.Size.Y)
+		local root = diver.PrimaryPart or diver:FindFirstChild("Root")
+		local feet = imported.CFrame.Position.Y - imported.Size.Y / 2
+		check("imported mesh stands on the root", root ~= nil and math.abs(feet - root.CFrame.Position.Y) < 0.01, feet)
+		check("imported mesh is not collidable", imported.CanCollide == false and imported.Anchored == true)
+	end
+	local hidden = true
+	for _, descendant in diver:GetDescendants() do
+		if descendant:IsA("BasePart") and descendant ~= imported and descendant ~= diver.PrimaryPart then
+			if descendant.Transparency < 1 then
+				hidden = false
+			end
+		end
+	end
+	check("built-in look hidden", hidden)
+	local plain = ModelFactory.diver("ScubaSteve")
+	check("other divers keep the built-in look", plain:GetAttribute("Imported") == nil)
+	diver:Destroy()
+	plain:Destroy()
+	assets:Destroy()
+end
 
 -- shutdown saves ----------------------------------------------------------------------------------------
 for _, fn in Mock.bindToClose do
