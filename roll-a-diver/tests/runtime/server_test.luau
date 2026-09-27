@@ -8,6 +8,8 @@
 ]]
 
 local roblox = require("@lune/roblox")
+local CFrame = roblox.CFrame
+local Vector3 = roblox.Vector3
 local task = require("@lune/task")
 local Mock = require("./Mock")
 Mock.install()
@@ -133,6 +135,12 @@ task.wait(2.2)
 local before = data.cash
 local pad = plot.pedestals[1].pad
 local hitPart = player.Character.HumanoidRootPart
+-- exploit: firing the touch from across the map must not pay out
+hitPart.CFrame = CFrame.new(0, 500, 0)
+Mock.signalFor(pad, "Touched"):Fire(hitPart)
+Mock.pump(0.1)
+check("remote collect refused", data.cash == before, data.cash - before)
+hitPart.CFrame = pad.CFrame + Vector3.new(0, 3, 0)
 Mock.signalFor(pad, "Touched"):Fire(hitPart)
 Mock.pump(0.1)
 check("collect pad pays out", data.cash > before, data.cash - before)
@@ -381,8 +389,14 @@ if extraBefore > 0 then
 else
 	check("no spin left refused", spin2.ok == false)
 end
+check("policy checked on join", player:GetAttribute("PaidRandomRestricted") == false)
 chat("/product SpinPack")
 check("spin pack product", data.spins.extra >= 3, data.spins.extra)
+player:SetAttribute("PaidRandomRestricted", true)
+local spinsBefore, cashBeforePack = data.spins.extra, data.cash
+chat("/product SpinPack")
+check("restricted region gets cash, not random spins", data.spins.extra == spinsBefore and data.cash > cashBeforePack)
+player:SetAttribute("PaidRandomRestricted", false)
 task.wait(0.1)
 check("spin with pack", act(player, "Spin").ok)
 

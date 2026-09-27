@@ -158,9 +158,15 @@ function WorldFx.start()
 		if flicker then
 			glitchTimer = 0
 		end
+		local camera = Workspace.CurrentCamera
+		local cameraPosition = if camera then camera.CFrame.Position else Vector3.zero
 		for model, spinner in spinners do
 			if model.Parent == nil then
 				spinners[model] = nil
+				continue
+			end
+			-- only spin treasures near the camera (phones have many docks' worth of them)
+			if (spinner.base.Position - cameraPosition).Magnitude > 160 then
 				continue
 			end
 			spinner.angle += dt * 1.2

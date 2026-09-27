@@ -239,7 +239,11 @@ local function buildPlot(index: number, plotCFrame: CFrame): Plot
 			local player = character and Players:GetPlayerFromCharacter(character)
 			local plot = plots[index]
 			if player and plot and plot.owner == player then
-				Services.VaultService.CollectPedestal(player, i)
+				-- touches can be faked by exploiters, so the character must really be at the pad
+				local root = character and character:FindFirstChild("HumanoidRootPart")
+				if root and root:IsA("BasePart") and (root.CFrame.Position - pad.CFrame.Position).Magnitude <= 14 then
+					Services.VaultService.CollectPedestal(player, i)
+				end
 			end
 		end)
 		table.insert(pedestals, {

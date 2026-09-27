@@ -6073,6 +6073,13 @@ local productHandlers: { [string]: (Player, { [string]: any }) -> () } = {
 		Services.PlayerService.Notify(player, "Starter Pack claimed! Deep Sea Suit + $5,000", "Success")
 	end,
 	SpinPack = function(player, data)
+		if player:GetAttribute("PaidRandomRestricted") then
+			-- never hand random rewards bought with Robux to restricted players; give fixed cash instead
+			local amount = math.max(5000, Services.VaultService.IncomePerSecond(player) * 1800)
+			Services.EconomyService.AddCash(player, amount, "Product")
+			Services.PlayerService.Notify(player, "+" .. Format.money(amount), "Success")
+			return
+		end
 		data.spins.extra += 3
 		Services.PlayerService.Notify(player, "+3 wheel spins!", "Success")
 	end,
@@ -6601,7 +6608,11 @@ local function buildPlot(index: number, plotCFrame: CFrame): Plot
 			local player = character and Players:GetPlayerFromCharacter(character)
 			local plot = plots[index]
 			if player and plot and plot.owner == player then
-				Services.VaultService.CollectPedestal(player, i)
+				-- touches can be faked by exploiters, so the character must really be at the pad
+				local root = character and character:FindFirstChild("HumanoidRootPart")
+				if root and root:IsA("BasePart") and (root.CFrame.Position - pad.CFrame.Position).Magnitude <= 14 then
+					Services.VaultService.CollectPedestal(player, i)
+				end
 			end
 		end)
 		table.insert(pedestals, {
@@ -6805,6 +6816,8 @@ return RebirthService
 	All of them hand out rewards through RewardService.Grant.
 ]]
 
+local PolicyService = game:GetService("PolicyService")
+
 local Shared = game:GetService("ReplicatedStorage").Shared
 local Formulas = require(Shared.Formulas)
 local Format = require(Shared.Util.Format)
@@ -6974,8 +6987,22 @@ function RewardService.ClaimGroup(player: Player): { [string]: any }
 	return { ok = true, text = text }
 end
 
+-- Some countries restrict paid random items (loot boxes). Roblox requires experiences to check
+-- PolicyService and not sell random rewards for Robux to those players.
+function RewardService.RefreshPolicy(player: Player)
+	local restricted = true -- assume restricted if the check fails
+	local ok, info = pcall(function()
+		return PolicyService:GetPolicyInfoForPlayerAsync(player)
+	end)
+	if ok and type(info) == "table" then
+		restricted = info.ArePaidRandomItemsRestricted == true
+	end
+	player:SetAttribute("PaidRandomRestricted", restricted)
+end
+
 function RewardService.OnPlayerReady(player: Player)
 	RewardService.RefreshGroup(player)
+	RewardService.RefreshPolicy(player)
 end
 
 return RewardService
@@ -7958,6 +7985,12 @@ local function update(entry: Tracked, now: number)
 		return
 	end
 
+	-- an idle diver that has finished blending is standing still: nothing to do
+	if phase == "Idle" and entry.lastPhase == "Idle" and entry.blendFrom == nil and entry.lastCFrame ~= nil then
+		setStatus(entry, "Resting")
+		return
+	end
+
 	if phase ~= entry.lastPhase then
 		-- rise from wherever the diver really is (e.g. an Oxygen Tank cut the dive short)
 		local studs: number = (model:GetAttribute("DepthStuds") :: number?) or 20
@@ -8410,9 +8443,15 @@ function WorldFx.start()
 		if flicker then
 			glitchTimer = 0
 		end
+		local camera = Workspace.CurrentCamera
+		local cameraPosition = if camera then camera.CFrame.Position else Vector3.zero
 		for model, spinner in spinners do
 			if model.Parent == nil then
 				spinners[model] = nil
+				continue
+			end
+			-- only spin treasures near the camera (phones have many docks' worth of them)
+			if (spinner.base.Position - cameraPosition).Magnitude > 160 then
 				continue
 			end
 			spinner.angle += dt * 1.2
@@ -10777,6 +10816,35 @@ function Panel.build(content: Frame)
 		Parent = spin,
 	})
 
+	-- odds are always shown (required for random rewards that can be bought with Robux)
+	local totalWeight = 0
+	for _, segment in Rewards.Wheel do
+		totalWeight += segment.weight
+	end
+	local oddsLines = {}
+	for _, segment in Rewards.Wheel do
+		local percent = segment.weight / totalWeight * 100
+		table.insert(
+			oddsLines,
+			("%s %s%%"):format(
+				segment.label,
+				if percent < 1 then string.format("%.1f", percent) else tostring(math.floor(percent + 0.5))
+			)
+		)
+	end
+	Kit.text({
+		Name = "Odds",
+		Text = "Odds: " .. table.concat(oddsLines, " • "),
+		AnchorPoint = Vector2.new(1, 0),
+		Position = UDim2.new(1, -12, 0.3, 112),
+		Size = UDim2.new(0.42, 0, 0.7, -120),
+		TextColor3 = Theme.SubText,
+		TextWrapped = true,
+		TextYAlignment = Enum.TextYAlignment.Top,
+		MaxTextSize = 13,
+		Parent = spin,
+	})
+
 	-- codes
 	local codes = section(content, "🔑 Codes", UDim2.new(0.55, 6, 0.36, 0), UDim2.new(0.45, -6, 0.3, -6))
 	codeBox = Kit.new("TextBox", {
@@ -11225,6 +11293,7 @@ local Panel = {
 
 local passButtons: { [string]: TextButton } = {}
 local starterCard: Frame? = nil
+local spinCard: Frame? = nil
 
 local Shop = {}
 
@@ -11247,6 +11316,10 @@ end
 function Shop.buyProduct(productId: string)
 	local product = Monetization.ProductById[productId]
 	if not product then
+		return
+	end
+	if product.id == "SpinPack" and Players.LocalPlayer:GetAttribute("PaidRandomRestricted") then
+		Notifications.toast("This item isn't available in your region", "Info")
 		return
 	end
 	if product.assetId == 0 then
@@ -11359,6 +11432,8 @@ function Panel.build(content: Frame)
 		)
 		if product.id == "StarterPack" then
 			starterCard = card
+		elseif product.id == "SpinPack" then
+			spinCard = card
 		end
 	end
 end
@@ -11372,6 +11447,9 @@ function Panel.refresh()
 	local data = State.data()
 	if starterCard and data then
 		starterCard.Visible = not data.starterPackClaimed
+	end
+	if spinCard then
+		spinCard.Visible = not Players.LocalPlayer:GetAttribute("PaidRandomRestricted")
 	end
 end
 

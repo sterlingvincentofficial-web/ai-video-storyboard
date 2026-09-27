@@ -54,7 +54,8 @@ Mock.runScript(ServerScriptService.Server.Main)
 Mock.pump(0.3)
 local Registry = Mock.require(ServerScriptService.Server.Registry)
 
--- player + client
+-- player + client (the first dive waits a few seconds so the tutorial's first step can be checked)
+GameConfig.DiveRestTime = 4
 local player = Mock.addPlayer(301, "UiTester")
 Mock.services.Players.LocalPlayer = player
 Mock.clientEvents = true
@@ -97,6 +98,7 @@ check(
 		return beam ~= nil and beam.Enabled
 	end, 3)
 )
+GameConfig.DiveRestTime = 0.1
 check("screen gui built", gui ~= nil)
 local State = Mock.require(clientFolder.State)
 check(

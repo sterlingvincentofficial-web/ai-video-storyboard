@@ -3,6 +3,8 @@
 	All of them hand out rewards through RewardService.Grant.
 ]]
 
+local PolicyService = game:GetService("PolicyService")
+
 local Shared = game:GetService("ReplicatedStorage").Shared
 local Formulas = require(Shared.Formulas)
 local Format = require(Shared.Util.Format)
@@ -172,8 +174,22 @@ function RewardService.ClaimGroup(player: Player): { [string]: any }
 	return { ok = true, text = text }
 end
 
+-- Some countries restrict paid random items (loot boxes). Roblox requires experiences to check
+-- PolicyService and not sell random rewards for Robux to those players.
+function RewardService.RefreshPolicy(player: Player)
+	local restricted = true -- assume restricted if the check fails
+	local ok, info = pcall(function()
+		return PolicyService:GetPolicyInfoForPlayerAsync(player)
+	end)
+	if ok and type(info) == "table" then
+		restricted = info.ArePaidRandomItemsRestricted == true
+	end
+	player:SetAttribute("PaidRandomRestricted", restricted)
+end
+
 function RewardService.OnPlayerReady(player: Player)
 	RewardService.RefreshGroup(player)
+	RewardService.RefreshPolicy(player)
 end
 
 return RewardService

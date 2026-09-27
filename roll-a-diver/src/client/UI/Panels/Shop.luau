@@ -22,6 +22,7 @@ local Panel = {
 
 local passButtons: { [string]: TextButton } = {}
 local starterCard: Frame? = nil
+local spinCard: Frame? = nil
 
 local Shop = {}
 
@@ -44,6 +45,10 @@ end
 function Shop.buyProduct(productId: string)
 	local product = Monetization.ProductById[productId]
 	if not product then
+		return
+	end
+	if product.id == "SpinPack" and Players.LocalPlayer:GetAttribute("PaidRandomRestricted") then
+		Notifications.toast("This item isn't available in your region", "Info")
 		return
 	end
 	if product.assetId == 0 then
@@ -156,6 +161,8 @@ function Panel.build(content: Frame)
 		)
 		if product.id == "StarterPack" then
 			starterCard = card
+		elseif product.id == "SpinPack" then
+			spinCard = card
 		end
 	end
 end
@@ -169,6 +176,9 @@ function Panel.refresh()
 	local data = State.data()
 	if starterCard and data then
 		starterCard.Visible = not data.starterPackClaimed
+	end
+	if spinCard then
+		spinCard.Visible = not Players.LocalPlayer:GetAttribute("PaidRandomRestricted")
 	end
 end
 

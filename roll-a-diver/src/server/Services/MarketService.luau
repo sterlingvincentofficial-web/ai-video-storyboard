@@ -103,6 +103,13 @@ local productHandlers: { [string]: (Player, { [string]: any }) -> () } = {
 		Services.PlayerService.Notify(player, "Starter Pack claimed! Deep Sea Suit + $5,000", "Success")
 	end,
 	SpinPack = function(player, data)
+		if player:GetAttribute("PaidRandomRestricted") then
+			-- never hand random rewards bought with Robux to restricted players; give fixed cash instead
+			local amount = math.max(5000, Services.VaultService.IncomePerSecond(player) * 1800)
+			Services.EconomyService.AddCash(player, amount, "Product")
+			Services.PlayerService.Notify(player, "+" .. Format.money(amount), "Success")
+			return
+		end
 		data.spins.extra += 3
 		Services.PlayerService.Notify(player, "+3 wheel spins!", "Success")
 	end,

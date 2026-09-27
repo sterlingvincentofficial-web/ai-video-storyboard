@@ -226,6 +226,35 @@ function Panel.build(content: Frame)
 		Parent = spin,
 	})
 
+	-- odds are always shown (required for random rewards that can be bought with Robux)
+	local totalWeight = 0
+	for _, segment in Rewards.Wheel do
+		totalWeight += segment.weight
+	end
+	local oddsLines = {}
+	for _, segment in Rewards.Wheel do
+		local percent = segment.weight / totalWeight * 100
+		table.insert(
+			oddsLines,
+			("%s %s%%"):format(
+				segment.label,
+				if percent < 1 then string.format("%.1f", percent) else tostring(math.floor(percent + 0.5))
+			)
+		)
+	end
+	Kit.text({
+		Name = "Odds",
+		Text = "Odds: " .. table.concat(oddsLines, " • "),
+		AnchorPoint = Vector2.new(1, 0),
+		Position = UDim2.new(1, -12, 0.3, 112),
+		Size = UDim2.new(0.42, 0, 0.7, -120),
+		TextColor3 = Theme.SubText,
+		TextWrapped = true,
+		TextYAlignment = Enum.TextYAlignment.Top,
+		MaxTextSize = 13,
+		Parent = spin,
+	})
+
 	-- codes
 	local codes = section(content, "🔑 Codes", UDim2.new(0.55, 6, 0.36, 0), UDim2.new(0.45, -6, 0.3, -6))
 	codeBox = Kit.new("TextBox", {

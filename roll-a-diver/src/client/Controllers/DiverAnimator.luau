@@ -100,6 +100,12 @@ local function update(entry: Tracked, now: number)
 		return
 	end
 
+	-- an idle diver that has finished blending is standing still: nothing to do
+	if phase == "Idle" and entry.lastPhase == "Idle" and entry.blendFrom == nil and entry.lastCFrame ~= nil then
+		setStatus(entry, "Resting")
+		return
+	end
+
 	if phase ~= entry.lastPhase then
 		-- rise from wherever the diver really is (e.g. an Oxygen Tank cut the dive short)
 		local studs: number = (model:GetAttribute("DepthStuds") :: number?) or 20

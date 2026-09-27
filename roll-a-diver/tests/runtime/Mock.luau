@@ -512,8 +512,15 @@ end
 
 local UserInputService = { TouchEnabled = false, KeyboardEnabled = true }
 
+Mock.paidRandomRestricted = false
+local PolicyService = {}
+function PolicyService:GetPolicyInfoForPlayerAsync()
+	return { ArePaidRandomItemsRestricted = Mock.paidRandomRestricted }
+end
+
 local mockServices = {
 	UserInputService = UserInputService,
+	PolicyService = PolicyService,
 	DataStoreService = DataStoreService,
 	Players = Players,
 	RunService = RunService,
