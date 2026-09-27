@@ -7023,6 +7023,16 @@ function RollService.Roll(player: Player, crateId: string): { [string]: any }
 	end
 
 	local diverId = Formulas.rollCrate(crate.id, Services.EconomyService.RollLuck(player), rand)
+	local beginnersLuck = false
+	if data.stats.rolls == 0 then
+		-- a new player's very first roll is always Rare or better
+		local tries = 0
+		while Rarities.ById[Divers.ById[diverId].tier].rank < Rarities.ById.Rare.rank and tries < 200 do
+			diverId = Formulas.rollCrate(crate.id, Services.EconomyService.RollLuck(player), rand)
+			tries += 1
+		end
+		beginnersLuck = true
+	end
 	local uid, isNew = Services.DiverService.AddDiver(player, diverId)
 	data.stats.rolls += 1
 	Services.AnalyticsService.Step(player, "FirstRoll")
@@ -7050,6 +7060,7 @@ function RollService.Roll(player: Player, crateId: string): { [string]: any }
 		uid = uid,
 		isNew = isNew,
 		placed = uid ~= nil and Services.DiverService.SlotOf(data, uid) ~= nil,
+		beginnersLuck = beginnersLuck,
 	}
 end
 
@@ -8103,6 +8114,141 @@ return DiverAnimator
           </Item>
           <Item class="ModuleScript" referent="53">
             <Properties>
+              <string name="Name">TutorialGuide</string>
+              <string name="Source"><![CDATA[--[[
+	Draws the tutorial guide in the world: a glowing beam from the player to the target part
+	on their own dock, plus a bouncing arrow above it.
+]]
+
+local Players = game:GetService("Players")
+local RunService = game:GetService("RunService")
+local Workspace = game:GetService("Workspace")
+
+local Client = script.Parent.Parent
+local State = require(Client.State)
+local Tutorial = require(Client.Tutorial)
+
+local TutorialGuide = {}
+
+local beam: Beam? = nil
+local fromAttachment: Attachment? = nil
+local arrow: BillboardGui? = nil
+local anchor: Part? = nil
+
+local function ownPlot(): Instance?
+	local plotIndex = Players.LocalPlayer:GetAttribute("Plot")
+	local plots = Workspace:FindFirstChild("Plots")
+	if type(plotIndex) ~= "number" or not plots then
+		return nil
+	end
+	return plots:FindFirstChild("Plot" .. plotIndex)
+end
+
+local function ensure()
+	if anchor then
+		return
+	end
+	local part = Instance.new("Part")
+	part.Name = "TutorialTarget"
+	part.Anchored = true
+	part.CanCollide = false
+	part.CanQuery = false
+	part.CanTouch = false
+	part.Transparency = 1
+	part.Size = Vector3.new(0.5, 0.5, 0.5)
+	part.Parent = Workspace
+	anchor = part
+
+	local target = Instance.new("Attachment")
+	target.Parent = part
+
+	local gui = Instance.new("BillboardGui")
+	gui.Size = UDim2.fromOffset(80, 80)
+	gui.StudsOffset = Vector3.new(0, 5, 0)
+	gui.AlwaysOnTop = true
+	gui.Parent = part
+	local label = Instance.new("TextLabel")
+	label.Size = UDim2.fromScale(1, 1)
+	label.BackgroundTransparency = 1
+	label.Font = Enum.Font.FredokaOne
+	label.TextScaled = true
+	label.Text = "⬇"
+	label.TextColor3 = Color3.fromRGB(255, 220, 60)
+	local stroke = Instance.new("UIStroke")
+	stroke.Thickness = 4
+	stroke.Parent = label
+	label.Parent = gui
+	arrow = gui
+
+	local b = Instance.new("Beam")
+	b.Attachment1 = target
+	b.Color = ColorSequence.new(Color3.fromRGB(255, 220, 60))
+	b.Transparency = NumberSequence.new(0.3)
+	b.Width0 = 0.6
+	b.Width1 = 0.6
+	b.FaceCamera = true
+	b.LightEmission = 1
+	b.Segments = 12
+	b.CurveSize0 = 4
+	b.TextureSpeed = 2
+	b.Parent = part
+	beam = b
+end
+
+local function hide()
+	if beam then
+		beam.Enabled = false
+	end
+	if arrow then
+		arrow.Enabled = false
+	end
+end
+
+local function update()
+	local step = Tutorial.step(State.data())
+	local plot = ownPlot()
+	local targetPart = if step and step.worldTarget and plot then plot:FindFirstChild(step.worldTarget, true) else nil
+	local character = Players.LocalPlayer.Character
+	local root = character and character:FindFirstChild("HumanoidRootPart")
+	if not targetPart or not targetPart:IsA("BasePart") or not root then
+		hide()
+		return
+	end
+	ensure()
+	assert(anchor and beam and arrow)
+	anchor.CFrame = targetPart.CFrame + Vector3.new(0, 1, 0)
+	if not fromAttachment or fromAttachment.Parent ~= root then
+		if fromAttachment then
+			fromAttachment:Destroy()
+		end
+		local attachment = Instance.new("Attachment")
+		attachment.Name = "TutorialFrom"
+		attachment.Parent = root
+		fromAttachment = attachment
+		beam.Attachment0 = attachment
+	end
+	beam.Enabled = true
+	arrow.Enabled = true
+	arrow.StudsOffset = Vector3.new(0, 5 + math.sin(os.clock() * 4) * 0.8, 0)
+end
+
+function TutorialGuide.start()
+	local elapsed = 0
+	RunService.Heartbeat:Connect(function(dt)
+		elapsed += dt
+		if elapsed >= 0.05 then
+			elapsed = 0
+			update()
+		end
+	end)
+end
+
+return TutorialGuide
+]]></string>
+            </Properties>
+          </Item>
+          <Item class="ModuleScript" referent="54">
+            <Properties>
               <string name="Name">WorldFx</string>
               <string name="Source"><![CDATA[--[[
 	Local world effects: spinning pedestal treasures, glitch flicker, tentacle sway,
@@ -8304,7 +8450,7 @@ return WorldFx
             </Properties>
           </Item>
         </Item>
-        <Item class="LocalScript" referent="54">
+        <Item class="LocalScript" referent="55">
           <Properties>
             <string name="Name">Main</string>
             <string name="Source"><![CDATA[--[[
@@ -8318,12 +8464,14 @@ local App = require(script.Parent.UI.App)
 local DiverAnimator = require(script.Parent.Controllers.DiverAnimator)
 local WorldFx = require(script.Parent.Controllers.WorldFx)
 local ChatTags = require(script.Parent.Controllers.ChatTags)
+local TutorialGuide = require(script.Parent.Controllers.TutorialGuide)
 
 State.start()
 App.start()
 DiverAnimator.start()
 WorldFx.start()
 ChatTags.start()
+TutorialGuide.start()
 
 local player = Players.LocalPlayer
 if not player:GetAttribute("Ready") then
@@ -8332,7 +8480,7 @@ end
 ]]></string>
           </Properties>
         </Item>
-        <Item class="ModuleScript" referent="55">
+        <Item class="ModuleScript" referent="56">
           <Properties>
             <string name="Name">Net</string>
             <string name="Source"><![CDATA[--[[
@@ -8367,7 +8515,7 @@ return Net
 ]]></string>
           </Properties>
         </Item>
-        <Item class="ModuleScript" referent="56">
+        <Item class="ModuleScript" referent="57">
           <Properties>
             <string name="Name">Settings</string>
             <string name="Source"><![CDATA[--[[
@@ -8415,7 +8563,7 @@ return Settings
 ]]></string>
           </Properties>
         </Item>
-        <Item class="ModuleScript" referent="57">
+        <Item class="ModuleScript" referent="58">
           <Properties>
             <string name="Name">Sounds</string>
             <string name="Source"><![CDATA[--[[
@@ -8457,7 +8605,7 @@ return Sounds
 ]]></string>
           </Properties>
         </Item>
-        <Item class="ModuleScript" referent="58">
+        <Item class="ModuleScript" referent="59">
           <Properties>
             <string name="Name">State</string>
             <string name="Source"><![CDATA[--[[
@@ -8528,11 +8676,60 @@ return State
 ]]></string>
           </Properties>
         </Item>
-        <Item class="Folder" referent="59">
+        <Item class="ModuleScript" referent="60">
+          <Properties>
+            <string name="Name">Tutorial</string>
+            <string name="Source"><![CDATA[--[[
+	New-player tutorial: works out the current step from the player's stats.
+	Each step has the hint text, an optional world target (a part on the player's own dock)
+	and an optional menu button to highlight.
+]]
+
+local Tutorial = {}
+
+export type Step = {
+	id: string,
+	text: string,
+	worldTarget: string?, -- name of a part inside the player's plot model
+	menu: string?, -- menu entry id to pulse
+}
+
+function Tutorial.step(data: { [string]: any }?): Step?
+	if not data then
+		return nil
+	end
+	local stats = data.stats
+	if stats.dives == 0 then
+		return {
+			id = "Dive",
+			text = "Your diver is exploring the dark trench... watch them come back up!",
+			worldTarget = "DivingBoard1",
+		}
+	elseif stats.chestsOpened == 0 and #data.chests > 0 then
+		return { id = "Open", text = "Open your chest! Tap 📦 Chests", menu = "Chests" }
+	elseif stats.collected == 0 then
+		return {
+			id = "Collect",
+			text = "Walk onto the green pad in front of your treasure to collect cash",
+			worldTarget = "CollectPad1",
+		}
+	elseif stats.rolls == 0 then
+		return { id = "Roll", text = "Roll a new diver! Tap 🎲 Roll", menu = "Roll" }
+	elseif data.upgrades.DiveSlots == 0 and data.upgrades.Pedestals == 0 then
+		return { id = "Upgrade", text = "Buy an upgrade to grow your dock! Tap ⬆ Upgrade", menu = "Upgrades" }
+	end
+	return nil
+end
+
+return Tutorial
+]]></string>
+          </Properties>
+        </Item>
+        <Item class="Folder" referent="61">
           <Properties>
             <string name="Name">UI</string>
           </Properties>
-          <Item class="ModuleScript" referent="60">
+          <Item class="ModuleScript" referent="62">
             <Properties>
               <string name="Name">App</string>
               <string name="Source"><![CDATA[--[[
@@ -8542,6 +8739,7 @@ return State
 
 local Players = game:GetService("Players")
 local RunService = game:GetService("RunService")
+local UserInputService = game:GetService("UserInputService")
 local TweenService = game:GetService("TweenService")
 local Workspace = game:GetService("Workspace")
 
@@ -8560,6 +8758,7 @@ local State = require(Client.State)
 local Net = require(Client.Net)
 local Sounds = require(Client.Sounds)
 local Settings = require(Client.Settings)
+local Tutorial = require(Client.Tutorial)
 
 local App = {}
 
@@ -8595,6 +8794,28 @@ local window: Frame
 local windowTitle: TextLabel
 local windowBar: Frame
 local badges: { [string]: TextLabel } = {}
+local menuButtons: { [string]: TextButton } = {}
+local tutorialMenu: string? = nil
+
+-- "NEW" badges: how many items the player had the last time they opened each panel
+local seenCounts: { [string]: number } = {}
+
+local function countKeys(t: { [any]: any }): number
+	local count = 0
+	for _ in t do
+		count += 1
+	end
+	return count
+end
+
+local function currentCounts(data): { [string]: number }
+	local found, _, variants = Formulas.indexProgress(data.index)
+	return {
+		Divers = countKeys(data.divers),
+		Vault = countKeys(data.treasures),
+		Index = found + variants,
+	}
+end
 
 local cashLabel: TextLabel
 local incomeLabel: TextLabel
@@ -8618,6 +8839,13 @@ function App.open(id: string)
 		panels[openPanel].onClose()
 	end
 	openPanel = id
+	local openedData = State.data()
+	if openedData then
+		local counts = currentCounts(openedData)
+		if counts[id] then
+			seenCounts[id] = counts[id]
+		end
+	end
 	local panel = panels[id]
 	windowTitle.Text = panel.title
 	windowBar.BackgroundColor3 = panel.color
@@ -8768,6 +8996,7 @@ local function buildMenu(root: Frame)
 		})
 		Kit.corner(14).Parent = badge
 		badges[entry.id] = badge
+		menuButtons[entry.id] = button
 		button.Activated:Connect(function()
 			Sounds.play("Click", 0.3)
 			App.open(entry.id)
@@ -8952,22 +9181,6 @@ local function updateKraken()
 	end
 end
 
-local function tutorialText(data): string?
-	local stats = data.stats
-	if stats.dives == 0 then
-		return "Your diver is exploring the dark trench... wait for them to surface!"
-	elseif stats.chestsOpened == 0 then
-		return "Open your chest! Tap 📦 Chests"
-	elseif stats.collected == 0 then
-		return "Walk onto the green pad in front of your treasure to collect cash"
-	elseif stats.rolls == 0 then
-		return "Roll a new diver! Tap 🎲 Roll"
-	elseif data.upgrades.DiveSlots == 0 and data.upgrades.Pedestals == 0 then
-		return "Buy an upgrade to grow your dock! Tap ⬆ Upgrade"
-	end
-	return nil
-end
-
 local function updateHud()
 	local data = State.data()
 	if not data then
@@ -8984,9 +9197,20 @@ local function updateHud()
 	local rewards = panels.Rewards :: any
 	badges.Rewards.Visible = rewards.hasClaimable()
 	badges.Rewards.Text = "!"
+	local counts = currentCounts(data)
+	for id, count in counts do
+		if seenCounts[id] == nil then
+			seenCounts[id] = count -- first sync: nothing is "new" yet
+		end
+		local isNew = count > seenCounts[id] and openPanel ~= id
+		badges[id].Visible = isNew
+		badges[id].Text = "NEW"
+	end
 	Settings.load(data)
 
-	local text = tutorialText(data)
+	local step = Tutorial.step(data)
+	local text = if step then step.text else nil
+	tutorialMenu = if step then step.menu else nil
 	tutorialFrame.Visible = text ~= nil
 	tutorialLabel.Text = text or ""
 
@@ -9022,7 +9246,9 @@ function App.start()
 		local camera = Workspace.CurrentCamera
 		if camera then
 			local size = camera.ViewportSize
-			local scale = math.clamp(math.min(size.X / 1280, size.Y / 760), 0.55, 1.15)
+			-- phones get slightly bigger buttons so they're easy to tap
+			local touch = UserInputService.TouchEnabled and not UserInputService.KeyboardEnabled
+			local scale = math.clamp(math.min(size.X / 1280, size.Y / 760) * (if touch then 1.12 else 1), 0.6, 1.15)
 			uiScale.Scale = scale
 			root.Size = UDim2.fromScale(1 / scale, 1 / scale)
 		end
@@ -9090,12 +9316,29 @@ function App.start()
 			end)
 		end
 	end)
+	local lastCash = State.cash()
+	local cashScale = Kit.new("UIScale", { Parent = cashLabel })
 	player:GetAttributeChangedSignal("Cash"):Connect(function()
-		cashLabel.Text = Format.money(State.cash())
+		local cash = State.cash()
+		cashLabel.Text = Format.money(cash)
+		if cash > lastCash then
+			cashScale.Scale = 1.12
+			TweenService:Create(cashScale, TweenInfo.new(0.25, Enum.EasingStyle.Back), { Scale = 1 }):Play()
+		end
+		lastCash = cash
 	end)
 
 	local elapsed = 0
 	RunService.Heartbeat:Connect(function(dt)
+		-- pulse the menu button the tutorial is pointing at
+		for id, button in menuButtons do
+			local stroke = button:FindFirstChildOfClass("UIStroke")
+			if stroke then
+				local pulsing = id == tutorialMenu and openPanel ~= id
+				stroke.Color = if pulsing then Theme.Gold else Theme.Stroke
+				stroke.Thickness = if pulsing then 3 + math.abs(math.sin(os.clock() * 5)) * 4 else 3
+			end
+		end
 		elapsed += dt
 		if elapsed >= 0.5 then
 			elapsed = 0
@@ -9109,7 +9352,7 @@ return App
 ]]></string>
             </Properties>
           </Item>
-          <Item class="ModuleScript" referent="61">
+          <Item class="ModuleScript" referent="63">
             <Properties>
               <string name="Name">Kit</string>
               <string name="Source"><![CDATA[--[[
@@ -9356,7 +9599,7 @@ return Kit
 ]]></string>
             </Properties>
           </Item>
-          <Item class="ModuleScript" referent="62">
+          <Item class="ModuleScript" referent="64">
             <Properties>
               <string name="Name">Notifications</string>
               <string name="Source"><![CDATA[--[[
@@ -9508,11 +9751,11 @@ return Notifications
 ]]></string>
             </Properties>
           </Item>
-          <Item class="Folder" referent="63">
+          <Item class="Folder" referent="65">
             <Properties>
               <string name="Name">Panels</string>
             </Properties>
-            <Item class="ModuleScript" referent="64">
+            <Item class="ModuleScript" referent="66">
               <Properties>
                 <string name="Name">Chests</string>
                 <string name="Source"><![CDATA[--[[
@@ -9693,7 +9936,7 @@ return Panel
 ]]></string>
               </Properties>
             </Item>
-            <Item class="ModuleScript" referent="65">
+            <Item class="ModuleScript" referent="67">
               <Properties>
                 <string name="Name">Divers</string>
                 <string name="Source"><![CDATA[--[[
@@ -9920,7 +10163,7 @@ return Panel
 ]]></string>
               </Properties>
             </Item>
-            <Item class="ModuleScript" referent="66">
+            <Item class="ModuleScript" referent="68">
               <Properties>
                 <string name="Name">Index</string>
                 <string name="Source"><![CDATA[--[[
@@ -10149,7 +10392,7 @@ return Panel
 ]]></string>
               </Properties>
             </Item>
-            <Item class="ModuleScript" referent="67">
+            <Item class="ModuleScript" referent="69">
               <Properties>
                 <string name="Name">Rebirth</string>
                 <string name="Source"><![CDATA[--[[
@@ -10303,7 +10546,7 @@ return Panel
 ]]></string>
               </Properties>
             </Item>
-            <Item class="ModuleScript" referent="68">
+            <Item class="ModuleScript" referent="70">
               <Properties>
                 <string name="Name">Rewards</string>
                 <string name="Source"><![CDATA[--[[
@@ -10641,7 +10884,7 @@ return Panel
 ]]></string>
               </Properties>
             </Item>
-            <Item class="ModuleScript" referent="69">
+            <Item class="ModuleScript" referent="71">
               <Properties>
                 <string name="Name">Roll</string>
                 <string name="Source"><![CDATA[--[[
@@ -10659,6 +10902,7 @@ local UI = script.Parent.Parent
 local Kit = require(UI.Kit)
 local Theme = require(UI.Theme)
 local Reveal = require(UI.Reveal)
+local Notifications = require(UI.Notifications)
 local Client = UI.Parent
 local State = require(Client.State)
 local Net = require(Client.Net)
@@ -10689,6 +10933,9 @@ local function doRoll(crateId: string, fast: boolean): boolean
 	rolling = true
 	local response = Net.try("Roll", crateId)
 	if response.ok then
+		if response.beginnersLuck then
+			Notifications.toast("🍀 Beginner's luck! Your first roll is always Rare or better", "New")
+		end
 		Reveal.roll(crateId, response.diverId, response.isNew, response.placed, fast)
 	end
 	rolling = false
@@ -10865,7 +11112,7 @@ return Panel
 ]]></string>
               </Properties>
             </Item>
-            <Item class="ModuleScript" referent="70">
+            <Item class="ModuleScript" referent="72">
               <Properties>
                 <string name="Name">Settings</string>
                 <string name="Source"><![CDATA[--[[
@@ -10951,7 +11198,7 @@ return Panel
 ]]></string>
               </Properties>
             </Item>
-            <Item class="ModuleScript" referent="71">
+            <Item class="ModuleScript" referent="73">
               <Properties>
                 <string name="Name">Shop</string>
                 <string name="Source"><![CDATA[--[[
@@ -11134,7 +11381,7 @@ return Panel
 ]]></string>
               </Properties>
             </Item>
-            <Item class="ModuleScript" referent="72">
+            <Item class="ModuleScript" referent="74">
               <Properties>
                 <string name="Name">Top</string>
                 <string name="Source"><![CDATA[--[[
@@ -11252,7 +11499,7 @@ return Panel
 ]]></string>
               </Properties>
             </Item>
-            <Item class="ModuleScript" referent="73">
+            <Item class="ModuleScript" referent="75">
               <Properties>
                 <string name="Name">Upgrades</string>
                 <string name="Source"><![CDATA[--[[
@@ -11356,7 +11603,7 @@ return Panel
 ]]></string>
               </Properties>
             </Item>
-            <Item class="ModuleScript" referent="74">
+            <Item class="ModuleScript" referent="76">
               <Properties>
                 <string name="Name">Vault</string>
                 <string name="Source"><![CDATA[--[[
@@ -11571,7 +11818,7 @@ return Panel
               </Properties>
             </Item>
           </Item>
-          <Item class="ModuleScript" referent="75">
+          <Item class="ModuleScript" referent="77">
             <Properties>
               <string name="Name">Reveal</string>
               <string name="Source"><![CDATA[--[[
@@ -11867,7 +12114,7 @@ return Reveal
 ]]></string>
             </Properties>
           </Item>
-          <Item class="ModuleScript" referent="76">
+          <Item class="ModuleScript" referent="78">
             <Properties>
               <string name="Name">Theme</string>
               <string name="Source"><![CDATA[--[[
@@ -11903,7 +12150,7 @@ return {
       </Item>
     </Item>
   </Item>
-  <Item class="Workspace" referent="77">
+  <Item class="Workspace" referent="79">
     <Properties>
       <string name="Name">Workspace</string>
       <bool name="NeedsPivotMigration">false</bool>

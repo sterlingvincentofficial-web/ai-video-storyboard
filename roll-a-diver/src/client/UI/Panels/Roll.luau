@@ -13,6 +13,7 @@ local UI = script.Parent.Parent
 local Kit = require(UI.Kit)
 local Theme = require(UI.Theme)
 local Reveal = require(UI.Reveal)
+local Notifications = require(UI.Notifications)
 local Client = UI.Parent
 local State = require(Client.State)
 local Net = require(Client.Net)
@@ -43,6 +44,9 @@ local function doRoll(crateId: string, fast: boolean): boolean
 	rolling = true
 	local response = Net.try("Roll", crateId)
 	if response.ok then
+		if response.beginnersLuck then
+			Notifications.toast("🍀 Beginner's luck! Your first roll is always Rare or better", "New")
+		end
 		Reveal.roll(crateId, response.diverId, response.isNew, response.placed, fast)
 	end
 	rolling = false

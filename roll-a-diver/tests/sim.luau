@@ -21,7 +21,7 @@ local Rarities = Loader.require(Config.Rarities)
 
 local HOURS = tonumber(process.args[1]) or 6
 
-math.randomseed(7)
+math.randomseed(tonumber(process.args[2]) or 7)
 local function rand(): number
 	return math.random()
 end

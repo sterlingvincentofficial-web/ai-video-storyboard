@@ -510,7 +510,10 @@ function Debris:AddItem(instance, lifetime)
 	end)
 end
 
+local UserInputService = { TouchEnabled = false, KeyboardEnabled = true }
+
 local mockServices = {
+	UserInputService = UserInputService,
 	DataStoreService = DataStoreService,
 	Players = Players,
 	RunService = RunService,
@@ -668,7 +671,11 @@ function Mock.load(placePath: string)
 		workspace.CurrentCamera = camera
 	end
 	-- read-only in Roblox, but Lune has no default for it
-	workspace.CurrentCamera.ViewportSize = roblox.Vector2.new(1280, 720)
+	-- PHONE=1 runs the client at an iPhone landscape resolution with touch input
+	local phone = require("@lune/process").env.PHONE ~= nil
+	workspace.CurrentCamera.ViewportSize = if phone then roblox.Vector2.new(812, 375) else roblox.Vector2.new(1280, 720)
+	UserInputService.TouchEnabled = phone
+	UserInputService.KeyboardEnabled = not phone
 	if not workspace:FindFirstChild("Terrain") then
 		local terrain = roblox.Instance.new("Terrain")
 		terrain.Parent = workspace

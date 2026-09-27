@@ -36,6 +36,16 @@ function RollService.Roll(player: Player, crateId: string): { [string]: any }
 	end
 
 	local diverId = Formulas.rollCrate(crate.id, Services.EconomyService.RollLuck(player), rand)
+	local beginnersLuck = false
+	if data.stats.rolls == 0 then
+		-- a new player's very first roll is always Rare or better
+		local tries = 0
+		while Rarities.ById[Divers.ById[diverId].tier].rank < Rarities.ById.Rare.rank and tries < 200 do
+			diverId = Formulas.rollCrate(crate.id, Services.EconomyService.RollLuck(player), rand)
+			tries += 1
+		end
+		beginnersLuck = true
+	end
 	local uid, isNew = Services.DiverService.AddDiver(player, diverId)
 	data.stats.rolls += 1
 	Services.AnalyticsService.Step(player, "FirstRoll")
@@ -63,6 +73,7 @@ function RollService.Roll(player: Player, crateId: string): { [string]: any }
 		uid = uid,
 		isNew = isNew,
 		placed = uid ~= nil and Services.DiverService.SlotOf(data, uid) ~= nil,
+		beginnersLuck = beginnersLuck,
 	}
 end
 

@@ -144,6 +144,13 @@ local roll = act(player, "Roll", "Snorkel")
 check("roll ok", roll.ok, roll.err)
 check("roll gave diver", roll.diverId ~= nil and data.divers[roll.uid] == roll.diverId)
 check("roll auto placed", roll.placed == true)
+local Divers = Mock.require(Shared.Config.Divers)
+local Rarities = Mock.require(Shared.Config.Rarities)
+check(
+	"beginner's luck: first roll is Rare+",
+	roll.beginnersLuck == true and Rarities.ById[Divers.ById[roll.diverId].tier].rank >= Rarities.ById.Rare.rank,
+	roll.diverId
+)
 check("roll locked crate refused", act(player, "Roll", "Abyss").ok == false)
 check("bad action refused", act(player, "NotAThing").ok == false)
 task.wait(0.1)

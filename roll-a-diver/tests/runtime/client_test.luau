@@ -88,6 +88,15 @@ Mock.runScript(clientFolder.Main)
 Mock.pump(1)
 
 local gui = player.PlayerGui:FindFirstChild("RollADiver")
+local Workspace = game:GetService("Workspace")
+check(
+	"tutorial beam points at the dock",
+	waitFor(function()
+		local target = Workspace:FindFirstChild("TutorialTarget")
+		local beam = target and target:FindFirstChildOfClass("Beam")
+		return beam ~= nil and beam.Enabled
+	end, 3)
+)
 check("screen gui built", gui ~= nil)
 local State = Mock.require(clientFolder.State)
 check(

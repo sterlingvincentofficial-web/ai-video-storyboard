@@ -5,6 +5,7 @@
 
 local Players = game:GetService("Players")
 local RunService = game:GetService("RunService")
+local UserInputService = game:GetService("UserInputService")
 local TweenService = game:GetService("TweenService")
 local Workspace = game:GetService("Workspace")
 
@@ -23,6 +24,7 @@ local State = require(Client.State)
 local Net = require(Client.Net)
 local Sounds = require(Client.Sounds)
 local Settings = require(Client.Settings)
+local Tutorial = require(Client.Tutorial)
 
 local App = {}
 
@@ -58,6 +60,28 @@ local window: Frame
 local windowTitle: TextLabel
 local windowBar: Frame
 local badges: { [string]: TextLabel } = {}
+local menuButtons: { [string]: TextButton } = {}
+local tutorialMenu: string? = nil
+
+-- "NEW" badges: how many items the player had the last time they opened each panel
+local seenCounts: { [string]: number } = {}
+
+local function countKeys(t: { [any]: any }): number
+	local count = 0
+	for _ in t do
+		count += 1
+	end
+	return count
+end
+
+local function currentCounts(data): { [string]: number }
+	local found, _, variants = Formulas.indexProgress(data.index)
+	return {
+		Divers = countKeys(data.divers),
+		Vault = countKeys(data.treasures),
+		Index = found + variants,
+	}
+end
 
 local cashLabel: TextLabel
 local incomeLabel: TextLabel
@@ -81,6 +105,13 @@ function App.open(id: string)
 		panels[openPanel].onClose()
 	end
 	openPanel = id
+	local openedData = State.data()
+	if openedData then
+		local counts = currentCounts(openedData)
+		if counts[id] then
+			seenCounts[id] = counts[id]
+		end
+	end
 	local panel = panels[id]
 	windowTitle.Text = panel.title
 	windowBar.BackgroundColor3 = panel.color
@@ -231,6 +262,7 @@ local function buildMenu(root: Frame)
 		})
 		Kit.corner(14).Parent = badge
 		badges[entry.id] = badge
+		menuButtons[entry.id] = button
 		button.Activated:Connect(function()
 			Sounds.play("Click", 0.3)
 			App.open(entry.id)
@@ -415,22 +447,6 @@ local function updateKraken()
 	end
 end
 
-local function tutorialText(data): string?
-	local stats = data.stats
-	if stats.dives == 0 then
-		return "Your diver is exploring the dark trench... wait for them to surface!"
-	elseif stats.chestsOpened == 0 then
-		return "Open your chest! Tap 📦 Chests"
-	elseif stats.collected == 0 then
-		return "Walk onto the green pad in front of your treasure to collect cash"
-	elseif stats.rolls == 0 then
-		return "Roll a new diver! Tap 🎲 Roll"
-	elseif data.upgrades.DiveSlots == 0 and data.upgrades.Pedestals == 0 then
-		return "Buy an upgrade to grow your dock! Tap ⬆ Upgrade"
-	end
-	return nil
-end
-
 local function updateHud()
 	local data = State.data()
 	if not data then
@@ -447,9 +463,20 @@ local function updateHud()
 	local rewards = panels.Rewards :: any
 	badges.Rewards.Visible = rewards.hasClaimable()
 	badges.Rewards.Text = "!"
+	local counts = currentCounts(data)
+	for id, count in counts do
+		if seenCounts[id] == nil then
+			seenCounts[id] = count -- first sync: nothing is "new" yet
+		end
+		local isNew = count > seenCounts[id] and openPanel ~= id
+		badges[id].Visible = isNew
+		badges[id].Text = "NEW"
+	end
 	Settings.load(data)
 
-	local text = tutorialText(data)
+	local step = Tutorial.step(data)
+	local text = if step then step.text else nil
+	tutorialMenu = if step then step.menu else nil
 	tutorialFrame.Visible = text ~= nil
 	tutorialLabel.Text = text or ""
 
@@ -485,7 +512,9 @@ function App.start()
 		local camera = Workspace.CurrentCamera
 		if camera then
 			local size = camera.ViewportSize
-			local scale = math.clamp(math.min(size.X / 1280, size.Y / 760), 0.55, 1.15)
+			-- phones get slightly bigger buttons so they're easy to tap
+			local touch = UserInputService.TouchEnabled and not UserInputService.KeyboardEnabled
+			local scale = math.clamp(math.min(size.X / 1280, size.Y / 760) * (if touch then 1.12 else 1), 0.6, 1.15)
 			uiScale.Scale = scale
 			root.Size = UDim2.fromScale(1 / scale, 1 / scale)
 		end
@@ -553,12 +582,29 @@ function App.start()
 			end)
 		end
 	end)
+	local lastCash = State.cash()
+	local cashScale = Kit.new("UIScale", { Parent = cashLabel })
 	player:GetAttributeChangedSignal("Cash"):Connect(function()
-		cashLabel.Text = Format.money(State.cash())
+		local cash = State.cash()
+		cashLabel.Text = Format.money(cash)
+		if cash > lastCash then
+			cashScale.Scale = 1.12
+			TweenService:Create(cashScale, TweenInfo.new(0.25, Enum.EasingStyle.Back), { Scale = 1 }):Play()
+		end
+		lastCash = cash
 	end)
 
 	local elapsed = 0
 	RunService.Heartbeat:Connect(function(dt)
+		-- pulse the menu button the tutorial is pointing at
+		for id, button in menuButtons do
+			local stroke = button:FindFirstChildOfClass("UIStroke")
+			if stroke then
+				local pulsing = id == tutorialMenu and openPanel ~= id
+				stroke.Color = if pulsing then Theme.Gold else Theme.Stroke
+				stroke.Thickness = if pulsing then 3 + math.abs(math.sin(os.clock() * 5)) * 4 else 3
+			end
+		end
 		elapsed += dt
 		if elapsed >= 0.5 then
 			elapsed = 0
