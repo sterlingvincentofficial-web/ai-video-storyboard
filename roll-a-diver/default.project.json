@@ -1,0 +1,33 @@
+{
+  "name": "RollADiver",
+  "tree": {
+    "$className": "DataModel",
+    "ReplicatedStorage": {
+      "Shared": {
+        "$path": "src/shared"
+      }
+    },
+    "ServerScriptService": {
+      "Server": {
+        "$path": "src/server"
+      }
+    },
+    "StarterPlayer": {
+      "StarterPlayerScripts": {
+        "Client": {
+          "$path": "src/client"
+        }
+      }
+    },
+    "Workspace": {
+      "$properties": {
+        "StreamingEnabled": false
+      }
+    },
+    "Players": {
+      "$properties": {
+        "CharacterAutoLoads": true
+      }
+    }
+  }
+}
