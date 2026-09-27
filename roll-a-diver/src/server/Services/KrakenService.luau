@@ -22,6 +22,7 @@ local lastClick: { [Player]: number } = {}
 local health = 0
 local maxHealth = 0
 local defeated = false
+local riseThread: thread? = nil
 
 local RISE_DEPTH = 70
 
@@ -111,6 +112,8 @@ function KrakenService.Spawn()
 	model:SetAttribute("Health", health)
 	for _, part in model:GetDescendants() do
 		if part:IsA("BasePart") and (part.Name == "Head" or part.Name == "Mantle" or part.Name == "Hitbox") then
+			-- ModelFactory parts are non-queryable; clicks need raycasts to hit them
+			part.CanQuery = true
 			local detector = Instance.new("ClickDetector")
 			detector.MaxActivationDistance = 400
 			detector.MouseClick:Connect(onClick)
@@ -142,7 +145,7 @@ function KrakenService.Spawn()
 	model:PivotTo(CFrame.new(start))
 	model.Parent = Workspace
 	current = model
-	task.spawn(moveTo, model, start, target, 4)
+	riseThread = task.spawn(moveTo, model, start, target, 4)
 end
 
 function KrakenService.Despawn()
@@ -151,6 +154,14 @@ function KrakenService.Despawn()
 	if not model then
 		return
 	end
+	if riseThread then
+		pcall(task.cancel, riseThread)
+		riseThread = nil
+	end
+	-- so the HUD stops showing it and a new Kraken never gets confused with this one
+	model.Name = "SinkingKraken"
+	model:SetAttribute("Health", nil)
+	model:SetAttribute("MaxHealth", nil)
 	for _, detector in model:GetDescendants() do
 		if detector:IsA("ClickDetector") then
 			detector:Destroy()

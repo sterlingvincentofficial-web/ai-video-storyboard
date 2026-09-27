@@ -161,8 +161,11 @@ local function processReceipt(receipt): Enum.ProductPurchaseDecision
 	while #data.receipts > MAX_RECEIPTS do
 		table.remove(data.receipts, 1)
 	end
-	-- save right away so a crash can't grant the same purchase twice
-	Services.DataService.Save(player, false)
+	-- Only confirm once the purchase is really saved. If the save fails Roblox retries later,
+	-- and the receipt id already in data.receipts stops the item being granted twice.
+	if Services.DataService.IsSaving(player) and not Services.DataService.Save(player, false) then
+		return Enum.ProductPurchaseDecision.NotProcessedYet
+	end
 	return Enum.ProductPurchaseDecision.PurchaseGranted
 end
 

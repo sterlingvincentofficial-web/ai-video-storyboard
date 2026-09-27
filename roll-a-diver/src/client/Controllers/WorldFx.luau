@@ -64,8 +64,9 @@ local function floatingText(position: Vector3, text: string, color: Color3)
 	Debris:AddItem(anchor, 1.5)
 end
 
-local function chestPop(diver: Instance, chestId: string, count: number, glow: Color3?)
-	if not diver:IsA("Model") then
+local function chestPop(diver: Instance?, chestId: string, count: number, glow: Color3?)
+	-- the diver model can be gone by the time the event arrives
+	if typeof(diver) ~= "Instance" or not diver:IsA("Model") then
 		return
 	end
 	local home = diver:GetAttribute("Home")

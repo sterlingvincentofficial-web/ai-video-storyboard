@@ -316,6 +316,7 @@ check("kraken spawned", kraken ~= nil)
 if kraken then
 	local maxHealth = kraken:GetAttribute("MaxHealth")
 	check("kraken has health", type(maxHealth) == "number" and maxHealth > 0, maxHealth)
+	check("kraken body is clickable", kraken.Head.CanQuery == true)
 	local detector = kraken.Head:FindFirstChildOfClass("ClickDetector")
 	local chestsBefore = #data.chests
 	local openedCount = data.stats.chestsOpened
@@ -328,6 +329,7 @@ if kraken then
 	end
 	Mock.pump(0.2)
 	check("kraken defeated", not Registry.EventService.IsActive("Kraken"))
+	check("defeated kraken leaves the HUD", Workspace:FindFirstChild("Kraken") == nil)
 	check("kraken reward", #data.chests > chestsBefore or data.stats.chestsOpened > openedCount)
 end
 chat("/endevent lowtide")

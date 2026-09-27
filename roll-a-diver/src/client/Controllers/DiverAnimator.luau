@@ -20,11 +20,15 @@ local DiverAnimator = {}
 local JUMP_SHARE = 0.18
 local CLIMB_SHARE = 0.12
 local FAR_DISTANCE = 260
+local BLEND_TIME = 0.35
 
 type Tracked = {
 	model: Model,
 	lastPhase: string?,
 	fromDepth: number,
+	lastCFrame: CFrame?,
+	blendFrom: CFrame?,
+	blendStart: number,
 	lastStatus: string,
 	frame: number,
 }
@@ -93,9 +97,13 @@ local function update(entry: Tracked, now: number)
 	end
 
 	if phase ~= entry.lastPhase then
-		entry.fromDepth = if entry.lastPhase == "Grabbed"
-			then 3
-			else ((model:GetAttribute("DepthStuds") :: number?) or 20)
+		-- rise from wherever the diver really is (e.g. an Oxygen Tank cut the dive short)
+		local studs: number = (model:GetAttribute("DepthStuds") :: number?) or 20
+		local last = entry.lastCFrame
+		entry.fromDepth = if last then math.clamp(entryPoint.Y - last.Position.Y, 0, studs) else studs
+		-- and blend from the last drawn pose so phase changes never snap
+		entry.blendFrom = if entry.lastPhase ~= nil then last else nil
+		entry.blendStart = now
 		entry.lastPhase = phase
 	end
 
@@ -150,7 +158,18 @@ local function update(entry: Tracked, now: number)
 		setStatus(entry, "Resting")
 	end
 
-	model:PivotTo(CFrame.new(position) * rotation * CFrame.Angles(math.rad(pitch), 0, 0))
+	local target = CFrame.new(position) * rotation * CFrame.Angles(math.rad(pitch), 0, 0)
+	local blendFrom = entry.blendFrom
+	if blendFrom then
+		local alpha = (now - entry.blendStart) / BLEND_TIME
+		if alpha < 1 then
+			target = blendFrom:Lerp(target, easeOut(alpha))
+		else
+			entry.blendFrom = nil
+		end
+	end
+	entry.lastCFrame = target
+	model:PivotTo(target)
 	setLights(model, position.Y < -1, if typeof(glowColor) == "Color3" then glowColor else nil, glowStrength)
 end
 
@@ -160,6 +179,9 @@ local function track(model: Instance)
 			model = model,
 			lastPhase = nil,
 			fromDepth = 20,
+			lastCFrame = nil,
+			blendFrom = nil,
+			blendStart = 0,
 			lastStatus = "",
 			frame = math.random(0, 9),
 		}

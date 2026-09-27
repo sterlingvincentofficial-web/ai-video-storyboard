@@ -143,6 +143,10 @@ function EventService.Start()
 	Players.PlayerAdded:Connect(function(player)
 		task.defer(EventService.SendTo, player)
 	end)
+	for _, player in Players:GetPlayers() do
+		task.defer(EventService.SendTo, player)
+	end
+
 	task.spawn(function()
 		while true do
 			task.wait(1)

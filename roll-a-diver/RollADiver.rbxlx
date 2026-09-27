@@ -4029,9 +4029,12 @@ type Profile = {
 	canSave: boolean,
 	dirty: boolean,
 	lastSave: number,
+	releasing: boolean?,
 }
 
 local profiles: { [Player]: Profile } = {}
+-- UserIds whose final save is still being written; a rejoin waits for it (no rollback)
+local releasing: { [number]: boolean } = {}
 local store: DataStore? = nil
 local shuttingDown = false
 
@@ -4091,6 +4094,11 @@ function DataService.Load(player: Player): boolean
 	local data: { [string]: any }? = nil
 	local canSave = store ~= nil
 
+	local waitStarted = os.clock()
+	while releasing[player.UserId] and os.clock() - waitStarted < 30 do
+		task.wait(0.2)
+	end
+
 	if store then
 		local jobId = if game.JobId ~= "" then game.JobId else "studio-" .. HttpService:GenerateGUID(false)
 		for attempt = 1, LOAD_RETRIES do
@@ -4128,6 +4136,19 @@ function DataService.Load(player: Player): boolean
 			task.wait(if lockedElsewhere then 6 else 2)
 		end
 		if not data and canSave then
+			return false
+		end
+		if data and not player.Parent then
+			-- they left while we were loading: give the lock back so their next server doesn't wait
+			pcall(function()
+				(store :: DataStore):UpdateAsync(keyFor(player), function(old)
+					if old and old.lock and old.lock.job == jobId then
+						old.lock = nil
+						return old
+					end
+					return nil
+				end)
+			end)
 			return false
 		end
 	end
@@ -4186,26 +4207,40 @@ function DataService.Save(player: Player, release: boolean?): boolean
 	local jobId = profile.data.lock and profile.data.lock.job
 	local data = profile.data
 	data.lastOnline = os.time()
+	local lockLost = false
 	local ok, err = pcall(function()
 		(store :: DataStore):UpdateAsync(keyFor(player), function(old)
 			if old and old.lock and jobId and old.lock.job ~= jobId then
 				-- another server took over this session; never overwrite its data
+				lockLost = true
 				return nil
 			end
+			lockLost = false
 			data.lock = if release then nil else { job = jobId, time = os.time() }
 			return data
 		end)
 	end)
 	if not ok then
 		warn(("[DataService] Save failed for %s: %s"):format(player.Name, tostring(err)))
+	elseif lockLost then
+		warn(("[DataService] %s's session was taken over by another server; not saving"):format(player.Name))
 	end
 	profile.lastSave = os.clock()
-	return ok
+	return ok and not lockLost
 end
 
+-- Final save + unlock. Safe to call twice (PlayerRemoving and BindToClose both do); only the first saves.
 function DataService.Release(player: Player)
+	local profile = profiles[player]
+	if not profile or profile.releasing then
+		return
+	end
+	profile.releasing = true
+	local userId = player.UserId
+	releasing[userId] = true
 	DataService.Save(player, true)
 	profiles[player] = nil
+	releasing[userId] = nil
 end
 
 -- Studio/admin helper: reset a player to a fresh save.
@@ -4244,16 +4279,14 @@ function DataService.Start()
 
 	game:BindToClose(function()
 		shuttingDown = true
-		local pending = 0
-		for player in profiles do
-			pending += 1
-			task.spawn(function()
-				releaseForShutdown(player)
-				pending -= 1
-			end)
+		for player, profile in profiles do
+			if not profile.releasing then
+				task.spawn(releaseForShutdown, player)
+			end
 		end
+		-- wait for every final save (including ones PlayerRemoving started)
 		local started = os.clock()
-		while pending > 0 and os.clock() - started < 25 do
+		while next(profiles) ~= nil and os.clock() - started < 25 do
 			task.wait(0.1)
 		end
 	end)
@@ -5171,6 +5204,10 @@ function EventService.Start()
 	Players.PlayerAdded:Connect(function(player)
 		task.defer(EventService.SendTo, player)
 	end)
+	for _, player in Players:GetPlayers() do
+		task.defer(EventService.SendTo, player)
+	end
+
 	task.spawn(function()
 		while true do
 			task.wait(1)
@@ -5226,6 +5263,7 @@ local lastClick: { [Player]: number } = {}
 local health = 0
 local maxHealth = 0
 local defeated = false
+local riseThread: thread? = nil
 
 local RISE_DEPTH = 70
 
@@ -5315,6 +5353,8 @@ function KrakenService.Spawn()
 	model:SetAttribute("Health", health)
 	for _, part in model:GetDescendants() do
 		if part:IsA("BasePart") and (part.Name == "Head" or part.Name == "Mantle" or part.Name == "Hitbox") then
+			-- ModelFactory parts are non-queryable; clicks need raycasts to hit them
+			part.CanQuery = true
 			local detector = Instance.new("ClickDetector")
 			detector.MaxActivationDistance = 400
 			detector.MouseClick:Connect(onClick)
@@ -5346,7 +5386,7 @@ function KrakenService.Spawn()
 	model:PivotTo(CFrame.new(start))
 	model.Parent = Workspace
 	current = model
-	task.spawn(moveTo, model, start, target, 4)
+	riseThread = task.spawn(moveTo, model, start, target, 4)
 end
 
 function KrakenService.Despawn()
@@ -5355,6 +5395,14 @@ function KrakenService.Despawn()
 	if not model then
 		return
 	end
+	if riseThread then
+		pcall(task.cancel, riseThread)
+		riseThread = nil
+	end
+	-- so the HUD stops showing it and a new Kraken never gets confused with this one
+	model.Name = "SinkingKraken"
+	model:SetAttribute("Health", nil)
+	model:SetAttribute("MaxHealth", nil)
 	for _, detector in model:GetDescendants() do
 		if detector:IsA("ClickDetector") then
 			detector:Destroy()
@@ -5544,8 +5592,11 @@ local function processReceipt(receipt): Enum.ProductPurchaseDecision
 	while #data.receipts > MAX_RECEIPTS do
 		table.remove(data.receipts, 1)
 	end
-	-- save right away so a crash can't grant the same purchase twice
-	Services.DataService.Save(player, false)
+	-- Only confirm once the purchase is really saved. If the save fails Roblox retries later,
+	-- and the receipt id already in data.receipts stops the item being granted twice.
+	if Services.DataService.IsSaving(player) and not Services.DataService.Save(player, false) then
+		return Enum.ProductPurchaseDecision.NotProcessedYet
+	end
 	return Enum.ProductPurchaseDecision.PurchaseGranted
 end
 
@@ -5655,6 +5706,11 @@ local function onPlayerAdded(player: Player)
 		return
 	end
 	Services.MarketService.LoadPasses(player)
+	if not player.Parent then
+		-- left while passes were loading; PlayerRemoving already released their data
+		Services.DataService.Release(player)
+		return
+	end
 	local plot = Services.PlotService.Assign(player)
 	if not plot then
 		player:Kick("This server is full. Please join another one.")
@@ -7075,11 +7131,15 @@ local DiverAnimator = {}
 local JUMP_SHARE = 0.18
 local CLIMB_SHARE = 0.12
 local FAR_DISTANCE = 260
+local BLEND_TIME = 0.35
 
 type Tracked = {
 	model: Model,
 	lastPhase: string?,
 	fromDepth: number,
+	lastCFrame: CFrame?,
+	blendFrom: CFrame?,
+	blendStart: number,
 	lastStatus: string,
 	frame: number,
 }
@@ -7148,9 +7208,13 @@ local function update(entry: Tracked, now: number)
 	end
 
 	if phase ~= entry.lastPhase then
-		entry.fromDepth = if entry.lastPhase == "Grabbed"
-			then 3
-			else ((model:GetAttribute("DepthStuds") :: number?) or 20)
+		-- rise from wherever the diver really is (e.g. an Oxygen Tank cut the dive short)
+		local studs: number = (model:GetAttribute("DepthStuds") :: number?) or 20
+		local last = entry.lastCFrame
+		entry.fromDepth = if last then math.clamp(entryPoint.Y - last.Position.Y, 0, studs) else studs
+		-- and blend from the last drawn pose so phase changes never snap
+		entry.blendFrom = if entry.lastPhase ~= nil then last else nil
+		entry.blendStart = now
 		entry.lastPhase = phase
 	end
 
@@ -7205,7 +7269,18 @@ local function update(entry: Tracked, now: number)
 		setStatus(entry, "Resting")
 	end
 
-	model:PivotTo(CFrame.new(position) * rotation * CFrame.Angles(math.rad(pitch), 0, 0))
+	local target = CFrame.new(position) * rotation * CFrame.Angles(math.rad(pitch), 0, 0)
+	local blendFrom = entry.blendFrom
+	if blendFrom then
+		local alpha = (now - entry.blendStart) / BLEND_TIME
+		if alpha < 1 then
+			target = blendFrom:Lerp(target, easeOut(alpha))
+		else
+			entry.blendFrom = nil
+		end
+	end
+	entry.lastCFrame = target
+	model:PivotTo(target)
 	setLights(model, position.Y < -1, if typeof(glowColor) == "Color3" then glowColor else nil, glowStrength)
 end
 
@@ -7215,6 +7290,9 @@ local function track(model: Instance)
 			model = model,
 			lastPhase = nil,
 			fromDepth = 20,
+			lastCFrame = nil,
+			blendFrom = nil,
+			blendStart = 0,
 			lastStatus = "",
 			frame = math.random(0, 9),
 		}
@@ -7323,8 +7401,9 @@ local function floatingText(position: Vector3, text: string, color: Color3)
 	Debris:AddItem(anchor, 1.5)
 end
 
-local function chestPop(diver: Instance, chestId: string, count: number, glow: Color3?)
-	if not diver:IsA("Model") then
+local function chestPop(diver: Instance?, chestId: string, count: number, glow: Color3?)
+	-- the diver model can be gone by the time the event arrives
+	if typeof(diver) ~= "Instance" or not diver:IsA("Model") then
 		return
 	end
 	local home = diver:GetAttribute("Home")

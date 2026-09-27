@@ -76,6 +76,11 @@ local function onPlayerAdded(player: Player)
 		return
 	end
 	Services.MarketService.LoadPasses(player)
+	if not player.Parent then
+		-- left while passes were loading; PlayerRemoving already released their data
+		Services.DataService.Release(player)
+		return
+	end
 	local plot = Services.PlotService.Assign(player)
 	if not plot then
 		player:Kick("This server is full. Please join another one.")

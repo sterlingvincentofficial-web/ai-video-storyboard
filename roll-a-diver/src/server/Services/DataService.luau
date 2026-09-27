@@ -24,9 +24,12 @@ type Profile = {
 	canSave: boolean,
 	dirty: boolean,
 	lastSave: number,
+	releasing: boolean?,
 }
 
 local profiles: { [Player]: Profile } = {}
+-- UserIds whose final save is still being written; a rejoin waits for it (no rollback)
+local releasing: { [number]: boolean } = {}
 local store: DataStore? = nil
 local shuttingDown = false
 
@@ -86,6 +89,11 @@ function DataService.Load(player: Player): boolean
 	local data: { [string]: any }? = nil
 	local canSave = store ~= nil
 
+	local waitStarted = os.clock()
+	while releasing[player.UserId] and os.clock() - waitStarted < 30 do
+		task.wait(0.2)
+	end
+
 	if store then
 		local jobId = if game.JobId ~= "" then game.JobId else "studio-" .. HttpService:GenerateGUID(false)
 		for attempt = 1, LOAD_RETRIES do
@@ -123,6 +131,19 @@ function DataService.Load(player: Player): boolean
 			task.wait(if lockedElsewhere then 6 else 2)
 		end
 		if not data and canSave then
+			return false
+		end
+		if data and not player.Parent then
+			-- they left while we were loading: give the lock back so their next server doesn't wait
+			pcall(function()
+				(store :: DataStore):UpdateAsync(keyFor(player), function(old)
+					if old and old.lock and old.lock.job == jobId then
+						old.lock = nil
+						return old
+					end
+					return nil
+				end)
+			end)
 			return false
 		end
 	end
@@ -181,26 +202,40 @@ function DataService.Save(player: Player, release: boolean?): boolean
 	local jobId = profile.data.lock and profile.data.lock.job
 	local data = profile.data
 	data.lastOnline = os.time()
+	local lockLost = false
 	local ok, err = pcall(function()
 		(store :: DataStore):UpdateAsync(keyFor(player), function(old)
 			if old and old.lock and jobId and old.lock.job ~= jobId then
 				-- another server took over this session; never overwrite its data
+				lockLost = true
 				return nil
 			end
+			lockLost = false
 			data.lock = if release then nil else { job = jobId, time = os.time() }
 			return data
 		end)
 	end)
 	if not ok then
 		warn(("[DataService] Save failed for %s: %s"):format(player.Name, tostring(err)))
+	elseif lockLost then
+		warn(("[DataService] %s's session was taken over by another server; not saving"):format(player.Name))
 	end
 	profile.lastSave = os.clock()
-	return ok
+	return ok and not lockLost
 end
 
+-- Final save + unlock. Safe to call twice (PlayerRemoving and BindToClose both do); only the first saves.
 function DataService.Release(player: Player)
+	local profile = profiles[player]
+	if not profile or profile.releasing then
+		return
+	end
+	profile.releasing = true
+	local userId = player.UserId
+	releasing[userId] = true
 	DataService.Save(player, true)
 	profiles[player] = nil
+	releasing[userId] = nil
 end
 
 -- Studio/admin helper: reset a player to a fresh save.
@@ -239,16 +274,14 @@ function DataService.Start()
 
 	game:BindToClose(function()
 		shuttingDown = true
-		local pending = 0
-		for player in profiles do
-			pending += 1
-			task.spawn(function()
-				releaseForShutdown(player)
-				pending -= 1
-			end)
+		for player, profile in profiles do
+			if not profile.releasing then
+				task.spawn(releaseForShutdown, player)
+			end
 		end
+		-- wait for every final save (including ones PlayerRemoving started)
 		local started = os.clock()
-		while pending > 0 and os.clock() - started < 25 do
+		while next(profiles) ~= nil and os.clock() - started < 25 do
 			task.wait(0.1)
 		end
 	end)
