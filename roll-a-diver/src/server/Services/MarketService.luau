@@ -89,6 +89,15 @@ end
 
 -- Products ---------------------------------------------------------------------------------
 
+-- Paid random items (loot-box style) are restricted in some countries. Cash bought with Robux can
+-- be spent on random diver rolls, so cash products and spins are treated as paid random items.
+-- "Not checked yet" counts as restricted.
+function MarketService.IsRestricted(player: Player): boolean
+	return player:GetAttribute("PaidRandomRestricted") ~= false
+end
+
+MarketService.RandomProducts = { SpinPack = true, CashSmall = true, CashLarge = true }
+
 local function currentIncome(player: Player): number
 	return Services.VaultService.IncomePerSecond(player)
 end
@@ -99,15 +108,21 @@ local productHandlers: { [string]: (Player, { [string]: any }) -> () } = {
 			data.starterPackClaimed = true
 			Services.DiverService.AddDiver(player, "DeepSeaSuit")
 		end
+		if MarketService.IsRestricted(player) then
+			-- cash can be spent on random rolls, so restricted players get a luck potion instead
+			data.luckPotionEnds = math.max(data.luckPotionEnds, os.time()) + 30 * 60
+			Services.PlayerService.Notify(player, "Starter Pack claimed! Deep Sea Suit + 30m x2 Luck", "Success")
+			return
+		end
 		Services.EconomyService.AddCash(player, 5000, "Product")
 		Services.PlayerService.Notify(player, "Starter Pack claimed! Deep Sea Suit + $5,000", "Success")
 	end,
 	SpinPack = function(player, data)
-		if player:GetAttribute("PaidRandomRestricted") then
-			-- never hand random rewards bought with Robux to restricted players; give fixed cash instead
-			local amount = math.max(5000, Services.VaultService.IncomePerSecond(player) * 1800)
-			Services.EconomyService.AddCash(player, amount, "Product")
-			Services.PlayerService.Notify(player, "+" .. Format.money(amount), "Success")
+		if MarketService.IsRestricted(player) then
+			-- never hand random rewards bought with Robux to restricted players (the shop hides this
+			-- product for them; this only runs if it was bought another way): fixed luck potion instead
+			data.luckPotionEnds = math.max(data.luckPotionEnds, os.time()) + 30 * 60
+			Services.PlayerService.Notify(player, "+30m x2 Luck", "Success")
 			return
 		end
 		data.spins.extra += 3
@@ -124,12 +139,22 @@ local productHandlers: { [string]: (Player, { [string]: any }) -> () } = {
 	ServerLowTide = function(player)
 		Services.EventService.StartEvent("LowTide", player.DisplayName)
 	end,
-	CashSmall = function(player)
+	CashSmall = function(player, data)
+		if MarketService.IsRestricted(player) then
+			data.luckPotionEnds = math.max(data.luckPotionEnds, os.time()) + 20 * 60
+			Services.PlayerService.Notify(player, "+20m x2 Luck", "Success")
+			return
+		end
 		local amount = math.max(1000, currentIncome(player) * 600)
 		Services.EconomyService.AddCash(player, amount, "Product")
 		Services.PlayerService.Notify(player, "+" .. Format.money(amount), "Success")
 	end,
-	CashLarge = function(player)
+	CashLarge = function(player, data)
+		if MarketService.IsRestricted(player) then
+			data.luckPotionEnds = math.max(data.luckPotionEnds, os.time()) + 20 * 60
+			Services.PlayerService.Notify(player, "+20m x2 Luck", "Success")
+			return
+		end
 		local amount = math.max(20000, currentIncome(player) * 7200)
 		Services.EconomyService.AddCash(player, amount, "Product")
 		Services.PlayerService.Notify(player, "+" .. Format.money(amount), "Success")
@@ -151,7 +176,9 @@ end
 local function processReceipt(receipt): Enum.ProductPurchaseDecision
 	local player = Players:GetPlayerByUserId(receipt.PlayerId)
 	local data = player and Services.DataService.Get(player)
-	if not player or not data then
+	-- wait until the join is finished (including the paid-random-items policy check);
+	-- Roblox re-delivers the receipt later
+	if not player or not data or not Services.PlayerService.IsReady(player) then
 		return Enum.ProductPurchaseDecision.NotProcessedYet
 	end
 	local purchaseId = tostring(receipt.PurchaseId)

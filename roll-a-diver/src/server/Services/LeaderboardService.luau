@@ -64,9 +64,11 @@ local function nameOf(userId: number): string
 	local ok, name = pcall(function()
 		return Players:GetNameFromUserIdAsync(userId)
 	end)
-	local result = if ok and name then name else "Player"
-	nameCache[userId] = result
-	return result
+	if ok and name then
+		nameCache[userId] = name
+		return name
+	end
+	return "Player" -- not cached, so it is retried next refresh
 end
 
 local function publish()
@@ -127,7 +129,7 @@ local function buildBoard(board: { id: string, title: string }, cframe: CFrame)
 	post.Name = "BoardPost"
 	post.Anchored = true
 	post.Size = Vector3.new(3, 60, 3)
-	post.CFrame = cframe * CFrame.new(0, -30, 1)
+	post.CFrame = cframe * CFrame.new(0, -30, 2.5)
 	post.Color = Color3.fromRGB(115, 75, 45)
 	post.Material = Enum.Material.Wood
 	post.Parent = part

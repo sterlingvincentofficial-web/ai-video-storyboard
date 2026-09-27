@@ -246,6 +246,9 @@ function Mock.install()
 		return Mock.now()
 	end)
 	roblox.implementMethod("SoundService", "PlayLocalSound", function() end)
+	roblox.implementMethod("Terrain", "ReadVoxels", function()
+		return { { { roblox.Enum.Material.Water } } }, { { { 1 } } }
+	end)
 	for _, method in { "Clear", "FillBlock", "FillBall" } do
 		roblox.implementMethod("Terrain", method, function() end)
 	end
@@ -313,6 +316,10 @@ function DataStoreService:GetDataStore(name)
 	end
 	function store:GetAsync(key)
 		return if storage[key] then serde.decode("json", storage[key]) else nil
+	end
+	function store:SetAsync(key, value)
+		assertSerializable(value)
+		storage[key] = serde.encode("json", value)
 	end
 	return store
 end
@@ -583,6 +590,7 @@ local function makeEnv(scriptInstance)
 			"TweenInfo",
 			"PhysicalProperties",
 			"BrickColor",
+			"Region3",
 		}
 	do
 		env[name] = roblox[name]

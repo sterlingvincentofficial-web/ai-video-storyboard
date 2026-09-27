@@ -39,8 +39,16 @@ DataService.CurrentVersion = 2
 -- save format changes in a way reconcile() can't handle (renames, moved data, etc.).
 local MIGRATIONS: { [number]: (data: { [string]: any }) -> () } = {
 	-- v1 -> v2: launch update added codes, daily streak, spins, settings, group reward, funnel.
-	-- reconcile() fills the new tables; nothing to move.
-	[1] = function(_data) end,
+	-- reconcile() fills the new tables. Existing players are not new players, so they skip the
+	-- onboarding funnel (otherwise they'd flood the new-player analytics).
+	[1] = function(data)
+		data.funnel = {}
+		for _, step in
+			{ "Joined", "FirstDive", "FirstChestOpened", "FirstCollect", "FirstRoll", "FirstUpgrade", "FirstRebirth" }
+		do
+			data.funnel[step] = true
+		end
+	end,
 }
 
 function DataService.Migrate(data: { [string]: any })

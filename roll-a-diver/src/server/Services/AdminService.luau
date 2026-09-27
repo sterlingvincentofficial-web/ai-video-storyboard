@@ -9,6 +9,7 @@
 	/chest 3 5           give 5 chests from zone 3
 	/pass DoubleMoney    toggle a gamepass (Studio only)
 	/product LuckPotion  run a developer product's effect (Studio only)
+	/selftest            check every system live and print PASS/WARN/FAIL
 	/wipe                reset your save
 ]]
 
@@ -108,6 +109,9 @@ local commands: { [string]: (Player, { string }) -> string? } = {
 		end
 		Services.MarketService.GrantProduct(player, id)
 		return "Granted " .. id
+	end,
+	selftest = function(player)
+		return Services.SelfTest.Report(player)
 	end,
 	wipe = function(player)
 		Services.DataService.Wipe(player)

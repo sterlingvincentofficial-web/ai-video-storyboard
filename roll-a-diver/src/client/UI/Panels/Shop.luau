@@ -22,7 +22,9 @@ local Panel = {
 
 local passButtons: { [string]: TextButton } = {}
 local starterCard: Frame? = nil
-local spinCard: Frame? = nil
+local randomCards: { Frame } = {}
+-- products that turn into random rewards (spins, or cash spent on rolls): hidden where restricted
+local RANDOM_PRODUCTS = { SpinPack = true, CashSmall = true, CashLarge = true }
 
 local Shop = {}
 
@@ -47,7 +49,7 @@ function Shop.buyProduct(productId: string)
 	if not product then
 		return
 	end
-	if product.id == "SpinPack" and Players.LocalPlayer:GetAttribute("PaidRandomRestricted") then
+	if RANDOM_PRODUCTS[product.id] and Players.LocalPlayer:GetAttribute("PaidRandomRestricted") ~= false then
 		Notifications.toast("This item isn't available in your region", "Info")
 		return
 	end
@@ -161,8 +163,8 @@ function Panel.build(content: Frame)
 		)
 		if product.id == "StarterPack" then
 			starterCard = card
-		elseif product.id == "SpinPack" then
-			spinCard = card
+		elseif RANDOM_PRODUCTS[product.id] then
+			table.insert(randomCards, card)
 		end
 	end
 end
@@ -177,8 +179,9 @@ function Panel.refresh()
 	if starterCard and data then
 		starterCard.Visible = not data.starterPackClaimed
 	end
-	if spinCard then
-		spinCard.Visible = not Players.LocalPlayer:GetAttribute("PaidRandomRestricted")
+	local restricted = Players.LocalPlayer:GetAttribute("PaidRandomRestricted") ~= false
+	for _, card in randomCards do
+		card.Visible = not restricted
 	end
 end
 

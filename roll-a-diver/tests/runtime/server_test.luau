@@ -393,9 +393,13 @@ check("policy checked on join", player:GetAttribute("PaidRandomRestricted") == f
 chat("/product SpinPack")
 check("spin pack product", data.spins.extra >= 3, data.spins.extra)
 player:SetAttribute("PaidRandomRestricted", true)
-local spinsBefore, cashBeforePack = data.spins.extra, data.cash
+local spinsBefore, potionBefore, cashBeforePack = data.spins.extra, data.luckPotionEnds, data.cash
 chat("/product SpinPack")
-check("restricted region gets cash, not random spins", data.spins.extra == spinsBefore and data.cash > cashBeforePack)
+chat("/product CashSmall")
+check(
+	"restricted region: no random spins or roll cash, luck potion instead",
+	data.spins.extra == spinsBefore and data.cash <= cashBeforePack + 1 and data.luckPotionEnds > potionBefore
+)
 player:SetAttribute("PaidRandomRestricted", false)
 task.wait(0.1)
 check("spin with pack", act(player, "Spin").ok)

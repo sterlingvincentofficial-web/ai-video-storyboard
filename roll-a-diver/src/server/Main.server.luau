@@ -26,6 +26,7 @@ local ORDER = {
 	"RebirthService",
 	"ActionService",
 	"AdminService",
+	"SelfTest",
 	"PlayerService",
 }
 

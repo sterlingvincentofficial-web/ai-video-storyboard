@@ -3,6 +3,7 @@
 	All of them hand out rewards through RewardService.Grant.
 ]]
 
+local GroupService = game:GetService("GroupService")
 local PolicyService = game:GetService("PolicyService")
 
 local Shared = game:GetService("ReplicatedStorage").Shared
@@ -148,10 +149,20 @@ function RewardService.RefreshGroup(player: Player)
 		player:SetAttribute("InGroup", false)
 		return
 	end
-	local ok, inGroup = pcall(function()
-		return player:IsInGroup(Rewards.GroupId)
+	-- GetGroupsAsync is used instead of Player:IsInGroup, which is cached for the whole session
+	-- and would not notice a player joining the group mid-game
+	local ok, groups = pcall(function()
+		return GroupService:GetGroupsAsync(player.UserId)
 	end)
-	player:SetAttribute("InGroup", ok and inGroup == true)
+	local inGroup = false
+	if ok and type(groups) == "table" then
+		for _, group in groups do
+			if group.Id == Rewards.GroupId then
+				inGroup = true
+			end
+		end
+	end
+	player:SetAttribute("InGroup", inGroup)
 end
 
 function RewardService.ClaimGroup(player: Player): { [string]: any }

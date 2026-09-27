@@ -195,6 +195,8 @@ local function setHidden(model: Model, hidden: boolean)
 			descendant.LocalTransparencyModifier = if hidden then 1 else 0
 		elseif descendant:IsA("BillboardGui") then
 			descendant.Enabled = not hidden
+		elseif hidden and (descendant:IsA("Light") or descendant:IsA("ParticleEmitter")) then
+			(descendant :: any).Enabled = false
 		end
 	end
 end

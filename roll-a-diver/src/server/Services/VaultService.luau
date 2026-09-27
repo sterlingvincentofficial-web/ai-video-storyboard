@@ -197,7 +197,7 @@ function VaultService.CollectPedestal(player: Player, index: number)
 		return
 	end
 	state.stored[index] = 0
-	Services.EconomyService.AddCash(player, amount)
+	Services.EconomyService.AddCash(player, amount, "Collect")
 	data.stats.collected += amount
 	Services.AnalyticsService.Step(player, "FirstCollect")
 	local plot = Services.PlotService.Get(player)
