@@ -98,6 +98,7 @@ export class BotBrain {
   reset() {
     this.target = null;
     this.path = null;
+    this.repathT = 0;
     this.goal = null;
     this.detour = null;
     this.lastKnownT = -99;
@@ -335,8 +336,9 @@ export class BotBrain {
         this.strafeT -= dt;
         if (this.strafeT <= 0) { this.strafeDir = Math.random() < 0.5 ? -1 : 1; this.strafeT = rand(0.3, 0.9); }
         const l = Math.hypot(steerX, steerZ) || 1;
-        steerX = steerX / l - (steerZ / l) * this.strafeDir * 0.35 * this.diff.strafe;
-        steerZ = steerZ / l + (steerX / l) * this.strafeDir * 0.35 * this.diff.strafe;
+        const nx = steerX / l, nz = steerZ / l, k = this.strafeDir * 0.35 * this.diff.strafe;
+        steerX = nx - nz * k;
+        steerZ = nz + nx * k;
         if (Math.random() < this.diff.jumpiness * dt * 2 && a.onGround) a.wantJump = true;
       }
     }

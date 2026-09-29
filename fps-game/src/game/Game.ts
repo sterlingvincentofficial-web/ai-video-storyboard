@@ -90,6 +90,7 @@ export class Game {
     this.renderer.info.autoReset = false;
     container.appendChild(this.renderer.domElement);
     this.pipeline = new Pipeline(this.renderer, this.msaaFor(this.quality));
+    this.pipeline.bloomEnabled = this.quality !== 'low';
     this.camera = new THREE.PerspectiveCamera(settings.fov, 1, 0.03, 600);
     this.camera.rotation.order = 'YXZ';
     this.input = new Input(this.renderer.domElement);
@@ -102,6 +103,8 @@ export class Game {
       if (this.state === 'playing' && !this.touchMode) this.input.requestLock();
     };
     this.input.onLockFailed = () => {
+      if (this.lockHintShown) return;
+      this.lockHintShown = true;
       if (this.state === 'playing') this.hud.hint('🖱️ Mouse capture is blocked here — drag with the LEFT button to aim & shoot, RIGHT button to just look. Arrow keys turn too.', 9);
     };
     document.addEventListener('pointerlockchange', () => {
@@ -121,6 +124,7 @@ export class Game {
     this.renderer.setAnimationLoop(() => this.frame());
   }
   private lockedOnce = false;
+  private lockHintShown = false;
   private lastChallenges: string[] = [];
 
   msaaFor(q: Quality) {
@@ -143,10 +147,12 @@ export class Game {
     if (this.world) this.pipeline.setStyle(this.world.theme.style);
     this.resize();
     if (changed && this.world) {
-      // rebuild world for shadow map sizes
+      // rebuild the world (shadow map sizes) now if we're in the menu, otherwise on the next load
       const id = this.worldId!;
-      this.worldId = null;
-      if (this.state === 'menu') this.startAttract(id);
+      if (this.state === 'menu') {
+        this.worldId = null;
+        this.startAttract(id);
+      } else this.forceReload = true;
     }
   }
 
@@ -177,11 +183,13 @@ export class Game {
   }
 
   needsLoad(id: WorldId) {
-    return this.worldId !== id || !this.world;
+    return this.worldId !== id || !this.world || this.forceReload;
   }
+  private forceReload = false;
 
   loadWorld(id: WorldId) {
-    if (this.worldId === id && this.world) return;
+    if (this.worldId === id && this.world && !this.forceReload) return;
+    this.forceReload = false;
     this.disposeMatch();
     if (this.world) {
       this.world.dispose();
@@ -194,6 +202,7 @@ export class Game {
     const th = this.world.theme;
     this.fx = new Effects(this.world.scene, this.world.mats.mat(0xffffff), th.impact, th.hitWords);
     const t0 = th.teams[0];
+    if (this.vm) this.camera.remove(this.vm.root);
     this.vm = new ViewModel(this.world.mats, t0.primary, th.accent, 0x2a2a3a, th.character.glove, t0.primary, t0.light);
     this.camera.add(this.vm.root);
     this.pipeline.setStyle(th.style);
@@ -216,6 +225,7 @@ export class Game {
     this.disposeMatch();
     this.match = new Match(this.world!, { world: id, mode: 'tdm', difficulty: 2, scoreScale: 3, mutators: [], playerName: '', playerHat: 'default', spectate: true }, this.fx!);
     this.match.countdown = 0.1;
+    this.endT = 0;
     this.setState('menu');
     this.hud.show(false);
     this.touch.setActive(false);
@@ -338,7 +348,10 @@ export class Game {
       // endless attract: restart when over
       if (m.state === 'ended') {
         this.endT += dt;
-        if (this.endT > 6) this.startAttract(this.worldId!);
+        if (this.endT > 6) {
+          this.startAttract(this.worldId!);
+          return;
+        }
       }
     }
     this.handleEvents(m);
@@ -360,7 +373,7 @@ export class Game {
     this.pipeline.render(w.scene, this.camera, this.time);
     this.input.consume();
     this.adaptResolution(rawDt);
-    if (this.state === 'ended') this.updateEnd(dt, m);
+    if (this.state === 'ended') this.updateEnd(Math.min(rawDt, 0.25), m);
   }
 
   slowMo(scale: number, seconds: number) {
@@ -552,7 +565,7 @@ export class Game {
           if (e.actor === p) audio.play('empty');
           break;
         case 'switch':
-          if (e.actor === p) audio.play('switch', { volume: 0.6 });
+          if (e.actor === p) { audio.play('switch', { volume: 0.6 }); this.wasReloading = false; }
           break;
         case 'grenade':
           audio.play('grenade_throw', e.actor === p ? {} : { pos: e.actor.pos });
@@ -605,6 +618,7 @@ export class Game {
           break;
         case 'spawn':
           if (e.actor === p) {
+            this.wasReloading = false;
             audio.play('respawn', { volume: 0.7 });
             this.camYaw = p.yaw;
             this.lastWeapon = '';

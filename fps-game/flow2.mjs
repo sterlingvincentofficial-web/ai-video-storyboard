@@ -1,0 +1,17 @@
+import { chromium } from 'playwright-core';
+const browser = await chromium.launch({ executablePath: '/opt/pw-browsers/chromium-1194/chrome-linux/chrome', args: ['--use-gl=angle', '--use-angle=swiftshader', '--enable-unsafe-swiftshader'] });
+const page = await browser.newPage({ viewport: { width: 1280, height: 720 } });
+page.on('pageerror', (e) => console.log('[pageerror] ' + e.message));
+await page.goto('http://localhost:5173/?autostart=plaza:tdm', { waitUntil: 'load' });
+await page.waitForTimeout(3500);
+const st = () => page.evaluate(() => ({ s: window.__game.state, cur: window.__menu.current, pp: window.__game.input.pausePressed }));
+console.log('start', await st());
+await page.keyboard.press('Escape'); await page.waitForTimeout(500);
+console.log('after esc1', await st());
+await page.click('.screen-pause .resume'); await page.waitForTimeout(500);
+console.log('after resume', await st());
+await page.keyboard.press('Escape'); await page.waitForTimeout(500);
+console.log('after esc2', await st());
+await page.waitForTimeout(1000);
+console.log('later', await st());
+await browser.close();

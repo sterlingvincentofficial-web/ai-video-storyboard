@@ -497,7 +497,10 @@ export class CharacterModel {
     this.weapon = id;
     for (let i = this.gun.children.length - 1; i >= 0; i--) {
       const c = this.gun.children[i];
-      if (c !== this.muzzle) this.gun.remove(c);
+      if (c !== this.muzzle) {
+        this.gun.remove(c);
+        (c as THREE.Mesh).geometry?.dispose();
+      }
     }
     void mats;
     const body = placeholder(color);

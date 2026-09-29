@@ -184,6 +184,7 @@ export class TouchControls {
       this.stickId = this.lookId = this.fireLookId = null;
       this.aimLatch = false;
       this.sprintLatch = false;
+      if (this.sbOn) { this.sbOn = false; this.onScoreboard?.(false); }
       this.input.aim = false;
       this.input.fire = false;
       this.input.touchMoveX = this.input.touchMoveY = 0;

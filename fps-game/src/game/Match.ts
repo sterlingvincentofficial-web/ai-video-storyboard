@@ -124,6 +124,9 @@ export class Match implements BotWorld {
   private firstBlood = false;
   private rocketGeo = new THREE.SphereGeometry(0.28, 12, 10);
   private grenadeGeo = new THREE.SphereGeometry(0.2, 10, 8);
+  private nadeLightGeo = new THREE.SphereGeometry(0.07, 6, 4);
+  private ownTextures: THREE.Texture[] = [];
+  private ownMaterials: THREE.Material[] = [];
 
   constructor(public world: WorldScene, public cfg: MatchConfig, public fx: Effects) {
     this.mode = createMode(cfg.mode);
@@ -200,7 +203,7 @@ export class Match implements BotWorld {
     let best: Actor | null = null;
     for (const a of this.actors) if (!best || a.stats.score > best.stats.score) best = a;
     this.mvp = best;
-    for (const a of this.actors) a.wantFire = false;
+    for (const a of this.actors) { a.wantFire = false; a.wantAim = false; a.aiming = false; }
     this.emit({ type: 'end', winner });
     // winners chat
     const w = this.actors.filter((a) => a.team === winner && !a.isPlayer);
@@ -536,7 +539,7 @@ export class Match implements BotWorld {
     const vel = dir.multiplyScalar(GRENADE.throwSpeed).add(new THREE.Vector3(a.vel.x * 0.5, 3, a.vel.z * 0.5));
     const g = new THREE.Group();
     const body = new THREE.Mesh(this.grenadeGeo, this.world.mats.mat(this.world.theme.teams[a.team].primary));
-    const light = new THREE.Mesh(new THREE.SphereGeometry(0.07, 6, 4), this.world.mats.glow(0xffee55, 2));
+    const light = new THREE.Mesh(this.nadeLightGeo, this.world.mats.glow(0xffee55, 2));
     light.position.y = 0.2;
     g.add(body, light);
     g.position.copy(pos);
@@ -937,7 +940,10 @@ export class Match implements BotWorld {
         }
         c.fill();
       });
-      const cloth = new THREE.Mesh(clothGeo, this.world.mats.mat(0xffffff, { map: tex, side: THREE.DoubleSide }));
+      const clothMat = new THREE.MeshToonMaterial({ map: tex, side: THREE.DoubleSide });
+      this.ownTextures.push(tex);
+      this.ownMaterials.push(clothMat);
+      const cloth = new THREE.Mesh(clothGeo, clothMat);
       cloth.position.set(0.05, 2.15, 0);
       cloth.userData.base = (clothGeo.getAttribute('position').array as Float32Array).slice();
       const flag = new THREE.Group();
@@ -991,6 +997,7 @@ export class Match implements BotWorld {
     ring.rotation.x = Math.PI / 2;
     ring.position.y = 0.12;
     const wall = new THREE.Mesh(new THREE.CylinderGeometry(z.radius, z.radius, 3, 48, 1, true), new THREE.MeshBasicMaterial({ color: 0xffffff, transparent: true, opacity: 0.16, side: THREE.DoubleSide, depthWrite: false, toneMapped: false }));
+    this.ownMaterials.push(ring.material as THREE.Material, wall.material as THREE.Material);
     wall.position.y = 1.5;
     const crown = new THREE.Group();
     const cm = this.world.mats.glow(0xffd23f, 1.4);
@@ -1051,6 +1058,7 @@ export class Match implements BotWorld {
     halo.position.y = -0.3;
     const beam = new THREE.Mesh(new THREE.CylinderGeometry(0.25, 0.6, 18, 16, 1, true), new THREE.MeshBasicMaterial({ color: 0xffe066, transparent: true, opacity: 0.18, depthWrite: false, side: THREE.DoubleSide, toneMapped: false }));
     beam.position.y = 9;
+    this.ownMaterials.push(beam.material as THREE.Material);
     g.add(body, head, beak, tail, halo, beam);
     g.traverse((o) => { if ((o as THREE.Mesh).isMesh && o !== beam) o.castShadow = true; });
     this.group.add(g);
@@ -1070,6 +1078,17 @@ export class Match implements BotWorld {
 
   dispose() {
     for (const a of this.actors) a.model?.dispose();
+    for (const a of this.actors) if (a.model) this.group.remove(a.model.root);
+    // everything else under the match group was built for this match only
+    this.group.traverse((o) => {
+      const m = o as THREE.Mesh;
+      if (m.isMesh && m.geometry) m.geometry.dispose();
+    });
+    this.rocketGeo.dispose();
+    this.grenadeGeo.dispose();
+    this.nadeLightGeo.dispose();
+    this.ownTextures.forEach((t) => t.dispose());
+    this.ownMaterials.forEach((m) => m.dispose());
     this.world.scene.remove(this.group);
     this.fx.clear();
   }

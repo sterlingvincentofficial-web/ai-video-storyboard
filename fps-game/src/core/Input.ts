@@ -49,6 +49,7 @@ export class Input {
     el.addEventListener('contextmenu', (e) => e.preventDefault());
     document.addEventListener('pointerlockchange', () => {
       this.pointerLocked = document.pointerLockElement === this.el;
+      if (this.pointerLocked) this.lockFailed = false;
       if (!this.pointerLocked) { this.fire = false; this.aim = false; }
     });
   }
@@ -108,11 +109,9 @@ export class Input {
     if (!this.enabled) return;
     this.touchMode = false;
     if (!this.pointerLocked) {
-      if (!this.lockFailed) {
-        // first click just captures the mouse
-        this.onWantLock?.();
-        return;
-      }
+      // always try to (re)capture on click; if capture is known to fail, fall back to drag-look
+      this.onWantLock?.();
+      if (!this.lockFailed) return;
       // drag-look fallback when pointer lock unavailable (e.g. sandboxed iframes):
       // LMB-drag = look + fire, RMB-drag = look only
       this.dragLook = true;

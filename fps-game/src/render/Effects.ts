@@ -525,8 +525,10 @@ export class Effects {
     this.glow.clear();
     this.confetti.clear();
     this.dCount = 0;
+    this.dIdx = 0;
     this.decals.count = 0;
     this.dartCount = 0;
+    this.dartIdx = 0;
     if (this.darts) this.darts.count = 0;
     for (const t of this.tracers) { t.life = 0; t.mesh.visible = false; }
     for (const d of this.shotData) d.t = d.dur;
