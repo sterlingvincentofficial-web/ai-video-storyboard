@@ -193,6 +193,12 @@ export class ViewModel {
     this.muzzles.set(id, muzzle);
   }
 
+  /** Narrow (portrait) screens: pull the gun toward the centre and further away. */
+  setAspect(aspect: number) {
+    const t = Math.max(0, Math.min(1, (1.2 - aspect) / 0.75));
+    this.sway.position.set(-0.2 * t, -0.04 * t, -0.42 * t);
+  }
+
   show(id: WeaponId) {
     this.current = id;
     this.guns.forEach((g, k) => (g.visible = k === id));

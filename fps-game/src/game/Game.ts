@@ -169,6 +169,7 @@ export class Game {
     this.renderer.setSize(w, h);
     this.camera.aspect = w / h;
     this.camera.updateProjectionMatrix();
+    this.vm?.setAspect(w / h);
     this.pipeline.setSize(w, h, pr, settings.renderScale * this.dynScale);
   }
 
@@ -211,6 +212,7 @@ export class Game {
     if (this.vm) this.camera.remove(this.vm.root);
     this.vm = new ViewModel(this.world.mats, t0.primary, th.accent, 0x2a2a3a, th.character.glove, t0.primary, t0.light);
     this.camera.add(this.vm.root);
+    this.vm.setAspect(this.camera.aspect);
     this.pipeline.setStyle(th.style);
     this.hud.setTheme(th.hudClass, [th.teams[0].primary, th.teams[1].primary], [th.teams[0].name, th.teams[1].name]);
     audio.setWorld(id);

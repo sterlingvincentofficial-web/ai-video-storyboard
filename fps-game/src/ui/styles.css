@@ -424,3 +424,34 @@ body.touch-ui .hint { bottom: auto; top: calc(88px + var(--safe-t)); font-size: 
 
 .screen-loadout .panel { left: calc(3vw + var(--safe-l)); transform: translate(0, -50%); width: min(640px, 58vw); }
 @media (max-width: 700px) { .screen-loadout .panel { left: 50%; transform: translate(-50%, -50%); width: calc(100vw - 24px); } }
+
+/* ---------- portrait phones: HUD moves to the top, bottom is all thumbs ---------- */
+@media (orientation: portrait) {
+  body.touch-ui .hud-top { top: calc(6px + var(--safe-t)); }
+  body.touch-ui .scorebar .tname { display: none; }
+  body.touch-ui .scorebar .team { padding: 2px 10px; }
+  body.touch-ui .scorebar .tscore { font-size: 22px; min-width: 22px; }
+  body.touch-ui .scorebar .mid { min-width: 70px; padding: 1px 8px; }
+  body.touch-ui .scorebar .timer { font-size: 17px; }
+  body.touch-ui .scorebar .modetag { font-size: 9px; }
+  body.touch-ui .scorebars { width: 170px; }
+  body.touch-ui .objective { font-size: 12px; }
+  body.touch-ui .tbtn.pause { left: auto; right: calc(8px + var(--safe-r)); top: calc(8px + var(--safe-t)); transform: none; }
+  body.touch-ui .tbtn.score { left: calc(8px + var(--safe-l)); top: calc(8px + var(--safe-t)); transform: none; }
+  body.touch-ui .minimap { top: calc(64px + var(--safe-t)); left: calc(8px + var(--safe-l)); width: 84px; height: 84px; }
+  body.touch-ui .hpbox { top: calc(66px + var(--safe-t)); bottom: auto; left: calc(98px + var(--safe-l)); padding: 3px 8px 3px 3px; gap: 6px; }
+  body.touch-ui .hpbox .portrait { width: 24px; height: 24px; font-size: 13px; border-width: 2px; }
+  body.touch-ui .hpbar { width: 70px; height: 12px; border-width: 2px; }
+  body.touch-ui .hpnum { font-size: 20px; min-width: 34px; }
+  body.touch-ui .ammobox { top: calc(66px + var(--safe-t)); bottom: auto; left: auto; right: calc(8px + var(--safe-r)); padding: 2px 8px 4px; }
+  body.touch-ui .ammobox .wname, body.touch-ui .ammobox .slots { display: none; }
+  body.touch-ui .ammorow .mag { font-size: 24px; }
+  body.touch-ui .ammorow .res { font-size: 14px; }
+  body.touch-ui .killfeed { top: calc(118px + var(--safe-t)); }
+  body.touch-ui .kf { font-size: 11px; padding: 1px 6px; }
+  body.touch-ui .chat { top: calc(158px + var(--safe-t)); bottom: auto; left: calc(8px + var(--safe-l)); font-size: 11px; }
+  body.touch-ui .hint { top: calc(200px + var(--safe-t)); }
+  body.touch-ui .centermsg { top: 34%; font-size: 40px; }
+  body.touch-ui .tzone.left { width: 50%; }
+  body.touch-ui .tzone.right { width: 50%; }
+}
