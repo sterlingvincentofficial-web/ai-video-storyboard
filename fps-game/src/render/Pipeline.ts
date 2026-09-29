@@ -151,7 +151,7 @@ void main() {
 
   #ifdef LINEAR_OUT
     // keep HDR headroom for bloom on bright neon lines
-    vec3 outc = toLinear(clamp(s, 0.0, 1.0));
+    vec3 outc = toLinear(max(s, 0.0));
     if (neonEdges > 0.0) outc += toLinear(lineCol) * edge * 0.9 * neonEdges;
     gl_FragColor = vec4(outc, 1.0);
   #else
