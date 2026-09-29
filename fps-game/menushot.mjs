@@ -5,7 +5,8 @@ const ctx = await browser.newContext({ viewport: { width: +w, height: +h }, hasT
 const page = await ctx.newPage();
 page.on('pageerror', (e) => console.log('[pageerror]', e.message));
 await page.goto('http://localhost:' + (process.env.PORT || 5173) + '/', { waitUntil: 'load' });
-await page.waitForTimeout(2500);
+await page.waitForFunction(() => window.__game || window.__info, null, { timeout: 30000 }).catch(() => {}); /*__waitGame*/
+await page.waitForTimeout(1500);
 await page.evaluate((s) => { window.__menu.show(s); }, screen);
 await page.waitForTimeout(1500);
 await page.screenshot({ path: out });

@@ -8,7 +8,8 @@ const errs = [];
 page.on('pageerror', (e) => errs.push('[pageerror] ' + e.message + '\n' + e.stack));
 page.on('console', (m) => { if (m.type() === 'error' && !m.text().includes('ERR_CERT') && !m.text().includes('404')) errs.push('[console.error] ' + m.text()); });
 await page.goto('http://localhost:' + (process.env.PORT || 5173) + '/' + query, { waitUntil: 'load' });
-await page.waitForTimeout(2500);
+await page.waitForFunction(() => window.__game || window.__info, null, { timeout: 30000 }).catch(() => {}); /*__waitGame*/
+await page.waitForTimeout(1500);
 const r = await page.evaluate(code);
 if (r !== undefined) console.log(typeof r === 'string' ? r : JSON.stringify(r));
 await page.waitForTimeout(+wait);

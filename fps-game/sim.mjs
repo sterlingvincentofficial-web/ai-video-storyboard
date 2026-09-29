@@ -11,7 +11,8 @@ const logs = [];
 page.on('console', (m) => { if (m.type() === 'error' || m.type() === 'warning') logs.push(`[${m.type()}] ${m.text()}`); });
 page.on('pageerror', (e) => logs.push(`[pageerror] ${e.message}\n${e.stack}`));
 await page.goto('http://localhost:' + (process.env.PORT || 5173) + '/' + query, { waitUntil: 'load' });
-await page.waitForTimeout(2500);
+await page.waitForFunction(() => window.__game || window.__info, null, { timeout: 30000 }).catch(() => {}); /*__waitGame*/
+await page.waitForTimeout(1500);
 for (let i = 0; i < +steps; i++) {
   const t0 = Date.now();
   const info = await page.evaluate((sec) => {
