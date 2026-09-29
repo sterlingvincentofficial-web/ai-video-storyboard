@@ -72,11 +72,11 @@ def tempo(x, f):
 
 ORDER = [0, 1, 2, 4, 5, 6, 7, 8, 9, 10, 11, 12]
 GAP = {1: .45, 2: .35, 4: .75, 5: .4, 6: .75, 7: .6, 8: .7, 9: .8, 10: .75, 11: .75, 12: .9}
-INTRO, OUTRO, TARGET = 1.5, 2.2, 60.0
+INTRO, OUTRO, TARGET = 1.5, 2.2, 63.0
 clips = {i: squeeze(load(f'raw/L{i}.wav')) for i in ORDER}
 speech = sum(len(c) for c in clips.values()) / SR
 gaps = sum(GAP.get(i, .4) for i in ORDER[1:])
-tf = min(1.3, max(1.0, speech / (TARGET - INTRO - OUTRO - gaps)))
+tf = min(1.25, max(1.0, speech / (TARGET - INTRO - OUTRO - gaps)))
 print('speech', round(speech, 2), 'tempo', round(tf, 3))
 clips = {i: tempo(c, tf) for i, c in clips.items()}
 t, L = INTRO, {}
