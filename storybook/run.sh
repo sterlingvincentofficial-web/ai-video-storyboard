@@ -2,6 +2,7 @@
 # run.sh stills "1,5,9"   |   run.sh video <upload_url>
 set -e
 cd "$(dirname "$0")"
+[ "$OWN_ART" = 1 ] && node illustrate.js
 python3 build.py
 (python3 -m http.server 8765 >/dev/null 2>&1 &) ; sleep 1
 if [ "$1" = stills ]; then node render.js stills "$2"; python3 sheet.py; exit 0; fi

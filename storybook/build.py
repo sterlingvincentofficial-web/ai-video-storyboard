@@ -6,6 +6,8 @@ from PIL import Image
 
 os.makedirs('raw', exist_ok=True); os.makedirs('assets', exist_ok=True); os.makedirs('fonts', exist_ok=True)
 A = json.load(open('assets.json'))
+OWN_ART = os.environ.get('OWN_ART') == '1'   # illustrations drawn by illustrate.js instead of downloaded
+if OWN_ART: A = {k: u for k, u in A.items() if k[0] == 'L'}
 procs = []
 for k, u in A.items():
     ext = '.wav' if u.endswith('.wav') else '.png'
