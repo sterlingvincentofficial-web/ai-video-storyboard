@@ -1,0 +1,321 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Money on Money</title>
+<style>
+  :root { --bg:#16141f; --cream:#f0e6d2; --clay:#d97757; --teal:#4cc9c0; }
+  html,body { margin:0; height:100%; background:var(--bg); color:var(--cream);
+    font-family: "DejaVu Sans Mono", ui-monospace, Menlo, monospace; }
+  #stage { display:flex; align-items:center; justify-content:center; height:100%; }
+  canvas { height:100vh; max-width:100vw; aspect-ratio:9/16; display:block; }
+  #ui { position:fixed; left:16px; bottom:16px; right:16px; display:flex; gap:12px; flex-wrap:wrap;
+    align-items:center; font-size:13px; background:rgba(22,20,31,.85); padding:10px 12px; border-radius:10px;
+    border:1px solid rgba(240,230,210,.15); }
+  #ui label { display:flex; gap:6px; align-items:center; }
+  #ui button { background:var(--clay); color:#16141f; border:0; border-radius:6px; padding:6px 12px; font:inherit; cursor:pointer; }
+  body.render #ui { display:none; }
+  body.render canvas { height:auto; width:auto; }
+</style>
+</head>
+<body>
+<div id="stage"><canvas id="c" width="1080" height="1920"></canvas></div>
+<div id="ui">
+  <label>Song file <input type="file" id="file" accept="audio/*"></label>
+  <label>First downbeat at <input type="number" id="offset" value="0" step="0.01" style="width:70px">s</label>
+  <label>BPM <input type="number" id="bpm" value="120" step="0.1" style="width:70px"></label>
+  <button id="play">Play</button>
+  <span id="info"></span>
+</div>
+<script>
+/* Money on Money: a code-rendered music video.
+   Everything is a pure function of time t (seconds from the song's first downbeat),
+   so the same code renders the MP4 frame by frame and plays live against the song. */
+
+const W = 1080, H = 1920, DUR = 60;
+let BPM = 120;
+const BEAT = () => 60 / BPM, BAR = () => 4 * BEAT();
+const C = { bg:[22,20,31], cream:[240,230,210], clay:[217,119,87], amber:[232,161,90], teal:[76,201,192], cyan:[110,226,226] };
+const cv = document.getElementById('c'), g = cv.getContext('2d');
+
+// ---------- helpers ----------
+const clamp = (x,a=0,b=1) => Math.max(a, Math.min(b, x));
+const ease = x => { x = clamp(x); return x < .5 ? 4*x*x*x : 1 - Math.pow(-2*x + 2, 3) / 2; };
+const mix = (a,b,k) => a + (b - a) * k;
+const mix3 = (a,b,k) => [mix(a[0],b[0],k), mix(a[1],b[1],k), mix(a[2],b[2],k)];
+const rgba = (c,a) => `rgba(${c[0]|0},${c[1]|0},${c[2]|0},${a})`;
+function rng(seed) { let s = seed >>> 0 || 1; return () => (s = (s * 1664525 + 1013904223) >>> 0) / 4294967296; }
+function gauss(r) { let u = 0, v = 0; while (!u) u = r(); v = r(); return Math.sqrt(-2*Math.log(u)) * Math.cos(2*Math.PI*v); }
+const beatIdx = t => Math.floor(t / BEAT());
+const beatPhase = t => (t / BEAT()) - Math.floor(t / BEAT());
+// kick: sharp attack, fast decay on every beat; downbeats (beat 1 of the bar) hit harder
+const pulse = t => { if (t < 0) return 0; const p = beatPhase(t); const down = beatIdx(t) % 4 === 0 ? 1 : .55; return down * Math.exp(-9 * p * BEAT() * 2); };
+
+// ---------- glow sprites ----------
+function sprite(col, size) {
+  const c = document.createElement('canvas'); c.width = c.height = size;
+  const x = c.getContext('2d'), r = size / 2, gr = x.createRadialGradient(r, r, 0, r, r, r);
+  gr.addColorStop(0, rgba([255,255,255], 1)); gr.addColorStop(.12, rgba(col, 1));
+  gr.addColorStop(.35, rgba(col, .35)); gr.addColorStop(1, rgba(col, 0));
+  x.fillStyle = gr; x.fillRect(0, 0, size, size); return c;
+}
+const SPR = { clay:sprite(C.clay,64), teal:sprite(C.teal,64), cream:sprite(C.cream,64), amber:sprite(C.amber,64), cyan:sprite(C.cyan,64) };
+
+// ---------- particles ----------
+const N = 900;
+const R = rng(7);
+const P = [];
+const clusters = Array.from({length: 7}, (_, k) => {
+  const a = k / 7 * Math.PI * 2;
+  return [Math.cos(a) * .85 + gauss(R) * .12, (R() - .5) * 1.5, Math.sin(a) * .85 + gauss(R) * .12];
+});
+for (let i = 0; i < N; i++) {
+  const k = i % clusters.length, c = clusters[k];
+  P.push({
+    cloud: [c[0] + gauss(R) * .28, c[1] + gauss(R) * .28, c[2] + gauss(R) * .28],
+    cluster: k, seed: R(), glyph: i % 9 === 0,
+    col: i % 5 === 0 ? 'teal' : (i % 7 === 0 ? 'cream' : 'clay'),
+    text: null
+  });
+}
+
+// title letters -> points
+function textPoints(str, font, n, wUnits) {
+  const c = document.createElement('canvas'); c.width = 1400; c.height = 360;
+  const x = c.getContext('2d'); x.fillStyle = '#fff'; x.textAlign = 'center'; x.textBaseline = 'middle';
+  x.font = font; x.fillText(str, 700, 180);
+  const d = x.getImageData(0, 0, c.width, c.height).data, pts = [];
+  for (let y = 0; y < c.height; y += 3) for (let xx = 0; xx < c.width; xx += 3) if (d[(y*c.width + xx)*4 + 3] > 128) pts.push([xx, y]);
+  const r = rng(11), out = [];
+  for (let i = 0; i < n; i++) { const p = pts[Math.floor(r() * pts.length)]; out.push([(p[0] - 700) / 700 * wUnits, (p[1] - 180) / 700 * wUnits, 0, p[0]]); }
+  return out;
+}
+const SERIF = '"Bitstream Charter", "Liberation Serif", Georgia, serif';
+let TITLE = [];
+function initText() {
+  const top = textPoints('MONEY', `bold 250px ${SERIF}`, N/3|0, 1.25);
+  const mid = textPoints('ON', `italic 200px ${SERIF}`, N/3|0, 1.25);
+  const bot = textPoints('MONEY', `bold 250px ${SERIF}`, N - 2*(N/3|0), 1.25);
+  TITLE = [...top.map(p => [p[0], p[1] - .55, 0, p[3]]), ...mid.map(p => [p[0], p[1], 0, p[3]]), ...bot.map(p => [p[0], p[1] + .55, 0, p[3]])];
+}
+
+// layer grid for "stacking"
+const LAYERS = 16;
+function layerPos(i) {
+  const per = Math.ceil(N / LAYERS), L = Math.floor(i / per), j = i % per, side = Math.ceil(Math.sqrt(per));
+  return { L, p: [((j % side) / (side - 1) - .5) * 1.5, 1.65 - L * .22, (Math.floor(j / side) / (side - 1) - .5) * 1.5] };
+}
+// spiral for "compound"
+const GOLD = Math.PI * (3 - Math.sqrt(5));
+const spiral = i => { const r = Math.sqrt(i / N) * 1.45; return [Math.cos(i * GOLD) * r, Math.sin(i * GOLD) * r, 0]; };
+
+// ---------- sections (8s = 4 bars each at 120 BPM) ----------
+const SECT = [
+  { name: 'ONE DOLLAR' }, { name: 'VALUE SPACE' }, { name: 'ATTENTION' }, { name: 'STACKING' },
+  { name: 'FEATURE' }, { name: 'NEXT DOLLAR' }, { name: 'COMPOUND' }, { name: 'MONEY ON MONEY' }
+];
+const secLen = () => 4 * BAR();
+
+// per-section particle state: position, alpha, size multiplier
+function state(s, i, t, lt) {
+  const p = P[i];
+  switch (s) {
+    case 0: { // single point, then the title assembles letter by letter on the beat
+      const reveal = lt < 4 ? -1 : (lt - 4) / 3.5;             // left-to-right sweep over last 2 bars
+      const on = (TITLE[i][3] / 1400) < reveal;
+      if (i === 0) return { pos: [0, 0, 0], a: lt < 4 ? 1 : 0, s: 3 };
+      return { pos: on ? TITLE[i] : [0, 0, 0], a: on ? 1 : 0, s: .8 };
+    }
+    case 1: case 2: return { pos: p.cloud, a: 1, s: 1 };
+    case 3: { const { L, p: lp } = layerPos(i); const k = ease((lt / BEAT() - L) / 1.2); return { pos: mix3(p.cloud, lp, k), a: 1, s: 1 }; }
+    case 4: { // two clusters orbiting and merging
+      const A = i % 2 === 0, r0 = mix(1.1, .05, ease(lt / secLen())), w = t * (1.4 + lt * .25);
+      const cx = Math.cos(w + (A ? 0 : Math.PI)) * r0, cz = Math.sin(w + (A ? 0 : Math.PI)) * r0;
+      const q = p.cloud, c = clusters[p.cluster];
+      return { pos: [cx + (q[0] - c[0]) * 1.3, (q[1] - c[1]) * 1.3, cz + (q[2] - c[2]) * 1.3], a: 1, s: 1, col: A ? 'clay' : 'teal' };
+    }
+    case 5: { // dim field; the chain of picked dollars grows along the top
+      const picked = beatIdx(lt) + 1, slot = i % 40;
+      if (i < 40 && slot < picked) return { pos: [-1.2 + (slot % 16) * .16, -1.75 + Math.floor(slot / 16) * .2, 0], a: 1, s: 2.2, col: 'amber' };
+      return { pos: [p.cloud[0] * .9, p.cloud[1] * .35 - .35, p.cloud[2] * .9], a: .35, s: .8 };
+    }
+    case 6: { // doubling every beat: 1, 2, 4, 8 ...
+      const shown = Math.pow(2, beatIdx(lt) + 1 - (1 - ease(beatPhase(lt) * 3)));
+      return { pos: spiral(i), a: i < shown ? 1 : 0, s: 1 + (i < 4 ? 1 : 0) };
+    }
+    case 7: { // collapse to one point
+      const k = ease(lt / (BAR() * 1.5));
+      return { pos: mix3(spiral(i), [0, 0, 0], k), a: i === 0 ? 1 : (1 - .9 * k) * (1 - ease((lt - BAR()) / BAR())), s: i === 0 ? 2.4 : 1 };
+    }
+  }
+}
+
+// ---------- camera ----------
+function camera(t) {
+  const sec = t / secLen();
+  const tilts = [0, .25, .3, .42, .2, 0, 0, 0];               // x-tilt per section (radians)
+  const zooms = [1, 1, 1.05, .95, 1.1, 1, 1.05, 1.2];
+  const s = Math.floor(sec), f = ease((sec - s - .875) / .25);  // blend over last half-bar -> first half-bar
+  const tilt = mix(tilts[s] ?? 0, tilts[s + 1] ?? 0, f), zoom = mix(zooms[s] ?? 1, zooms[s + 1] ?? 1, f);
+  const spinAmt = [0, 1, 1, .35, .3, 0, 0, 0];
+  const spin = mix(spinAmt[s] ?? 0, spinAmt[s + 1] ?? 0, f);
+  return { yaw: t * .22 * spin + (s >= 1 && s <= 4 ? 0 : 0), tilt, zoom: zoom * (1 + .025 * pulse(t)) };
+}
+function project(p, cam) {
+  let [x, y, z] = p;
+  const cy = Math.cos(cam.yaw), sy = Math.sin(cam.yaw);
+  [x, z] = [x * cy - z * sy, x * sy + z * cy];
+  const ct = Math.cos(cam.tilt), st = Math.sin(cam.tilt);
+  [y, z] = [y * ct - z * st, y * st + z * ct];
+  const d = 4.2, k = d / (d + z) * cam.zoom;
+  return [W / 2 + x * 330 * k, H / 2 + y * 330 * k, k];
+}
+
+// ---------- overlays ----------
+function label(t, s, lt) {
+  const a = clamp(lt / .6) * clamp((secLen() - lt) / .6);
+  g.save();
+  g.globalAlpha = a * .8; g.fillStyle = rgba(C.cream, 1);
+  g.font = '26px "DejaVu Sans Mono", monospace'; g.textBaseline = 'top'; g.textAlign = 'left';
+  g.fillText(`0${s + 1} — ${SECT[s].name}`, 72, 96);
+  g.globalAlpha = a * .35; g.fillRect(72, 138, 220 * clamp(lt / secLen()), 2);
+  // beat ticker bottom-right
+  g.globalAlpha = .45; g.textAlign = 'right'; g.font = '22px "DejaVu Sans Mono", monospace';
+  const b = beatIdx(Math.max(0, t)), bar = Math.floor(b / 4) + 1, bt = (b % 4) + 1;
+  g.fillText(`${BPM} BPM · BAR ${String(bar).padStart(2, '0')} · ${'●'.repeat(bt)}${'○'.repeat(4 - bt)}`, W - 72, H - 110);
+  g.restore();
+}
+
+function attention(t, lt, pts) {
+  const b = beatIdx(lt), ph = beatPhase(lt), r = rng(1000 + b);
+  const q = Math.floor(r() * N);
+  const [qx, qy] = pts[q];
+  g.save(); g.globalCompositeOperation = 'lighter';
+  for (let j = 0; j < 26; j++) {
+    const o = Math.floor(r() * N), w = Math.pow(r(), 2.2), [ox, oy] = pts[o];
+    const grow = clamp(ph * 3), a = w * (1 - ph * .7) * .9;
+    const mx = (qx + ox) / 2 + (oy - qy) * .25, my = (qy + oy) / 2 - (ox - qx) * .25;
+    g.strokeStyle = rgba(w > .35 ? C.clay : C.teal, a); g.lineWidth = 1 + w * 5;
+    g.beginPath(); g.moveTo(qx, qy);
+    // draw partial quadratic by sampling
+    const steps = 24;
+    for (let k = 1; k <= steps * grow; k++) { const u = k / steps; g.lineTo((1-u)*(1-u)*qx + 2*(1-u)*u*mx + u*u*ox, (1-u)*(1-u)*qy + 2*(1-u)*u*my + u*u*oy); }
+    g.stroke();
+  }
+  g.drawImage(SPR.cream, qx - 50, qy - 50, 100, 100);
+  g.restore();
+  // counter
+  const val = Math.round(Math.pow(10, 2 + 4 * clamp(lt / secLen())) / 10) * 10;
+  g.save(); g.fillStyle = rgba(C.cream, .9); g.textAlign = 'center';
+  g.font = `bold ${120 + 14 * pulse(lt)}px ${SERIF}`;
+  g.fillText('$' + val.toLocaleString('en-US'), W / 2, H - 300);
+  g.restore();
+}
+
+function nextDollar(t, lt) {
+  const cands = ['+$1K', '+$10K', '+$100K', '+$1M', '+$10M'];
+  const b = beatIdx(lt), ph = beatPhase(lt), r = rng(500 + b);
+  const probs = cands.map(() => .2 + r()); const win = probs.indexOf(Math.max(...probs));
+  const x0 = 150, bw = 130, gap = 25, base = H - 330;
+  g.save();
+  g.font = '26px "DejaVu Sans Mono", monospace'; g.textAlign = 'center';
+  cands.forEach((c, i) => {
+    const h = probs[i] * 380 * ease(ph * 4), x = x0 + i * (bw + gap), isW = i === win && ph > .35;
+    g.fillStyle = rgba(isW ? C.amber : C.teal, isW ? .95 : .5);
+    g.fillRect(x, base - h, bw, h);
+    g.fillStyle = rgba(C.cream, isW ? 1 : .55); g.fillText(c, x + bw / 2, base + 22);
+  });
+  g.fillStyle = rgba(C.cream, .5); g.textAlign = 'left';
+  g.fillText('P(next dollar)', x0, base - 430);
+  g.fillText('picked →', 144, 318);
+  g.restore();
+}
+
+function compoundCurve(lt) {
+  const k = clamp(lt / secLen());
+  g.save(); g.globalCompositeOperation = 'lighter';
+  g.strokeStyle = rgba(C.clay, .55); g.lineWidth = 4; g.beginPath();
+  for (let u = 0; u <= k; u += .005) { const x = 90 + u * (W - 180), y = H - 180 - (Math.pow(2, u * 16) / 65536) * (H - 500); u === 0 ? g.moveTo(x, y) : g.lineTo(x, y); }
+  g.stroke(); g.restore();
+  const n = Math.min(Math.pow(2, beatIdx(lt) + 1), 65536);
+  g.save(); g.fillStyle = rgba(C.cream, .9); g.textAlign = 'center';
+  g.font = `bold ${110 + 16 * pulse(lt)}px ${SERIF}`; g.fillText('×' + n.toLocaleString('en-US'), W / 2, H - 260); g.restore();
+}
+
+function titleCard(lt) {
+  const a = clamp((lt - BAR()) / BAR()) * (1 - clamp((lt - 3.75 * BAR() ) / (.25 * BAR())));
+  g.save(); g.globalAlpha = a; g.fillStyle = rgba(C.cream, 1); g.textAlign = 'center';
+  g.font = `bold 118px ${SERIF}`; g.fillText('MONEY', W / 2, H / 2 - 190);
+  g.font = `italic 80px ${SERIF}`; g.fillStyle = rgba(C.clay, 1); g.fillText('on', W / 2, H / 2 + 230);
+  g.font = `bold 118px ${SERIF}`; g.fillStyle = rgba(C.cream, 1); g.fillText('MONEY', W / 2, H / 2 + 370);
+  g.restore();
+}
+
+// ---------- frame ----------
+function renderAt(t) {
+  g.globalCompositeOperation = 'source-over'; g.globalAlpha = 1;
+  g.fillStyle = rgba(C.bg, 1); g.fillRect(0, 0, W, H);
+  const vg = g.createRadialGradient(W/2, H/2, 100, W/2, H/2, H * .75);
+  vg.addColorStop(0, 'rgba(40,34,58,0.55)'); vg.addColorStop(1, 'rgba(10,9,15,0.9)');
+  g.fillStyle = vg; g.fillRect(0, 0, W, H);
+  if (t < 0 || t >= DUR) return;
+
+  const L = secLen(), s = Math.min(7, Math.floor(t / L)), lt = t - s * L;
+  const cam = camera(t);
+  const blendIn = s > 0 ? ease((lt + .5 * BAR()) / BAR()) : 1;    // morph from previous section over ~1 bar
+  const pts = new Array(N);
+  const pk = pulse(t);
+
+  g.globalCompositeOperation = 'lighter';
+  for (let i = 0; i < N; i++) {
+    let st = state(s, i, t, lt);
+    if (blendIn < 1 && s > 0) {
+      const prev = state(s - 1, i, t, lt + L);
+      st = { pos: mix3(prev.pos, st.pos, blendIn), a: mix(prev.a, st.a, blendIn), s: mix(prev.s, st.s, blendIn), col: blendIn < .5 ? (prev.col || st.col) : st.col };
+    }
+    // breathing wobble + beat kick outward
+    const w = .012 * Math.sin(t * 1.3 + P[i].seed * 40), kick = 1 + .05 * pk;
+    const pos = [st.pos[0] * kick + w, st.pos[1] * kick + w, st.pos[2] * kick];
+    const [x, y, k] = project(pos, cam); pts[i] = [x, y];
+    if (st.a <= .01) continue;
+    const size = (3.2 + 3.5 * pk * (P[i].seed > .7 ? 1 : .35)) * k * st.s;
+    const spr = SPR[st.col || P[i].col];
+    g.globalAlpha = clamp(st.a * (.55 + .45 * k));
+    if (P[i].glyph && (s === 1 || s === 2)) {
+      g.fillStyle = rgba(C.cream, .8); g.font = `${Math.max(12, size * 2.2)|0}px ${SERIF}`; g.textAlign = 'center'; g.textBaseline = 'middle';
+      g.fillText('$', x, y);
+    } else {
+      g.drawImage(spr, x - size * 3, y - size * 3, size * 6, size * 6);
+    }
+  }
+  g.globalAlpha = 1; g.globalCompositeOperation = 'source-over';
+
+  if (s === 2) attention(t, lt, pts);
+  if (s === 5) nextDollar(t, lt);
+  if (s === 6) compoundCurve(lt);
+  if (s === 7) titleCard(lt);
+
+  // downbeat flash on each section boundary + final hit
+  const flash = (lt < .25 && s > 0 ? (1 - lt / .25) * .09 : 0) + (t > DUR - .5 ? (1 - (DUR - t) / .5) : 0);
+  if (flash > 0) { g.fillStyle = rgba(s === 7 && t > DUR - .5 ? C.bg : C.cream, flash); g.fillRect(0, 0, W, H); }
+  label(t, s, lt);
+}
+
+initText();
+window.renderAt = renderAt;
+window.setBPM = v => { BPM = v; };
+
+// ---------- live mode: play against your own copy of the song ----------
+if (new URLSearchParams(location.search).has('render')) document.body.classList.add('render');
+else {
+  const audio = new Audio(); let url = null, raf = 0;
+  const off = document.getElementById('offset'), bpm = document.getElementById('bpm'), info = document.getElementById('info');
+  document.getElementById('file').onchange = e => { if (url) URL.revokeObjectURL(url); url = URL.createObjectURL(e.target.files[0]); audio.src = url; info.textContent = 'loaded'; };
+  document.getElementById('play').onclick = () => { audio.paused ? audio.play() : audio.pause(); };
+  const loop = () => { BPM = +bpm.value || 120; const t = audio.src ? audio.currentTime - (+off.value || 0) : (performance.now() / 1000) % DUR; renderAt(t); raf = requestAnimationFrame(loop); };
+  loop();
+}
+</script>
+</body>
+</html>

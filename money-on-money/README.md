@@ -29,3 +29,18 @@ Contact sheet: https://d2ol7oe51mr4n9.cloudfront.net/user_3IBf7n4ojUR6epQXmBO9jO
 
 Pipeline: GPT Image 2.5 keyframes (character-locked) → Kling 3.0 Pro 5s i2v → ffmpeg edit (trim 0.6s head, 4.0s per shot, beat punches, grain + vignette).
 Full prompts and job IDs are in `shotlist.json`. Higgsfield project: "Money on Money – AI Music Video".
+
+---
+
+## v2: coded animation (matches the reference)
+
+The reference ("Opus 5.5 created its own animation to show how it works") is a code-rendered
+motion-graphics piece: dark navy, sparse clay-orange/teal particles, small mono labels, no cuts.
+v1 above (AI-generated footage) was the wrong approach; v2 is built the same way as the reference.
+
+- `visualizer/index.html`: the animation. Open it in a browser, load your own copy of the song,
+  set the first-downbeat offset, and hit Play: it runs live in sync.
+- `visualizer/render.mjs`: renders the MP4 frame by frame (`node render.mjs video 60`).
+
+8 sections × 4 bars (120 BPM): one dollar → value space → attention → stacking → feature →
+next dollar → compound → money on money. Every beat pulses, every bar downbeat hits harder.
