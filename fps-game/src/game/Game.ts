@@ -122,6 +122,17 @@ export class Game {
       if (document.pointerLockElement) this.lockedOnce = true;
     });
     window.addEventListener('resize', () => this.resize());
+    // phones can drop the GL context when backgrounded: pause, then reload once it's back
+    this.renderer.domElement.addEventListener('webglcontextlost', (e) => {
+      e.preventDefault();
+      if (this.state === 'playing') this.onPauseRequest?.();
+      const d = document.createElement('div');
+      d.id = 'ctxlost';
+      d.textContent = 'Graphics were reset by the device — tap to reload';
+      d.addEventListener('click', () => location.reload());
+      document.body.appendChild(d);
+    });
+    this.renderer.domElement.addEventListener('webglcontextrestored', () => location.reload());
     window.addEventListener('orientationchange', () => setTimeout(() => this.resize(), 200));
     document.addEventListener('visibilitychange', () => {
       if (document.hidden && this.state === 'playing') this.onPauseRequest?.();

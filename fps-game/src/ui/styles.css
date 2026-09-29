@@ -455,3 +455,5 @@ body.touch-ui .hint { bottom: auto; top: calc(88px + var(--safe-t)); font-size: 
   body.touch-ui .tzone.left { width: 50%; }
   body.touch-ui .tzone.right { width: 50%; }
 }
+
+#ctxlost { position: fixed; inset: 0; z-index: 200; display: grid; place-items: center; background: rgba(14, 10, 40, 0.92); color: #fff; font-family: var(--font-display); font-size: 26px; text-align: center; padding: 20px; cursor: pointer; }
