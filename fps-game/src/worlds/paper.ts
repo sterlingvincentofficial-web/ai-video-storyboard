@@ -6,9 +6,10 @@ import { skyDome, rampGeometry, bunting } from './common';
 import { cardboardTexture, canvasTexture } from '../render/Materials';
 import { Batcher } from '../render/Batcher';
 import { mulberry } from '../core/utils';
+import { mergeGeometries } from 'three/examples/jsm/utils/BufferGeometryUtils.js';
 import {
   patchTexture, castleTexture, kraftTexture, boxTexture, crateTexture2, bannerTexture, riverTexture,
-  bankTexture, signAtlas, crownDecal, crumpleTexture, tubeTexture, fibres,
+  bankTexture, signAtlas, crownDecal, crumpleTexture, tubeTexture, fibres, markerTexture,
 } from './paper/tex';
 import {
   pleatCone, prism, crumpleGeo, roundRectPts, blobPts, slabFromPts, archGeo, flatPoly, bannerGeo,
@@ -82,6 +83,7 @@ function layout() {
   L.mBoxC(4.8, 34.2, 3, 1, 1.2, 'boxwall');
   L.mBoxC(-11, 43.2, 1.2, 1.2, 1.4, 'cup');
   L.mBoxC(-28.6, 42.6, 3.6, 3, 2.4, 'tent');
+  L.mBoxC(29.9, 34.3, 1.4, 2, 1.25, 'ream');
   L.mBoxC(11, 43.2, 1.2, 1.2, 1.4, 'cup');
 
   // ================= field (blue half)
@@ -205,7 +207,6 @@ function faceBox(sx: number, sy: number, sz: number) {
 function build(ctx: WorldBuildContext) {
   const { scene, level, mats, batch } = ctx;
   const far = new Batcher(false, false);
-  const low = ctx.quality === 'low';
 
   // ---- materials (all cached via MaterialKit, reused everywhere)
   const tCastle = castleTexture(3);
@@ -255,6 +256,8 @@ function build(ctx: WorldBuildContext) {
     target: mats.mat(0xffffff, { map: targetTex() }),
     doodle: mats.mat(0xffffff, { map: doodleTex(), transparent: true }),
     gold: mats.mat(0xf2bf3f),
+    news: mats.mat(0xffffff, { map: newsTex(), side: THREE.DoubleSide }),
+    ream: mats.mat(0xfbf9f3),
     flowers: [mats.mat(0xf2584a, { side: THREE.DoubleSide }), mats.mat(0xffd23f, { side: THREE.DoubleSide }), mats.mat(0xffffff, { side: THREE.DoubleSide })],
   };
 
@@ -347,6 +350,16 @@ function build(ctx: WorldBuildContext) {
         for (const s of [-1, 1]) batch.add(new THREE.BoxGeometry(0.1, 0.16, sz), M.trunk, T(team, l.cx + s * (sx / 2 - 0.1), 0.08, l.cz));
         const stand = flatPoly([[0, 0], [sz / 2 - 0.05, 0], [0, sy * 0.8]], true);
         batch.add(stand, M.kraft, T(team, l.cx, 0, l.cz + (ry ? 0.04 : -0.04), (ry ? -Math.PI / 2 : Math.PI / 2)));
+        break;
+      }
+      case 'ream': {
+        const n = Math.round(sy / 0.42);
+        const h = sy / n;
+        for (let i = 0; i < n; i++) {
+          const jx = (hr() - 0.5) * 0.12, jz = (hr() - 0.5) * 0.12, ry = (hr() - 0.5) * 0.06;
+          batch.add(new THREE.BoxGeometry(sx - 0.1, h - 0.03, sz - 0.1), M.ream, m4.compose(v4.set(cx + jx, h * (i + 0.5), cz + jz), q4.setFromEuler(e4.set(0, ry, 0)), s4.set(1, 1, 1)));
+          batch.add(new THREE.BoxGeometry(sx - 0.06, h - 0.02, 0.5), M.teamLight[team], m4);
+        }
         break;
       }
       case 'tent': {
@@ -502,6 +515,7 @@ function build(ctx: WorldBuildContext) {
   sign(1, 6, -4.52, DECK + 0.5, 2, -Math.PI / 2, 1.6, 0.8, false);
   for (const team of [0, 1]) sign(team, 1, 22.5, 3.2, 26.44, Math.PI, 2.4, 1.2);
   crane(ctx, M);
+  flock(ctx, M);
   decor(ctx, M);
   backdrop(far, M, ctx);
   clouds(ctx, M);
@@ -591,7 +605,7 @@ function build(ctx: WorldBuildContext) {
       return [Math.cos(a) * 1.3, 1.9 + Math.sin(a) * 1.3] as [number, number];
     }).slice(1, 8), [-1.3, 1.9]]);
     m4.compose(v4.set(cx, 0, fz + out * 0.02), q4.setFromEuler(e4.set(0, out < 0 ? Math.PI : 0, 0)), s4.set(1, 1, 1));
-    batch.add(door, M.dark, m4);
+    batch.add(door, M.crate, m4);
   }
 
   function perimeterWall(b: BoxDef) {
@@ -722,6 +736,29 @@ function stripeTex(a: string, b: string) {
     }
     fibres(g, w, h, 4, 300, 0.15);
   });
+}
+
+/** Newsprint for paper boats. */
+function newsTex() {
+  return markerTexture(256, 256, (g, w, h) => {
+    const r = mulberry(5);
+    g.fillStyle = '#efeadc';
+    g.fillRect(0, 0, w, h);
+    g.fillStyle = '#2b2b2b';
+    g.font = `bold 30px Georgia, serif`;
+    g.textAlign = 'center';
+    g.fillText('PAPER TIMES', w / 2, 36);
+    g.fillRect(12, 46, w - 24, 3);
+    for (let c = 0; c < 3; c++) {
+      for (let y = 62; y < h - 8; y += 9) {
+        const lw = (w - 48) / 3 - (r() < 0.15 ? 20 : 0);
+        g.fillStyle = `rgba(40,40,40,${0.35 + r() * 0.25})`;
+        g.fillRect(12 + c * ((w - 24) / 3 + 0), y, lw, 4);
+      }
+    }
+    g.fillStyle = 'rgba(40,40,40,0.5)';
+    g.fillRect(96, 70, 70, 50);
+  }, { repeat: true });
 }
 
 /** Patterned origami paper (gold with red waves and white dots). */
@@ -936,13 +973,11 @@ function river(ctx: WorldBuildContext, M: Mats) {
 
 function crane(ctx: WorldBuildContext, M: Mats) {
   const g = new THREE.Group();
-  const body = new THREE.Mesh(craneGeo(), M.crane);
+  const geo = mergeGeometries([craneGeo(), new THREE.CylinderGeometry(0.03, 0.03, 36, 4).translate(0, 18.5, 0).toNonIndexed()])!;
+  const body = new THREE.Mesh(geo, M.crane);
   body.castShadow = true;
   body.scale.setScalar(1.7);
   g.add(body);
-  const str = new THREE.Mesh(new THREE.CylinderGeometry(0.05, 0.05, 60, 4), M.string);
-  str.position.y = 30.6;
-  g.add(str);
   g.position.set(0, 12.5, 0);
   g.userData.dynamic = true;
   g.traverse((o) => (o.userData.dynamic = true));
@@ -956,35 +991,85 @@ function crane(ctx: WorldBuildContext, M: Mats) {
 
 function clouds(ctx: WorldBuildContext, M: Mats) {
   const r = mulberry(13);
-  const list: { g: THREE.Group; y: number; ph: number }[] = [];
   const spots: [number, number, number, number][] = [
     [-18, 24, -26, 1.2], [20, 27, 8, 1.0], [-24, 30, 30, 1.1], [14, 22, -34, 0.9], [26, 33, -10, 1.3],
     [-30, 26, 4, 1.0], [0, 36, -60, 1.6], [8, 38, 62, 1.5], [-55, 34, -30, 1.7], [58, 32, 26, 1.6], [-50, 40, 48, 1.8], [48, 42, -52, 1.8],
   ];
+  const groups: THREE.BufferGeometry[][] = [[], [], []];
   spots.forEach(([x, y, z, s], i) => {
-    const g = new THREE.Group();
-    g.add(new THREE.Mesh(cloudGeo(i + 3, s), M.cloud));
-    for (const sx of [-1.6 * s, 1.6 * s]) {
-      const st = new THREE.Mesh(new THREE.CylinderGeometry(0.055, 0.055, 90, 4).translate(sx, 45, 0), M.string);
-      g.add(st);
-    }
-    g.position.set(x, y, z);
-    g.rotation.y = Math.atan2(-x, -z) + (r() - 0.5) * 0.6;
-    g.traverse((o) => (o.userData.dynamic = true));
-    ctx.scene.add(g);
-    list.push({ g, y, ph: r() * 6 });
+    const parts = [cloudGeo(i + 3, s)];
+    for (const sx of [-1.6 * s, 1.6 * s]) parts.push(new THREE.CylinderGeometry(0.055, 0.055, 90, 4).translate(sx, 45, 0).toNonIndexed());
+    const g = mergeGeometries(parts)!;
+    g.applyMatrix4(new THREE.Matrix4().compose(new THREE.Vector3(x, y, z), new THREE.Quaternion().setFromEuler(new THREE.Euler(0, Math.atan2(-x, -z) + (r() - 0.5) * 0.6, (r() - 0.5) * 0.05)), new THREE.Vector3(1, 1, 1)));
+    groups[i % 3].push(g);
+  });
+  const meshes = groups.map((gs) => {
+    const m = new THREE.Mesh(mergeGeometries(gs)!, M.cloud);
+    m.userData.dynamic = true;
+    m.frustumCulled = false;
+    ctx.scene.add(m);
+    return m;
   });
   ctx.animate((_dt, t) => {
-    for (const c of list) {
-      c.g.position.y = c.y + Math.sin(t * 0.5 + c.ph) * 0.4;
-      c.g.rotation.z = Math.sin(t * 0.35 + c.ph) * 0.03;
-    }
+    meshes.forEach((m, i) => {
+      m.position.y = Math.sin(t * 0.45 + i * 2.1) * 0.45;
+      m.rotation.y = Math.sin(t * 0.02 + i) * 0.015;
+    });
+  });
+}
+
+/** A few small origami cranes gliding in a slow circle high above the arena, plus paper boats bobbing on the river. */
+function flock(ctx: WorldBuildContext, M: Mats) {
+  const parts: THREE.BufferGeometry[] = [];
+  const base = craneGeo();
+  for (let i = 0; i < 4; i++) {
+    const a = (i / 4) * Math.PI * 2 + 0.4;
+    const R = 34 + (i % 2) * 9;
+    const g = base.clone();
+    g.applyMatrix4(new THREE.Matrix4().compose(
+      new THREE.Vector3(Math.cos(a) * R, 19 + (i % 3) * 3.5, Math.sin(a) * R),
+      new THREE.Quaternion().setFromEuler(new THREE.Euler(0, Math.PI / 2 - a, (i % 2 ? 0.2 : -0.15))),
+      new THREE.Vector3(0.55, 0.55, 0.55)));
+    parts.push(g);
+  }
+  const birds = new THREE.Mesh(mergeGeometries(parts)!, M.crane);
+  birds.userData.dynamic = true;
+  birds.frustumCulled = false;
+  ctx.scene.add(birds);
+  // paper boats (newsprint)
+  const boat: number[] = [];
+  const tri = (a: number[], b: number[], c: number[]) => boat.push(...a, ...b, ...c);
+  const L = 0.62, W = 0.2, H = 0.3, B = 0.32;
+  for (const s of [1, -1]) {
+    tri([-B, 0, 0], [B, 0, 0], [L, H, W * s]);
+    tri([-B, 0, 0], [L, H, W * s], [-L, H, W * s]);
+    tri([-L, H, W * s], [-B, 0, 0], [-L, H, 0]);
+    tri([L, H, W * s], [B, 0, 0], [L, H, 0]);
+    tri([-0.34, H, 0.03 * s], [0.34, H, 0.03 * s], [0, 0.8, 0]);
+  }
+  const bg = triGeo(boat, 0.9, 'xy');
+  const bparts: THREE.BufferGeometry[] = [];
+  for (const [x, z, ry, sc] of [[-19.5, 1.3, 0.3, 1.2], [19.5, -1.3, 2.9, 1.2], [-7.5, -1.6, 1.4, 0.9], [8.2, 1.7, -1.2, 0.9]]) {
+    const g = bg.clone();
+    g.applyMatrix4(new THREE.Matrix4().compose(new THREE.Vector3(x, WY - 0.02, z), new THREE.Quaternion().setFromEuler(new THREE.Euler(0, ry, 0)), new THREE.Vector3(sc, sc, sc)));
+    bparts.push(g);
+  }
+  const boats = new THREE.Mesh(mergeGeometries(bparts)!, M.news);
+  boats.userData.dynamic = true;
+  boats.castShadow = true;
+  ctx.scene.add(boats);
+  ctx.animate((_dt, t) => {
+    birds.rotation.y = t * 0.05;
+    birds.position.y = Math.sin(t * 0.6) * 0.6;
+    boats.position.y = Math.sin(t * 1.3) * 0.025;
+    boats.rotation.z = Math.sin(t * 0.9) * 0.004;
   });
 }
 
 /** Grass tufts, flowers, pebbles and the boundary fence. */
 function decor(ctx: WorldBuildContext, M: Mats) {
   const { batch, level } = ctx;
+  const low = ctx.quality === 'low';
   const r = mulberry(99);
   const blocked = (x: number, z: number, pad = 0.6) => {
     for (const b of level.boxes) {
@@ -1013,7 +1098,7 @@ function decor(ctx: WorldBuildContext, M: Mats) {
   }), true);
   for (const team of [0, 1]) {
     let n = 0;
-    for (let tries = 0; tries < 900 && n < 170; tries++) {
+    for (let tries = 0; tries < 900 && n < (low ? 70 : 170); tries++) {
       const x = -HX + 1.5 + r() * (2 * HX - 3), z = RZ + 0.8 + r() * 27;
       if (blocked(x, z)) continue;
       if (lanePath(Math.floor((x + HX) / 2) * 2 - HX + 1, Math.floor((z - RZ) / 2) * 2 + RZ + 1)) continue;
@@ -1028,7 +1113,7 @@ function decor(ctx: WorldBuildContext, M: Mats) {
       n++;
     }
     // paper confetti scraps
-    for (let i = 0; i < 90; i++) {
+    for (let i = 0; i < (low ? 30 : 90); i++) {
       const x = -HX + 1 + r() * (2 * HX - 2), z = RZ + 0.5 + r() * 40;
       if (blocked(x, z, 0.2)) continue;
       const w = 0.12 + r() * 0.14;
@@ -1036,6 +1121,32 @@ function decor(ctx: WorldBuildContext, M: Mats) {
       cg.rotateX(-Math.PI / 2);
       const cm = [M.flowers[0], M.flowers[1], M.flowers[2], M.teamLight[0], M.teamLight[1]][Math.floor(r() * 5)];
       batch.add(cg, cm, T(team, x, 0.03, z, r() * 6));
+    }
+    // pop-up cutout bushes hugging the castle wall bases (field side)
+    const bush = (w: number, h: number, seed: number) => {
+      const rr = mulberry(seed);
+      const pts: [number, number][] = [[-w / 2, 0]];
+      const lobes = 3 + Math.floor(rr() * 2);
+      for (let k = 0; k <= lobes * 4; k++) {
+        const t = k / (lobes * 4);
+        const x = -w / 2 + t * w;
+        const bump = Math.abs(Math.sin(t * Math.PI * lobes)) * 0.25 + 0.75;
+        pts.push([x, h * bump * Math.sin(Math.PI * (0.08 + t * 0.84))]);
+      }
+      pts.push([w / 2, 0]);
+      return flatPoly(pts, true);
+    };
+    const bushSpots: [number, number, number][] = [[-18.5, 26.75, 1.6], [-9.5, 26.75, 1.3], [10, 26.75, 1.5], [17.5, 26.75, 1.2], [-25.5, 26.2, 1.1], [20.2, 26.2, 1.0]];
+    bushSpots.forEach(([x, z, w], k) => {
+      batch.add(bush(w * 1.3, w * 0.75, 700 + k), k % 2 ? M.leafA : M.leafC, T(team, x, 0, z, 0));
+      batch.add(bush(w, w * 0.55, 720 + k), M.leafB, T(team, x + 0.5, 0, z - 0.12, 0));
+    });
+    // small crumpled pebbles
+    for (let i = 0; i < 16; i++) {
+      const x = -HX + 2 + r() * (2 * HX - 4), z = RZ + 1 + r() * 21;
+      if (blocked(x, z, 0.3)) continue;
+      const sz = 0.25 + r() * 0.3;
+      batch.add(crumpleGeo(sz * 1.3, sz * 0.7, sz, 800 + i, 0.2, 0, 0.8), i % 2 ? M.rock : M.rock2, T(team, x, 0, z, r() * 6));
     }
     // boundary fence: cream paper pickets along the field edges
     const picket = flatPoly([[-0.17, 0], [0.17, 0], [0.17, 0.95], [0, 1.18], [-0.17, 0.95]], true);
@@ -1052,6 +1163,7 @@ function decor(ctx: WorldBuildContext, M: Mats) {
 /** Layered paper hills beyond the fence, cut-out mountains, far forests. */
 function backdrop(far: Batcher, M: Mats, ctx: WorldBuildContext) {
   const { batch } = ctx;
+  const low = ctx.quality === 'low';
   const r = mulberry(1234);
   const hillMats = [M.hillTop[0], M.hillTop[1], M.hillTop[2], M.hillTop[3]];
   const mound = (bt: Batcher, cx: number, cz: number, rx: number, rz: number, layers: number, lh: number, seed: number, mats = hillMats, side = M.hillEdge) => {
@@ -1073,7 +1185,7 @@ function backdrop(far: Batcher, M: Mats, ctx: WorldBuildContext) {
     ];
     near.forEach(([x, z, rx, rz, n, lh], i) => mound(batch, x * f, z * f, rx, rz, n, lh, i * 7 + team * 50 + 3));
     // forests on the hills
-    for (let i = 0; i < 46; i++) {
+    for (let i = 0; i < (low ? 24 : 46); i++) {
       const side = r() > 0.5 ? 1 : -1;
       let x: number, z: number;
       if (i < 30) { x = side * (34.5 + r() * 18); z = 4 + r() * 50; }
