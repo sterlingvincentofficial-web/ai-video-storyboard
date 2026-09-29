@@ -189,6 +189,9 @@ export class Effects {
   private dartCount = 0;
   light: THREE.PointLight;
   private lightT = 0;
+  private shots: THREE.InstancedMesh;
+  private shotData: { fx: number; fy: number; fz: number; tx: number; ty: number; tz: number; t: number; dur: number; r: number; g: number; b: number; len: number }[] = [];
+  private shotIdx = 0;
   impact: ImpactStyle = 'paint';
   hitWords: string[] = ['POW!'];
 
@@ -251,6 +254,40 @@ export class Effects {
     }
     this.light = new THREE.PointLight(0xffaa55, 0, 18, 2);
     this.group.add(this.light);
+
+    // visible "bullets" for hitscan weapons, styled per world
+    let sg: THREE.BufferGeometry;
+    let smat: THREE.Material = solidMat;
+    switch (impact) {
+      case 'dart': sg = new THREE.CapsuleGeometry(0.06, 0.3, 3, 6); break;
+      case 'paper': sg = new THREE.IcosahedronGeometry(0.13, 0); break;
+      case 'paint': sg = new THREE.SphereGeometry(0.11, 8, 6); break;
+      case 'ink': sg = new THREE.CapsuleGeometry(0.035, 0.7, 2, 5); smat = new THREE.MeshBasicMaterial({ color: 0xffffff, toneMapped: false, fog: false }); break;
+      case 'laser': default: sg = new THREE.CapsuleGeometry(0.03, 0.9, 2, 5); smat = new THREE.MeshBasicMaterial({ color: 0xffffff, toneMapped: false, fog: false }); break;
+    }
+    sg.rotateX(Math.PI / 2); // long axis along Z
+    this.shots = new THREE.InstancedMesh(sg, smat, 64);
+    this.shots.count = 0;
+    this.shots.frustumCulled = false;
+    this.shots.setColorAt(0, new THREE.Color());
+    this.group.add(this.shots);
+    for (let i = 0; i < 64; i++) this.shotData.push({ fx: 0, fy: 0, fz: 0, tx: 0, ty: 0, tz: 0, t: 1, dur: 1, r: 1, g: 1, b: 1, len: 1 });
+  }
+
+  /** A visible projectile flying from a to b (purely cosmetic; hitscan already resolved). */
+  shot(from: THREE.Vector3, to: THREE.Vector3, color: number) {
+    const d = this.shotData[this.shotIdx];
+    this.shotIdx = (this.shotIdx + 1) % this.shotData.length;
+    d.fx = from.x; d.fy = from.y; d.fz = from.z;
+    d.tx = to.x; d.ty = to.y; d.tz = to.z;
+    const dist = from.distanceTo(to);
+    const speed = this.impact === 'laser' || this.impact === 'ink' ? 260 : 150;
+    d.dur = Math.max(0.03, dist / speed);
+    d.t = 0;
+    this._c.setHex(color);
+    if (this.impact === 'laser' || this.impact === 'ink') this._c.multiplyScalar(1.6);
+    d.r = this._c.r; d.g = this._c.g; d.b = this._c.b;
+    d.len = dist;
   }
 
   tracer(from: THREE.Vector3, to: THREE.Vector3, color: number, width = 0.03, life = 0.09) {
@@ -422,7 +459,29 @@ export class Effects {
     this.solid.spawn(p.x, p.y, p.z, rand(-0.3, 0.3), rand(0, 0.5), rand(-0.3, 0.3), 0.4, 0.18, 0.02, color, -0.5, 1);
   }
 
+  private updateShots(dt: number) {
+    let n = 0;
+    for (const d of this.shotData) {
+      if (d.t >= d.dur) continue;
+      d.t += dt;
+      const k = Math.min(1, d.t / d.dur);
+      this._v.set(d.fx + (d.tx - d.fx) * k, d.fy + (d.ty - d.fy) * k, d.fz + (d.tz - d.fz) * k);
+      this._m.lookAt(this._v, this._s.set(d.tx, d.ty, d.tz), this._y);
+      this._q.setFromRotationMatrix(this._m);
+      // lookAt makes -Z face the target; our geometry is symmetric so that's fine
+      const stretch = this.impact === 'paint' ? 1.6 : this.impact === 'paper' ? 1 : 1;
+      this._m.compose(this._v, this._q, this._s.set(1, 1, stretch));
+      this.shots.setMatrixAt(n, this._m);
+      this.shots.setColorAt(n, this._c.setRGB(d.r, d.g, d.b));
+      n++;
+    }
+    this.shots.count = n;
+    this.shots.instanceMatrix.needsUpdate = true;
+    if (this.shots.instanceColor) this.shots.instanceColor.needsUpdate = true;
+  }
+
   update(dt: number, camera: THREE.Camera) {
+    this.updateShots(dt);
     this.solid.update(dt);
     this.glow.update(dt);
     this.confetti.update(dt);
@@ -470,6 +529,8 @@ export class Effects {
     this.dartCount = 0;
     if (this.darts) this.darts.count = 0;
     for (const t of this.tracers) { t.life = 0; t.mesh.visible = false; }
+    for (const d of this.shotData) d.t = d.dur;
+    this.shots.count = 0;
     for (const p of this.pops) { p.life = 0; p.spr.visible = false; }
   }
 }

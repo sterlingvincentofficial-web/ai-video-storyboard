@@ -474,7 +474,11 @@ export class Match implements BotWorld {
         if (h) { hitA = o; hitT = h.t; head = h.head; }
       }
       const end = eye.clone().addScaledVector(d, hitT);
-      if (i < 3 || def.id !== 'scatter' || Math.random() < 0.5) this.fx.tracer(muzzle, end, this.tracerColor(a, def), def.id === 'zapper' ? 0.07 : 0.028, def.id === 'zapper' ? 0.25 : 0.08);
+      if (def.id === 'zapper') this.fx.tracer(muzzle, end, this.tracerColor(a, def), 0.07, 0.25);
+      else {
+        if (i < 4 || Math.random() < 0.4) this.fx.shot(muzzle, end, this.shotColor(a));
+        if (i === 0 && (this.world.theme.impact === 'laser' || this.world.theme.impact === 'ink')) this.fx.tracer(muzzle, end, this.tracerColor(a, def), 0.02, 0.06);
+      }
       if (hitA) {
         const fall = clamp((hitT - def.falloff[0]) / (def.falloff[1] - def.falloff[0]), 0, 1);
         let dmg = def.damage * (1 - fall * 0.45) * (head ? def.headMult : 1);
@@ -493,6 +497,17 @@ export class Match implements BotWorld {
 
   impactColor(a: Actor) {
     return this.world.theme.teams[a.team].primary;
+  }
+
+  shotColor(a: Actor) {
+    const t = this.world.theme.teams[a.team];
+    switch (this.world.theme.impact) {
+      case 'paper': return 0xf4ecd8;
+      case 'ink': return 0xffe12b;
+      case 'dart': return t.primary;
+      case 'laser': return t.light;
+      default: return t.primary;
+    }
   }
 
   tracerColor(a: Actor, def: WeaponDef) {

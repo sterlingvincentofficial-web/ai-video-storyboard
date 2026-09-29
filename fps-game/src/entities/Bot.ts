@@ -346,9 +346,9 @@ export class BotBrain {
     if (sl > 0.01) {
       const px = a.pos.x + (steerX / sl) * 1.2, pz = a.pos.z + (steerZ / sl) * 1.2;
       const g = w.col.groundHeight(px, pz, 0.2, a.pos.y + 1.4);
-      if (g === -Infinity || g < w.killY + 2 || g < a.pos.y - 6) {
+      if (g === -Infinity || g < w.killY + 2 || g < a.pos.y - 9.5) {
         if (combatMove) { this.strafeDir *= -1; steerX = -steerX; steerZ = -steerZ; }
-        else if (!this.path) { steerX = 0; steerZ = 0; }
+        else { steerX = 0; steerZ = 0; this.repathT = 0; }
       }
     }
 
