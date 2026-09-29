@@ -178,7 +178,8 @@ export class Menu {
         saveSettings();
         d.querySelectorAll('.card.world').forEach((x) => x.classList.toggle('sel', x === c));
         // swap the live background world
-        this.game.startAttract(settings.lastWorld);
+        const w = settings.lastWorld;
+        this.game.withLoading(`Loading ${WORLDS[w].theme.name}…`, () => this.game.startAttract(w));
       }),
     );
     d.querySelectorAll<HTMLElement>('.card.mode').forEach((c) =>
@@ -217,6 +218,8 @@ export class Menu {
   startMatch() {
     audio.unlock();
     this.show('none');
+    // grab the mouse inside the click (user-activation) window
+    if (!this.game.touchMode) this.game.input.requestLock();
     if (isTouchDevice()) {
       const el = document.documentElement as HTMLElement & { webkitRequestFullscreen?: () => void };
       try {
@@ -231,7 +234,7 @@ export class Menu {
         /* ignore */
       }
     }
-    this.game.startMatch({
+    const cfg = {
       world: settings.lastWorld,
       mode: settings.lastMode as ModeId,
       difficulty: settings.difficulty,
@@ -239,7 +242,9 @@ export class Menu {
       mutators: settings.mutators,
       playerName: settings.playerName || 'You',
       playerHat: hatUnlocked(settings.hat) ? settings.hat : 'default',
-    });
+    };
+    if (this.game.needsLoad(cfg.world)) this.game.withLoading(`Loading ${WORLDS[cfg.world].theme.name}…`, () => this.game.startMatch(cfg));
+    else this.game.startMatch(cfg);
   }
 
   private renderLoadout() {

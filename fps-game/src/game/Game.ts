@@ -156,6 +156,25 @@ export class Game {
   }
 
   // ------------------------------------------------------------------ world / match lifecycle
+  /** Show a loading card, then run `fn` after the browser has painted it. */
+  withLoading(label: string, fn: () => void) {
+    let el = document.getElementById('loading');
+    if (!el) {
+      el = document.createElement('div');
+      el.id = 'loading';
+      document.body.appendChild(el);
+    }
+    el.textContent = label;
+    el.classList.add('show');
+    requestAnimationFrame(() => requestAnimationFrame(() => {
+      try { fn(); } finally { el!.classList.remove('show'); }
+    }));
+  }
+
+  needsLoad(id: WorldId) {
+    return this.worldId !== id || !this.world;
+  }
+
   loadWorld(id: WorldId) {
     if (this.worldId === id && this.world) return;
     this.disposeMatch();

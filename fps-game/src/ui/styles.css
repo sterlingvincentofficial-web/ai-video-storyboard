@@ -414,3 +414,6 @@ body.touch-ui .hint { bottom: auto; top: calc(88px + var(--safe-t)); font-size: 
   .title-buttons .btn.big { grid-column: 1 / span 2; justify-self: start; }
   .title-buttons .btn:not(.big) { min-width: 0; font-size: 14px; padding: 6px 12px; box-shadow: 0 3px 0 var(--ink); border-width: 3px; }
 }
+
+#loading { position: fixed; left: 50%; top: 50%; transform: translate(-50%, -50%) rotate(-2deg); z-index: 90; font-family: var(--font-display); font-size: 30px; color: #ffd23f; background: #1b1440; border: 5px solid #fff; border-radius: 20px; padding: 14px 28px; box-shadow: 0 8px 0 rgba(0,0,0,0.5); display: none; }
+#loading.show { display: block; }
