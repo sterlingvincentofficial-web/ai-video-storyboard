@@ -35,5 +35,18 @@ function boot() {
   }
 }
 
+/** Wait (briefly) for the web fonts so canvas-drawn labels use them. */
+async function fontsReady() {
+  const fonts = ['20px "Luckiest Guy"', '20px Bangers', '700 20px Fredoka', '20px "Permanent Marker"', '700 20px Orbitron'];
+  try {
+    await Promise.race([
+      Promise.all(fonts.map((f) => document.fonts.load(f).catch(() => null))),
+      new Promise((r) => setTimeout(r, 2500)),
+    ]);
+  } catch {
+    /* fonts API unavailable */
+  }
+}
+
 if (q.get('debug')) debugView(q.get('debug') as WorldId);
-else boot();
+else fontsReady().then(boot);
