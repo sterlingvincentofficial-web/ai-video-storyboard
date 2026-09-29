@@ -16,6 +16,7 @@ import { WEAPONS } from '../entities/Weapons';
 import { angleDiff, clamp, damp, dirFromYawPitch, isTouchDevice, rand, yawTo } from '../core/utils';
 import { addXp, profile, saveProfile } from '../core/Profile';
 import { applyTally, CHALLENGE_XP } from '../core/Challenges';
+import { announcer } from '../core/Announcer';
 import type { Actor } from '../entities/Actor';
 
 export type GameState = 'menu' | 'playing' | 'paused' | 'ended';
@@ -49,6 +50,10 @@ export class Game {
   state: GameState = 'menu';
   quality: Quality;
   private lastT = performance.now();
+  /** Gameplay time scale (hit-stop on kills, slow-mo finish). */
+  private timeScale = 1;
+  private frameNo = 0;
+  private slowT = 0;
   private time = 0;
   private shake = 0;
   private recoilPitch = 0;
@@ -119,7 +124,7 @@ export class Game {
   private lastChallenges: string[] = [];
 
   msaaFor(q: Quality) {
-    return q === 'low' ? 0 : q === 'medium' ? 2 : 4;
+    return q === 'low' || q === 'medium' ? 0 : 4;
   }
 
   pixelRatioFor(q: Quality) {
@@ -284,6 +289,7 @@ export class Game {
   }
 
   quitToMenu() {
+    announcer.stop();
     this.input.exitLock();
     this.startAttract(this.worldId ?? 'plaza');
   }
@@ -318,10 +324,15 @@ export class Game {
       return;
     }
     this.input.poll();
+    if (this.slowT > 0) {
+      this.slowT -= dt;
+      if (this.slowT <= 0) this.timeScale = 1;
+    }
+    const gdt = dt * this.timeScale;
     if (this.state === 'playing' || this.state === 'ended') {
       if (this.input.pausePressed && this.state === 'playing') this.onPauseRequest?.();
       if (m.player && this.state === 'playing') this.controlPlayer(dt);
-      m.update(dt);
+      m.update(gdt);
     } else if (this.state === 'menu') {
       m.update(dt);
       // endless attract: restart when over
@@ -333,17 +344,29 @@ export class Game {
     this.handleEvents(m);
     w.update(dt, this.time);
     this.updateCamera(dt, m);
-    this.fx!.update(dt, this.camera);
+    this.fx!.update(gdt, this.camera);
     if (this.state === 'playing' || this.state === 'ended' || this.state === 'paused') {
       this.hud.update(dt, m, this.camera, { spectating: false, aiming: !!m.player?.aiming, fps: 1 / Math.max(rawDt, 1e-3) });
       this.hud.showScoreboard((this.input.scoreboard || this.scoreboardHeld) && this.state !== 'ended', m);
     }
     this.pipeline.flashAmt = Math.max(0, this.pipeline.flashAmt - dt * 3);
     this.renderer.info.reset();
+    // medium quality: refresh the shadow map every other frame (big win on phones)
+    this.frameNo++;
+    if (this.quality === 'medium') {
+      this.renderer.shadowMap.autoUpdate = false;
+      if (this.frameNo % 2 === 0) this.renderer.shadowMap.needsUpdate = true;
+    } else this.renderer.shadowMap.autoUpdate = true;
     this.pipeline.render(w.scene, this.camera, this.time);
     this.input.consume();
     this.adaptResolution(rawDt);
     if (this.state === 'ended') this.updateEnd(dt, m);
+  }
+
+  slowMo(scale: number, seconds: number) {
+    if (this.timeScale < scale && this.slowT > seconds) return;
+    this.timeScale = scale;
+    this.slowT = seconds;
   }
 
   private adaptResolution(dt: number) {
@@ -485,12 +508,14 @@ export class Game {
             this.touch.resetAim();
           } else if (e.killer === p && playing) {
             hud.toastMsg(`${e.head ? '🎯 HEADSHOT! ' : ''}You splatted ${e.victim.name}  +${100 + (e.head ? 25 : 0)}`);
+            this.slowMo(0.25, 0.07);
+            if (e.head) announcer.say('Headshot!');
           }
           if (e.assist === p && playing) hud.toastMsg(`Assist on ${e.victim.name}  +50`);
           break;
         }
         case 'streak':
-          if (e.actor === p) { hud.message(e.text, true, '#ffd23f'); audio.play('multikill'); }
+          if (e.actor === p) { hud.message(e.text, true, '#ffd23f'); audio.play('multikill'); announcer.say(e.text.toLowerCase().replace('ko', 'K.O.'), true); }
           else if (playing && (e.text.length > 12 || e.text === 'FIRST SPLAT!')) hud.toastMsg(`${e.actor.name}: ${e.text}`);
           break;
         case 'chat':
@@ -498,7 +523,7 @@ export class Game {
           break;
         case 'message':
           if (playing) {
-            if (e.text === 'GO!') audio.play('go');
+            if (e.text === 'GO!') { audio.play('go'); announcer.say('Go!', true); }
             hud.message(e.text, !!e.big, e.color);
           }
           break;
@@ -550,8 +575,8 @@ export class Game {
           const ours = e.team === mineTeam;
           const who = e.actor ? e.actor.name : '';
           const col = tc(e.team === 0 ? 1 : 0);
-          if (e.action === 'taken') { hud.message(ours ? 'YOUR FLAG WAS TAKEN!' : `${who} HAS THE FLAG!`, false, ours ? '#ff5a5a' : col); audio.play('flag_taken'); }
-          if (e.action === 'captured') { hud.message(ours ? 'ENEMY CAPTURED YOUR FLAG!' : `${who} CAPTURED THE FLAG!`, true, ours ? '#ff5a5a' : col); audio.play('flag_captured'); }
+          if (e.action === 'taken') { hud.message(ours ? 'YOUR FLAG WAS TAKEN!' : `${who} HAS THE FLAG!`, false, ours ? '#ff5a5a' : col); audio.play('flag_taken'); announcer.say(ours ? 'Your flag was taken!' : 'Flag taken!'); }
+          if (e.action === 'captured') { hud.message(ours ? 'ENEMY CAPTURED YOUR FLAG!' : `${who} CAPTURED THE FLAG!`, true, ours ? '#ff5a5a' : col); audio.play('flag_captured'); announcer.say(ours ? 'Red team scores!' : 'Blue team scores!', true); }
           if (e.action === 'returned') { hud.toastMsg(`${ours ? 'Your' : 'Enemy'} flag returned${who ? ` by ${who}` : ''}`); audio.play('flag_returned'); }
           if (e.action === 'dropped') { hud.toastMsg(`${ours ? 'Your' : 'Enemy'} flag dropped!`); audio.play('flag_dropped'); }
           break;
@@ -567,6 +592,7 @@ export class Game {
         case 'zone':
           if (playing) {
             hud.message(e.team === (p?.team ?? 0) ? 'ZONE CAPTURED!' : 'ENEMY TOOK THE ZONE!', false, tc(e.team));
+            announcer.say(e.team === (p?.team ?? 0) ? 'Zone captured!' : 'Zone lost!');
             audio.play('zone_capture');
           }
           break;
@@ -618,6 +644,8 @@ export class Game {
     this.endT = 0;
     this.endShown = false;
     const won = p ? winner === p.team : false;
+    this.slowMo(0.3, 1.4);
+    announcer.say(winner === -1 ? 'Draw!' : won ? 'Victory!' : 'Defeat!', true);
     this.hud.message(winner === -1 ? 'DRAW!' : won ? 'VICTORY!' : 'DEFEAT!', true, winner === -1 ? '#fff' : won ? '#ffd23f' : '#ff5a5a', winner === -1 ? '' : `${winner === 0 ? 'BLUE' : 'RED'} TEAM WINS`);
     audio.play(won ? 'victory' : 'defeat');
     audio.stopMusic(2);

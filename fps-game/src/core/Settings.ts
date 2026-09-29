@@ -24,6 +24,7 @@ export interface SettingsData {
   scoreLimitScale: number; // 0.5 / 1 / 1.5
   mutators: string[];
   screenShake: boolean;
+  announcer: boolean;
   crosshair: number;
 }
 
@@ -54,6 +55,7 @@ function defaults(): SettingsData {
     scoreLimitScale: 1,
     mutators: [],
     screenShake: true,
+    announcer: true,
     crosshair: 0,
   };
 }

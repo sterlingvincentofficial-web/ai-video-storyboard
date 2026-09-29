@@ -313,6 +313,7 @@ export class Menu {
             ${slider('master', 'Master', 0, 1, 0.05, (v) => `${Math.round(v * 100)}%`)}
             ${slider('music', 'Music', 0, 1, 0.05, (v) => `${Math.round(v * 100)}%`)}
             ${slider('sfx', 'Effects', 0, 1, 0.05, (v) => `${Math.round(v * 100)}%`)}
+            ${toggle('announcer', 'Announcer voice')}
           </div>
           <div>
             <h3>Graphics</h3>
