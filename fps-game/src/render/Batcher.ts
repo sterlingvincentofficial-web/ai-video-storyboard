@@ -7,6 +7,9 @@ import { mergeGeometries } from 'three/examples/jsm/utils/BufferGeometryUtils.js
  */
 export class Batcher {
   private groups = new Map<THREE.Material, THREE.BufferGeometry[]>();
+  get size() {
+    return this.groups.size;
+  }
   private tmp = new THREE.Matrix4();
 
   constructor(public castShadow = true, public receiveShadow = true) {}
@@ -14,13 +17,15 @@ export class Batcher {
   /** Add a geometry with a transform. The geometry is cloned. */
   add(geo: THREE.BufferGeometry, mat: THREE.Material, matrix?: THREE.Matrix4) {
     let g = geo.index ? geo.toNonIndexed() : geo.clone();
-    // normalise attributes so geometries merge (position, normal, uv)
+    // normalise attributes so geometries merge (position, normal, uv [, color])
     if (!g.getAttribute('normal')) g.computeVertexNormals();
-    if (!g.getAttribute('uv')) {
-      const n = g.getAttribute('position').count;
-      g.setAttribute('uv', new THREE.Float32BufferAttribute(new Float32Array(n * 2), 2));
-    }
-    for (const k of Object.keys(g.attributes)) if (k !== 'position' && k !== 'normal' && k !== 'uv') g.deleteAttribute(k);
+    const n = g.getAttribute('position').count;
+    if (!g.getAttribute('uv')) g.setAttribute('uv', new THREE.Float32BufferAttribute(new Float32Array(n * 2), 2));
+    const wantColor = (mat as THREE.MeshBasicMaterial).vertexColors;
+    if (wantColor && !g.getAttribute('color')) g.setAttribute('color', new THREE.Float32BufferAttribute(new Float32Array(n * 3).fill(1), 3));
+    const colAttr = g.getAttribute('color');
+    if (colAttr && colAttr.itemSize !== 3) g.deleteAttribute('color');
+    for (const k of Object.keys(g.attributes)) if (k !== 'position' && k !== 'normal' && k !== 'uv' && !(k === 'color' && wantColor)) g.deleteAttribute(k);
     g.morphAttributes = {};
     if (matrix) g.applyMatrix4(matrix);
     let arr = this.groups.get(mat);
@@ -46,7 +51,7 @@ export class Batcher {
     this.add(g, mat, this.tmp);
   }
 
-  flush(parent: THREE.Object3D, shadows = true) {
+  flush(parent: THREE.Object3D, shadows = true, castOverride?: (mat: THREE.Material) => boolean) {
     this.groups.forEach((geos, mat) => {
       // chunk to avoid huge single buffers
       for (let i = 0; i < geos.length; i += 400) {
@@ -54,7 +59,7 @@ export class Batcher {
         if (!merged) continue;
         merged.computeBoundingSphere();
         const mesh = new THREE.Mesh(merged, mat);
-        mesh.castShadow = shadows && this.castShadow && !(mat as THREE.MeshBasicMaterial).transparent;
+        mesh.castShadow = castOverride ? castOverride(mat) : shadows && this.castShadow && !(mat as THREE.MeshBasicMaterial).transparent;
         mesh.receiveShadow = shadows && this.receiveShadow;
         mesh.matrixAutoUpdate = false;
         mesh.updateMatrix();
@@ -83,4 +88,44 @@ export function boxGeo(sx: number, sy: number, sz: number, uvScale = 0.25) {
   }
   boxCache.set(key, g);
   return g;
+}
+
+/**
+ * Merge every static mesh under `root` (not below a `userData.dynamic` node, not flagged
+ * `userData.noMerge`) into per-material batches in root's local space. Recurses into dynamic
+ * nodes so their own static children get merged too. Returns number of meshes merged.
+ */
+export function mergeStatic(root: THREE.Object3D, shadows: boolean): number {
+  let merged = 0;
+  root.updateMatrixWorld(true);
+  const inv = new THREE.Matrix4().copy(root.matrixWorld).invert();
+  const rel = new THREE.Matrix4();
+  const batch = new Batcher(shadows, shadows);
+  const casters = new Map<THREE.Material, boolean>();
+  const remove: THREE.Object3D[] = [];
+  const dyn: THREE.Object3D[] = [];
+  const visit = (o: THREE.Object3D) => {
+    for (const c of o.children) {
+      if (c.userData.dynamic) { dyn.push(c); continue; }
+      const m = c as THREE.Mesh;
+      if (m.isMesh && !(m as unknown as THREE.InstancedMesh).isInstancedMesh && !(m as unknown as THREE.SkinnedMesh).isSkinnedMesh && !m.userData.noMerge && !Array.isArray(m.material) && m.children.length === 0 && m.geometry.getAttribute('position')) {
+        const mat = m.material as THREE.Material;
+        if ((mat as THREE.ShaderMaterial).isShaderMaterial || (m.geometry.morphAttributes && Object.keys(m.geometry.morphAttributes).length)) { visit(c); continue; }
+        rel.multiplyMatrices(inv, m.matrixWorld);
+        batch.add(m.geometry, mat, rel);
+        casters.set(mat, (casters.get(mat) ?? false) || m.castShadow);
+        remove.push(m);
+        merged++;
+        continue;
+      }
+      visit(c);
+    }
+  };
+  visit(root);
+  if (merged > 1) {
+    for (const r of remove) r.parent?.remove(r);
+    batch.flush(root, shadows, (mat) => shadows && (casters.get(mat) ?? false));
+  }
+  for (const d of dyn) merged += mergeStatic(d, shadows);
+  return merged;
 }

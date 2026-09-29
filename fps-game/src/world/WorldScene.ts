@@ -3,7 +3,7 @@ import { RoomEnvironment } from 'three/examples/jsm/environments/RoomEnvironment
 import { Collision, type LevelData } from './Level';
 import { NavGrid } from './NavGrid';
 import { MaterialKit } from '../render/Materials';
-import { Batcher } from '../render/Batcher';
+import { Batcher, mergeStatic } from '../render/Batcher';
 import type { Quality, WorldDef, WorldTheme } from '../worlds/types';
 
 /** A loaded world: scene graph, collision, navigation. */
@@ -62,7 +62,7 @@ export class WorldScene {
     const env = new THREE.Group();
     this.scene.add(env);
     def.build({
-      scene: env,
+      scene: env as unknown as THREE.Scene,
       level: this.level,
       mats: this.mats,
       batch,
@@ -70,6 +70,8 @@ export class WorldScene {
       animate: (fn) => this.animators.push(fn),
     });
     batch.flush(env, shadows);
+    // merge any remaining loose static meshes the world created (clouds, signs, props...)
+    mergeStatic(env, shadows);
     env.traverse((o) => {
       const m = o as THREE.Mesh;
       if (m.isMesh && shadows && !(m.material as THREE.ShaderMaterial).isShaderMaterial) m.receiveShadow = true;

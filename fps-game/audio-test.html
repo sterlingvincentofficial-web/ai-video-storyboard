@@ -1,0 +1,35 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>TOONFIRE audio test</title>
+    <link rel="icon" href="data:," />
+    <style>
+      body { font: 13px/1.4 system-ui, sans-serif; margin: 16px; background: #15161b; color: #e8e8ea; }
+      button { margin: 2px; padding: 4px 8px; background: #2b2e38; color: #fff; border: 1px solid #444; border-radius: 4px; cursor: pointer; }
+      button:hover { background: #3a3f4d; }
+      fieldset { border: 1px solid #333; margin: 8px 0; }
+      pre { white-space: pre-wrap; background: #0d0e11; padding: 8px; max-height: 60vh; overflow: auto; }
+      label { margin-right: 12px; }
+    </style>
+  </head>
+  <body>
+    <h3>TOONFIRE audio — dev test page</h3>
+    <fieldset>
+      <legend>Realtime</legend>
+      <label>World <select id="world"></select></label>
+      <label>Intensity <input id="intensity" type="range" min="0" max="1" step="0.05" value="0.5" /></label>
+      <label><input id="paused" type="checkbox" /> paused</label>
+      <label><input id="spatial" type="checkbox" /> random 3D position</label>
+      <div id="music"></div>
+      <div id="sfx"></div>
+    </fieldset>
+    <fieldset>
+      <legend>Offline analysis</legend>
+      <button id="run">Run offline tests</button>
+    </fieldset>
+    <pre id="out">idle</pre>
+    <script type="module" src="/src/dev/audioTest.ts"></script>
+  </body>
+</html>
