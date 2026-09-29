@@ -1,0 +1,30 @@
+import { chromium } from 'playwright-core';
+const browser = await chromium.launch({ executablePath: '/opt/pw-browsers/chromium-1194/chrome-linux/chrome', args: ['--use-gl=angle', '--use-angle=swiftshader', '--enable-unsafe-swiftshader'] });
+const ctx = await browser.newContext({ viewport: { width: 844, height: 390 }, hasTouch: true, isMobile: true, deviceScaleFactor: 2 });
+const page = await ctx.newPage();
+page.on('pageerror', (e) => console.log('[pageerror]', e.message));
+await page.goto('http://localhost:5173/?autostart=plaza:tdm', { waitUntil: 'load' });
+await page.waitForTimeout(3000);
+const cdp = await ctx.newCDPSession(page);
+const touch = (type, pts) => cdp.send('Input.dispatchTouchEvent', { type, touchPoints: pts.map((p, i) => ({ x: p[0], y: p[1], id: p[2] ?? i })) });
+const state = () => page.evaluate(() => { const i = window.__game.input; const p = window.__game.match.player; return { mx: +i.touchMoveX.toFixed(2), my: +i.touchMoveY.toFixed(2), fire: i.fire, yaw: +p.yaw.toFixed(3), touchActive: window.__game.touch.active }; });
+console.log('init', await state());
+await touch('touchStart', [[150, 280, 1]]);
+await touch('touchMove', [[150, 230, 1]]);
+console.log('stick up', await state());
+await touch('touchEnd', []);
+console.log('released', await state());
+// look drag on right half
+const y0 = (await state()).yaw;
+await touch('touchStart', [[600, 150, 2]]);
+await touch('touchMove', [[560, 150, 2]]);
+await page.waitForTimeout(100);
+console.log('look (yaw should increase)', await state(), 'yaw0', y0);
+await touch('touchEnd', []);
+// fire button
+const fb = await page.evaluate(() => { const r = document.querySelector('.tbtn.fire').getBoundingClientRect(); return [r.x + r.width / 2, r.y + r.height / 2]; });
+await touch('touchStart', [[fb[0], fb[1], 3]]);
+console.log('fire down', await state());
+await touch('touchEnd', []);
+console.log('fire up', await state());
+await browser.close();

@@ -11,6 +11,7 @@ import type { Effects } from '../render/Effects';
 import { clamp, dirFromYawPitch, pick, rand, shuffle } from '../core/utils';
 import { canvasTexture } from '../render/Materials';
 import { roundedBox } from '../worlds/common';
+import { emptyTally, type MatchTally } from '../core/Challenges';
 import { Batcher } from '../render/Batcher';
 import { consolidate } from '../render/merge';
 
@@ -119,11 +120,14 @@ export class Match implements BotWorld {
   vampire = false;
   killY: number;
   mvp: Actor | null = null;
+  tally: MatchTally;
+  private firstBlood = false;
   private rocketGeo = new THREE.SphereGeometry(0.28, 12, 10);
   private grenadeGeo = new THREE.SphereGeometry(0.2, 10, 8);
 
   constructor(public world: WorldScene, public cfg: MatchConfig, public fx: Effects) {
     this.mode = createMode(cfg.mode);
+    this.tally = emptyTally(cfg.mode, cfg.world);
     this.killY = world.level.killY;
     const info = this.mode.info;
     this.mode.scoreLimit = Math.max(1, Math.round(info.baseScore * cfg.scoreScale));
@@ -301,6 +305,7 @@ export class Match implements BotWorld {
     this.updateFlags(dt);
     this.updateZone(dt);
     this.updateDuck(dt);
+    if (this.mode instanceof DuckMode && this.player && this.mode.carrier === this.player && this.state === 'playing') this.tally.duckTime += dt;
   }
 
   private updateActor(a: Actor, dt: number, active: boolean) {
@@ -344,6 +349,7 @@ export class Match implements BotWorld {
     const wasGround = a.onGround;
     const r = a.move(dt, this.col, this.phys);
     if (r.jumped) {
+      if (a.isPlayer && r.jumped === 2) this.tally.doubleJumps++;
       this.emit({ type: 'jump', actor: a, double: r.jumped === 2 });
       if (r.jumped === 2) this.fx.puff(a.pos, 8);
     }
@@ -663,6 +669,16 @@ export class Match implements BotWorld {
     }
     if (assist) { assist.stats.assists++; assist.stats.score += 50; }
     if (killer && killer !== v) {
+      if (killer.isPlayer) {
+        this.tally.kills++;
+        if (head) this.tally.headshots++;
+        this.tally.weaponKills[weapon] = (this.tally.weaponKills[weapon] ?? 0) + 1;
+      }
+      if (!this.firstBlood) {
+        this.firstBlood = true;
+        this.emit({ type: 'streak', actor: killer, text: 'FIRST SPLAT!' });
+      }
+      if (killer.killer === v && this.time - killer.deathTime < 30 && killer.isPlayer) this.emit({ type: 'streak', actor: killer, text: 'REVENGE!' });
       killer.stats.kills++;
       killer.stats.score += 100 + (head ? 25 : 0);
       if (head) killer.stats.headshots++;
@@ -816,6 +832,7 @@ export class Match implements BotWorld {
     p.timer = RESPAWN[p.type];
     p.icon.visible = false;
     this.fx.sparkle(p.pos, this.world.theme.accent);
+    if (a.isPlayer) this.tally.pickups++;
     this.emit({ type: 'pickup', actor: a, kind: p.type });
   }
 

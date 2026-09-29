@@ -4,6 +4,7 @@ import type { WorldId, Quality } from '../worlds/types';
 import { MODE_INFO, MODE_ORDER, MUTATORS, type ModeId } from '../modes/Modes';
 import { settings, saveSettings, resetSettings } from '../core/Settings';
 import { profile, xpForLevel, hatUnlocked } from '../core/Profile';
+import { dailyChallenges, CHALLENGE_XP } from '../core/Challenges';
 import { HATS } from '../render/Character';
 import { DIFFICULTIES } from '../entities/Bot';
 import { audio } from '../core/Audio';
@@ -107,6 +108,7 @@ export class Menu {
     const w = WORLDS[settings.lastWorld];
     d.innerHTML = `
       ${this.profileBadge()}
+      <div class="title-col">
       <div class="logo"><span class="l1">TOON</span><span class="l2">FIRE</span><div class="tag">4 v 4 cartoon blaster battles</div></div>
       <div class="title-buttons">
         <button class="btn big primary" data-a="play">▶ PLAY</button>
@@ -114,6 +116,10 @@ export class Menu {
         <button class="btn" data-a="loadout">🎩 LOADOUT</button>
         <button class="btn" data-a="settings">⚙ SETTINGS</button>
         <button class="btn" data-a="help">❓ HOW TO PLAY</button>
+      </div>
+      </div>
+      <div class="daily"><div class="dtitle">Daily challenges <span>+${CHALLENGE_XP} XP each</span></div>
+        ${dailyChallenges().map((c) => `<div class="drow ${c.done ? 'done' : ''}"><div class="dtext">${c.done ? '✅' : '🎯'} ${esc(c.text)}</div><div class="dbar"><i style="width:${Math.round((c.progress / c.goal) * 100)}%"></i></div><div class="dnum">${c.progress}/${c.goal}</div></div>`).join('')}
       </div>
       <div class="now-showing">Now showing: <b>${esc(w.theme.name)}</b></div>
       <div class="stats-mini">🏆 ${profile.wins} wins · 💥 ${profile.kills} splats · 🎮 ${profile.matches} matches</div>`;
@@ -447,6 +453,7 @@ export class Menu {
             <div class="xptext">${profile.xp} / ${need} XP</div>
             ${s.levelsGained.length ? `<div class="levelup">⬆ LEVEL UP! Now level ${profile.level}</div>` : ''}
             ${s.unlocked.map((u) => `<div class="unlock">🎁 Unlocked: <b>${esc(u)}</b></div>`).join('')}
+            ${s.challenges.map((c) => `<div class="unlock chal">🎯 Challenge complete: <b>${esc(c)}</b></div>`).join('')}
           </div>
         </div>
         <div class="res-buttons">

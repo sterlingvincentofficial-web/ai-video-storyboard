@@ -102,7 +102,7 @@ export class TouchControls {
           const dx = t.clientX - last.x, dy = t.clientY - last.y;
           last.x = t.clientX;
           last.y = t.clientY;
-          const s = 2.2 * settings.touchSensitivity;
+          const s = 3.4 * settings.touchSensitivity;
           this.input.lookDX += dx * s;
           this.input.lookDY += dy * s;
         }

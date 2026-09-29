@@ -295,6 +295,7 @@ export class CharacterModel {
   setBigHead(on: boolean) {
     this.headScale = on ? 1.9 : 1;
     this.head.scale.setScalar(this.headScale);
+    this.nameTag.position.y = on ? 2.95 : 2.3;
   }
 
   private buildHat(style: HatStyle, cos: CosmeticHat, teamMat: THREE.Material, darkMat: THREE.Material, pal: TeamPalette) {

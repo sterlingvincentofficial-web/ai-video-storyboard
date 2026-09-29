@@ -15,6 +15,7 @@ import { EYE } from '../entities/Actor';
 import { WEAPONS } from '../entities/Weapons';
 import { angleDiff, clamp, damp, dirFromYawPitch, isTouchDevice, rand, yawTo } from '../core/utils';
 import { addXp, profile, saveProfile } from '../core/Profile';
+import { applyTally, CHALLENGE_XP } from '../core/Challenges';
 import type { Actor } from '../entities/Actor';
 
 export type GameState = 'menu' | 'playing' | 'paused' | 'ended';
@@ -30,6 +31,7 @@ export interface MatchSummary {
   xpTotal: number;
   levelsGained: number[];
   unlocked: string[];
+  challenges: string[];
 }
 
 export class Game {
@@ -114,6 +116,7 @@ export class Game {
     this.renderer.setAnimationLoop(() => this.frame());
   }
   private lockedOnce = false;
+  private lastChallenges: string[] = [];
 
   msaaFor(q: Quality) {
     return q === 'low' ? 0 : q === 'medium' ? 2 : 4;
@@ -469,7 +472,7 @@ export class Game {
         }
         case 'streak':
           if (e.actor === p) { hud.message(e.text, true, '#ffd23f'); audio.play('multikill'); }
-          else if (playing && e.text.length > 12) hud.toastMsg(`${e.actor.name}: ${e.text}`);
+          else if (playing && (e.text.length > 12 || e.text === 'FIRST SPLAT!')) hud.toastMsg(`${e.actor.name}: ${e.text}`);
           break;
         case 'chat':
           if (playing) hud.chatLine(e.actor, e.text);
@@ -633,6 +636,14 @@ export class Game {
       if (s.bestStreak >= 3) xp.push({ label: `Best streak ${s.bestStreak}`, value: s.bestStreak * 40 });
       xp.push({ label: won ? 'Victory bonus' : m.winner === -1 ? 'Draw bonus' : 'Match played', value: won ? 600 : m.winner === -1 ? 350 : 200 });
       if (m.mvp === p) xp.push({ label: 'MVP!', value: 250 });
+      const t = m.tally;
+      t.won = won;
+      t.bestStreak = s.bestStreak;
+      t.caps = s.caps;
+      t.zoneTime = s.zoneTime;
+      const completed = applyTally(t);
+      for (const c of completed) xp.push({ label: `Challenge: ${c}`, value: CHALLENGE_XP });
+      this.lastChallenges = completed;
       const diffBonus = [0.8, 1, 1.25, 1.5][m.cfg.difficulty] ?? 1;
       if (diffBonus !== 1) xp.push({ label: `Difficulty ×${diffBonus}`, value: 0 });
       let total = xp.reduce((a, b) => a + b.value, 0);
@@ -647,9 +658,9 @@ export class Game {
       profile.playTime += m.time;
       saveProfile();
       const lv = addXp(total);
-      return { cfg: m.cfg, winner: m.winner, score: [...m.score] as [number, number], player: p, actors: m.actors, mvp: m.mvp, xp, xpTotal: total, levelsGained: lv.gained, unlocked: lv.unlocked };
+      return { cfg: m.cfg, winner: m.winner, score: [...m.score] as [number, number], player: p, actors: m.actors, mvp: m.mvp, xp, xpTotal: total, levelsGained: lv.gained, unlocked: lv.unlocked, challenges: this.lastChallenges };
     }
-    return { cfg: m.cfg, winner: m.winner, score: [...m.score] as [number, number], player: null, actors: m.actors, mvp: m.mvp, xp, xpTotal: 0, levelsGained: [], unlocked: [] };
+    return { cfg: m.cfg, winner: m.winner, score: [...m.score] as [number, number], player: null, actors: m.actors, mvp: m.mvp, xp, xpTotal: 0, levelsGained: [], unlocked: [], challenges: [] };
   }
 
   // ------------------------------------------------------------------ camera
