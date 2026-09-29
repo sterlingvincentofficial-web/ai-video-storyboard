@@ -15,7 +15,8 @@ import { EYE } from '../entities/Actor';
 import { WEAPONS } from '../entities/Weapons';
 import { angleDiff, clamp, damp, dirFromYawPitch, isTouchDevice, rand, randomTip, yawTo } from '../core/utils';
 import { addXp, profile, saveProfile } from '../core/Profile';
-import { applyTally, CHALLENGE_XP } from '../core/Challenges';
+import { applyTally, CHALLENGE_XP, type MatchTally } from '../core/Challenges';
+import { applyTourResult, TOUR, type TourOutcome } from '../core/Tour';
 import { announcer } from '../core/Announcer';
 import type { Actor } from '../entities/Actor';
 import { CharacterModel, type CosmeticHat } from '../render/Character';
@@ -36,6 +37,8 @@ export interface MatchSummary {
   unlocked: string[];
   challenges: string[];
   accuracy: number;
+  tally: MatchTally | null;
+  tour: TourOutcome | null;
 }
 
 export class Game {
@@ -303,7 +306,9 @@ export class Game {
     const p = this.match.player!;
     this.camYaw = p.yaw;
     this.camPitch = 0;
-    this.hud.message(this.world!.theme.name.toUpperCase(), false, '#ffd23f', `${this.world!.theme.name} · ${this.match.mode.info.icon} ${this.match.mode.info.name}`);
+    const ts = cfg.tourStop != null ? TOUR[cfg.tourStop] : null;
+    this.hud.message(ts ? ts.title.toUpperCase() : this.world!.theme.name.toUpperCase(), false, '#ffd23f',
+      ts ? `🏆 World Tour ${cfg.tourStop! + 1}/${TOUR.length} · ${this.world!.theme.name} · ${this.match.mode.info.icon} ${this.match.mode.info.name}` : `${this.world!.theme.name} · ${this.match.mode.info.icon} ${this.match.mode.info.name}`);
     let seen = false;
     try { seen = !!localStorage.getItem('toonfire.tutorial'); localStorage.setItem('toonfire.tutorial', '1'); } catch { /* storage blocked */ }
     if (!seen) {
@@ -848,6 +853,11 @@ export class Game {
       const completed = applyTally(t);
       for (const c of completed) xp.push({ label: `Challenge: ${c}`, value: CHALLENGE_XP });
       this.lastChallenges = completed;
+      let tour: TourOutcome | null = null;
+      if (m.cfg.tourStop != null) {
+        tour = applyTourResult(m.cfg.tourStop, won, m.winner === -1, m.mvp === p, t);
+        xp.push(...tour.xp);
+      }
       const diffBonus = [0.8, 1, 1.25, 1.5][m.cfg.difficulty] ?? 1;
       if (diffBonus !== 1) xp.push({ label: `Difficulty ×${diffBonus}`, value: 0 });
       let total = xp.reduce((a, b) => a + b.value, 0);
@@ -862,9 +872,9 @@ export class Game {
       profile.playTime += m.time;
       saveProfile();
       const lv = addXp(total);
-      return { cfg: m.cfg, winner: m.winner, score: [...m.score] as [number, number], player: p, actors: m.actors, mvp: m.mvp, xp, xpTotal: total, levelsGained: lv.gained, unlocked: lv.unlocked, challenges: this.lastChallenges, accuracy: m.tally.shots ? Math.round((m.tally.hits / m.tally.shots) * 100) : 0 };
+      return { cfg: m.cfg, winner: m.winner, score: [...m.score] as [number, number], player: p, actors: m.actors, mvp: m.mvp, xp, xpTotal: total, levelsGained: lv.gained, unlocked: lv.unlocked, challenges: this.lastChallenges, accuracy: m.tally.shots ? Math.round((m.tally.hits / m.tally.shots) * 100) : 0, tally: t, tour };
     }
-    return { cfg: m.cfg, winner: m.winner, score: [...m.score] as [number, number], player: null, actors: m.actors, mvp: m.mvp, xp, xpTotal: 0, levelsGained: [], unlocked: [], challenges: [], accuracy: 0 };
+    return { cfg: m.cfg, winner: m.winner, score: [...m.score] as [number, number], player: null, actors: m.actors, mvp: m.mvp, xp, xpTotal: 0, levelsGained: [], unlocked: [], challenges: [], accuracy: 0, tally: null, tour: null };
   }
 
   // ------------------------------------------------------------------ camera

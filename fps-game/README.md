@@ -22,6 +22,15 @@ Built with Three.js and TypeScript. Everything is procedural: the geometry, text
 - **Duck Rush**: carry the golden rubber duck to score. The carrier doesn't regenerate health.
 - **Elimination**: no respawns; first team to win 4 rounds.
 
+**World Tour**: a five-stop campaign, one stop per world, each with its own mode and twist:
+1. Opening Day (Splat Plaza, Team Splat)
+2. Paper Chase (Paper Fort, CTF with Big Heads)
+3. Hold the Press (Ink City, KOTH)
+4. Rubber Ducky Rumble (Toy Box, Duck Rush with Moon Gravity)
+5. Neon Showdown (Neon Rooftops, Elimination)
+
+There are three tiers: Casual, Standard and Brutal. You get three hearts, and running out restarts the tour. Each stop has three stars to earn: win, be MVP, and a goal specific to that stop. Finishing the tour unlocks the Tour Trophy hat.
+
 **Mutators** (combinable): Big Heads, Moon Gravity, Turbo, One Zap (instagib), Bottomless Ammo, Vampire.
 
 **Bot difficulty**: Easy, Normal, Hard, Insane. Bots pathfind (A* on a 2.5D nav grid, including jump pads and ledges), strafe, lead their rocket shots, throw grenades, pick up health and weapons, and play the objective with role assignments in CTF.
@@ -43,7 +52,7 @@ Built with Three.js and TypeScript. Everything is procedural: the geometry, text
 
 ## Progression and extras
 
-- XP and levels, with 15 unlockable hats.
+- XP and levels, with 15 unlockable hats, plus the Tour Trophy.
 - Three daily challenges.
 - Career stats.
 - A camera flyover of the map at the start of each match.

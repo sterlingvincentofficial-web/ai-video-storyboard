@@ -15,7 +15,7 @@ function placeholder(c: number) {
 }
 
 export type CosmeticHat =
-  | 'default' | 'crown' | 'propeller' | 'tophat' | 'party' | 'cowboy' | 'chef' | 'viking' | 'cone' | 'halo' | 'bunny' | 'pirate' | 'wizard' | 'headphones' | 'flower';
+  | 'default' | 'crown' | 'propeller' | 'tophat' | 'party' | 'cowboy' | 'chef' | 'viking' | 'cone' | 'halo' | 'bunny' | 'pirate' | 'wizard' | 'headphones' | 'flower' | 'trophy';
 
 export const HATS: { id: CosmeticHat; name: string; level: number }[] = [
   { id: 'default', name: 'World Default', level: 1 },
@@ -33,6 +33,7 @@ export const HATS: { id: CosmeticHat; name: string; level: number }[] = [
   { id: 'wizard', name: 'Wizard Hat', level: 16 },
   { id: 'halo', name: 'Halo', level: 18 },
   { id: 'crown', name: 'Golden Crown', level: 20 },
+  { id: 'trophy', name: 'Tour Trophy', level: 999 },
 ];
 
 const emblemCache = new Map<string, THREE.Texture>();
@@ -408,6 +409,8 @@ export class CharacterModel {
           r.rotation.x = Math.PI / 2;
           r.position.y = 0.52;
           r.userData.bob = true;
+          r.userData.keep = true;
+          r.userData.baseY = 0.52;
           this.bobber = r;
           return;
         }
@@ -449,6 +452,26 @@ export class CharacterModel {
             cup.rotation.z = Math.PI / 2;
             cup.position.set(s * 0.31, 0.02, 0);
           }
+          return;
+        }
+        case 'trophy': {
+          const gold = mat(0xffc629);
+          const base = add(new THREE.Mesh(new THREE.BoxGeometry(0.22, 0.06, 0.22), mat(0x5a3a1c)));
+          base.position.y = 0.3;
+          const stem = add(new THREE.Mesh(new THREE.CylinderGeometry(0.03, 0.06, 0.12, 8), gold));
+          stem.position.y = 0.39;
+          const cup = add(new THREE.Mesh(new THREE.CylinderGeometry(0.2, 0.06, 0.26, 14), gold));
+          cup.position.y = 0.57;
+          for (const s of [-1, 1]) {
+            const hd = add(new THREE.Mesh(new THREE.TorusGeometry(0.07, 0.022, 6, 12), gold));
+            hd.position.set(s * 0.2, 0.58, 0);
+          }
+          const star = add(new THREE.Mesh(new THREE.OctahedronGeometry(0.06), this.o.mats.glow(0xfff3a0, 1.5)));
+          star.position.y = 0.78;
+          star.userData.bob = true;
+          star.userData.keep = true;
+          star.userData.baseY = 0.78;
+          this.bobber = star;
           return;
         }
         case 'flower': {
@@ -659,7 +682,7 @@ export class CharacterModel {
     }
     if (this.cape) this.cape.rotation.x = 0.15 + moving * 0.6 + Math.sin(this.phase * 0.5) * 0.08;
     if (this.spinner) this.spinner.rotation.y += dt * (8 + s.speed * 3);
-    if (this.bobber) this.bobber.position.y = 0.52 + Math.sin(performance.now() * 0.004) * 0.03;
+    if (this.bobber) this.bobber.position.y = this.bobber.userData.baseY + Math.sin(performance.now() * 0.004) * 0.03;
     if (this.dance > 0) this.updateDance(dt);
   }
 

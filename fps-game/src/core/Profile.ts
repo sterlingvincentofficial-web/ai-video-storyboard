@@ -56,6 +56,7 @@ export function addXp(xp: number) {
 }
 
 export function hatUnlocked(id: string) {
+  if (id === 'trophy') return ((profile as unknown as { tour?: { completions: number } }).tour?.completions ?? 0) > 0;
   const h = HATS.find((x) => x.id === id);
   return !!h && h.level <= profile.level;
 }

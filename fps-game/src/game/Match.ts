@@ -25,6 +25,8 @@ export interface MatchConfig {
   playerHat: string;
   /** Attract mode: no human player, bots only. */
   spectate?: boolean;
+  /** Index of the World Tour stop this match belongs to. */
+  tourStop?: number;
 }
 
 export type MatchEvent =
@@ -1128,7 +1130,12 @@ export class Match implements BotWorld {
     const carried = !!d.carrier;
     g.position.set(d.pos.x, d.pos.y + (carried ? 2.9 : 1.1) + Math.sin(this.time * 3) * 0.15, d.pos.z);
     g.scale.setScalar(carried ? 0.6 : 1);
-    g.children[g.children.length - 1].visible = true;
+    // pulse the beacon so the duck reads against busy (and yellow) scenery
+    const pulse = Math.sin(this.time * 5);
+    const beam = g.children[g.children.length - 1] as THREE.Mesh;
+    (beam.material as THREE.MeshBasicMaterial).opacity = (carried ? 0.14 : 0.26) + pulse * 0.08;
+    beam.scale.set(1 + pulse * 0.12, carried ? 0.7 : 1, 1 + pulse * 0.12);
+    g.children[g.children.length - 2].scale.setScalar(1 + pulse * 0.18);
   }
 
   dispose() {

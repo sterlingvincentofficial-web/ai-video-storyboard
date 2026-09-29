@@ -5,6 +5,8 @@ import { MODE_INFO, MODE_ORDER, MUTATORS, type ModeId } from '../modes/Modes';
 import { settings, saveSettings, resetSettings } from '../core/Settings';
 import { profile, xpForLevel, hatUnlocked } from '../core/Profile';
 import { dailyChallenges, CHALLENGE_XP } from '../core/Challenges';
+import { TOUR, TOUR_TIERS, TOUR_HEARTS, TOUR_SCORE_SCALE, tourState, tourDifficulty, startTour, abandonTour } from '../core/Tour';
+import type { MatchConfig } from '../game/Match';
 import { HATS } from '../render/Character';
 import { DIFFICULTIES } from '../entities/Bot';
 import { audio } from '../core/Audio';
@@ -13,10 +15,10 @@ import { hexToCss, isTouchDevice, pick } from '../core/utils';
 
 const HAT_ICON: Record<string, string> = {
   default: '⭐', party: '🎉', propeller: '🌀', cone: '🚧', bunny: '🐰', cowboy: '🤠', headphones: '🎧', chef: '🍳',
-  flower: '🌸', pirate: '🏴‍☠️', tophat: '🎩', viking: '🪓', wizard: '🧙', halo: '😇', crown: '👑',
+  flower: '🌸', pirate: '🏴‍☠️', tophat: '🎩', viking: '🪓', wizard: '🧙', halo: '😇', crown: '👑', trophy: '🏆',
 };
 
-type Screen = 'title' | 'play' | 'loadout' | 'settings' | 'help' | 'pause' | 'results' | 'none';
+type Screen = 'title' | 'play' | 'tour' | 'loadout' | 'settings' | 'help' | 'pause' | 'results' | 'none';
 
 export class Menu {
   root: HTMLDivElement;
@@ -25,12 +27,13 @@ export class Menu {
   private back: Screen = 'title';
   private lastSummary: MatchSummary | null = null;
   private rotateHint: HTMLDivElement;
+  private lastCfg: MatchConfig | null = null;
 
   constructor(parent: HTMLElement, private game: Game) {
     this.root = document.createElement('div');
     this.root.className = 'menu';
     parent.appendChild(this.root);
-    for (const s of ['title', 'play', 'loadout', 'settings', 'help', 'pause', 'results'] as Screen[]) {
+    for (const s of ['title', 'play', 'tour', 'loadout', 'settings', 'help', 'pause', 'results'] as Screen[]) {
       const d = document.createElement('div');
       d.className = `screen screen-${s}`;
       this.root.appendChild(d);
@@ -90,6 +93,7 @@ export class Menu {
     switch (s) {
       case 'title': this.renderTitle(); break;
       case 'play': this.renderPlay(); break;
+      case 'tour': this.renderTour(); break;
       case 'loadout': this.renderLoadout(); break;
       case 'settings': this.renderSettings(); break;
       case 'help': this.renderHelp(); break;
@@ -113,6 +117,7 @@ export class Menu {
       <div class="logo"><span class="l1">TOON</span><span class="l2">FIRE</span><div class="tag">4 v 4 cartoon blaster battles</div></div>
       <div class="title-buttons">
         <button class="btn big primary" data-a="play">▶ PLAY</button>
+        <button class="btn tourbtn" data-a="tour">🏆 WORLD TOUR${tourState().active ? `<small>Stop ${tourState().stop + 1}/${TOUR.length}</small>` : ''}</button>
         <button class="btn" data-a="quick">⚡ QUICK PLAY</button>
         <button class="btn" data-a="loadout">🎩 LOADOUT</button>
         <button class="btn" data-a="settings">⚙ SETTINGS</button>
@@ -129,6 +134,7 @@ export class Menu {
         audio.unlock();
         const a = b.dataset.a!;
         if (a === 'play') this.show('play');
+        if (a === 'tour') this.show('tour');
         if (a === 'quick') this.quickPlay();
         if (a === 'loadout') this.show('loadout');
         if (a === 'settings') this.show('settings');
@@ -216,7 +222,89 @@ export class Menu {
     d.querySelector('.start')!.addEventListener('click', () => this.startMatch());
   }
 
+  private renderTour() {
+    const d = this.screens.get('tour')!;
+    const t = tourState();
+    const stars = (n: number) => [0, 1, 2].map((i) => `<i class="${i < n ? 'on' : ''}">★</i>`).join('');
+    const total = t.stars.reduce((a, b) => a + b, 0);
+    const tierSel = t.active ? t.tier : Math.max(0, Math.min(2, t.best + 1));
+    const cards = TOUR.map((st, i) => {
+      const th = WORLDS[st.world].theme;
+      const cls = t.active ? (i < t.stop ? 'done' : i === t.stop ? 'next' : 'locked') : i === 0 ? 'next' : 'locked';
+      const muts = st.mutators.map((id) => MUTATORS.find((x) => x.id === id)?.name ?? id);
+      return `<div class="tstop ${cls}" style="--c1:${hexToCss(th.teams[0].primary)}">
+        <div class="img" style="background-image:url('${th.image}')"><span class="num">${i + 1}</span>${cls === 'done' ? '<span class="tick">✔</span>' : ''}</div>
+        <div class="tname">${esc(st.title)}</div>
+        <div class="tmeta">${esc(th.name)}<br/>${MODE_INFO[st.mode].icon} ${MODE_INFO[st.mode].name}</div>
+        <div class="tdiff" data-i="${i}">${DIFFICULTIES[tourDifficulty(tierSel, i)].name}${muts.length ? ` · ${muts.map(esc).join(', ')}` : ''}</div>
+        <div class="tstars">${stars(t.stars[i])}</div>
+        <div class="tgoal">★ ${esc(st.star3.text)}</div>
+      </div>`;
+    }).join('');
+    const next = TOUR[t.active ? t.stop : 0];
+    const tiers = TOUR_TIERS.map((x, i) => `<div class="${tierSel === i ? 'sel' : ''}" data-t="${i}">${x.medal} ${x.name}</div>`).join('');
+    const hearts = Array.from({ length: TOUR_HEARTS }, (_, i) => `<i class="${i < t.hearts ? 'on' : ''}">♥</i>`).join('');
+    const medals = TOUR_TIERS.map((x, i) => `<span class="${t.best >= i ? 'got' : ''}" title="${x.name}">${x.medal}</span>`).join('');
+    d.innerHTML = `
+      <div class="panel wide tour">
+        <div class="phead"><button class="btn small back">← Back</button><h2>🏆 World Tour</h2></div>
+        <div class="tour-sub">Five worlds, five modes, one trophy. Each loss costs a heart; lose all ${TOUR_HEARTS} and the tour starts over. Win to earn stars: <b>★ win</b> · <b>★ be MVP</b> · <b>★ the stop’s goal</b>.</div>
+        <div class="tour-bar">
+          ${t.active ? `<div class="hearts">${hearts}</div><div class="tier-now">${TOUR_TIERS[t.tier].medal} ${TOUR_TIERS[t.tier].name}</div>` : `<div class="tier-pick"><span>Tier</span><div class="seg tier">${tiers}</div></div>`}
+          <div class="tstat">★ ${total}/${TOUR.length * 3}</div>
+          <div class="medals">${medals}</div>
+        </div>
+        <div class="tour-path">${cards}</div>
+        <div class="tour-next"><b>${t.active ? `Stop ${t.stop + 1}` : 'Stop 1'}: ${esc(next.title)}</b> — ${esc(next.blurb)}</div>
+        <div class="start-row">
+          ${t.active ? '<button class="btn small abandon">✖ Abandon tour</button>' : ''}
+          <button class="btn big primary go">${t.active ? `▶ PLAY STOP ${t.stop + 1}` : '▶ START TOUR'}</button>
+        </div>
+      </div>`;
+    d.querySelector('.back')!.addEventListener('click', () => this.show('title'));
+    let tier = tierSel;
+    d.querySelectorAll<HTMLElement>('.seg.tier > div').forEach((c) =>
+      c.addEventListener('click', () => {
+        tier = +c.dataset.t!;
+        d.querySelectorAll('.seg.tier > div').forEach((x) => x.classList.toggle('sel', x === c));
+        d.querySelectorAll<HTMLElement>('.tdiff').forEach((el) => {
+          const i = +el.dataset.i!;
+          const muts = TOUR[i].mutators.map((id) => MUTATORS.find((x) => x.id === id)?.name ?? id);
+          el.textContent = `${DIFFICULTIES[tourDifficulty(tier, i)].name}${muts.length ? ` · ${muts.join(', ')}` : ''}`;
+        });
+      }),
+    );
+    d.querySelector('.abandon')?.addEventListener('click', (e) => {
+      const b = e.currentTarget as HTMLButtonElement;
+      if (!b.classList.contains('confirm')) {
+        b.classList.add('confirm');
+        b.textContent = '✖ Tap again to abandon';
+        return;
+      }
+      abandonTour();
+      this.renderTour();
+    });
+    d.querySelector('.go')!.addEventListener('click', () => {
+      if (!t.active) startTour(tier);
+      this.startTourStop();
+    });
+    const w = TOUR[t.active ? t.stop : 0].world;
+    if (this.game.state === 'menu' && this.game.worldId !== w) this.game.withLoading(`Loading ${WORLDS[w].theme.name}…`, () => this.game.startAttract(w));
+  }
+
   startMatch() {
+    this.launch({
+      world: settings.lastWorld,
+      mode: settings.lastMode as ModeId,
+      difficulty: settings.difficulty,
+      scoreScale: settings.scoreLimitScale,
+      mutators: settings.mutators,
+      playerName: settings.playerName || 'You',
+      playerHat: hatUnlocked(settings.hat) ? settings.hat : 'default',
+    });
+  }
+
+  private prepareLaunch() {
     audio.unlock();
     this.show('none');
     // grab the mouse inside the click (user-activation) window
@@ -235,15 +323,27 @@ export class Menu {
         /* ignore */
       }
     }
-    const cfg = {
-      world: settings.lastWorld,
-      mode: settings.lastMode as ModeId,
-      difficulty: settings.difficulty,
-      scoreScale: settings.scoreLimitScale,
-      mutators: settings.mutators,
+  }
+
+  /** Start the current World Tour stop. */
+  startTourStop() {
+    const t = tourState();
+    const st = TOUR[t.stop];
+    this.launch({
+      world: st.world,
+      mode: st.mode,
+      difficulty: tourDifficulty(t.tier, t.stop),
+      scoreScale: TOUR_SCORE_SCALE,
+      mutators: st.mutators,
       playerName: settings.playerName || 'You',
       playerHat: hatUnlocked(settings.hat) ? settings.hat : 'default',
-    };
+      tourStop: t.stop,
+    });
+  }
+
+  private launch(cfg: MatchConfig) {
+    this.prepareLaunch();
+    this.lastCfg = cfg;
     if (this.game.needsLoad(cfg.world)) this.game.withLoading(`Loading ${WORLDS[cfg.world].theme.name}…`, () => this.game.startMatch(cfg));
     else this.game.startMatch(cfg);
   }
@@ -251,8 +351,9 @@ export class Menu {
   private renderLoadout() {
     const d = this.screens.get('loadout')!;
     const hats = HATS.map((h) => {
-      const ok = h.level <= profile.level;
-      return `<div class="hat ${settings.hat === h.id ? 'sel' : ''} ${ok ? '' : 'locked'}" data-h="${h.id}"><div class="hicon">${HAT_ICON[h.id] ?? '🎩'}</div><div class="hname">${esc(h.name)}</div>${ok ? '' : `<div class="hlock">🔒 Lv ${h.level}</div>`}</div>`;
+      const ok = hatUnlocked(h.id);
+      const lock = h.id === 'trophy' ? '🔒 Win the World Tour' : `🔒 Lv ${h.level}`;
+      return `<div class="hat ${settings.hat === h.id ? 'sel' : ''} ${ok ? '' : 'locked'}" data-h="${h.id}"><div class="hicon">${HAT_ICON[h.id] ?? '🎩'}</div><div class="hname">${esc(h.name)}</div>${ok ? '' : `<div class="hlock">${lock}</div>`}</div>`;
     }).join('');
     d.innerHTML = `
       <div class="panel">
@@ -438,7 +539,7 @@ export class Menu {
       </div>`;
     d.querySelector('.resume')!.addEventListener('click', () => this.resume());
     d.querySelector('.settings')!.addEventListener('click', () => this.show('settings'));
-    d.querySelector('.restart')!.addEventListener('click', () => this.startMatch());
+    d.querySelector('.restart')!.addEventListener('click', () => (this.lastCfg ? this.launch(this.lastCfg) : this.startMatch()));
     d.querySelector('.quit')!.addEventListener('click', () => {
       this.game.quitToMenu();
       this.show('title');
@@ -456,7 +557,26 @@ export class Menu {
     if (!s) return;
     const p = s.player;
     const won = p && s.winner === p.team;
-    const title = s.winner === -1 ? 'DRAW' : won ? 'VICTORY!' : 'DEFEAT';
+    const tr = s.tour;
+    const title = tr?.finished ? 'CHAMPION!' : s.winner === -1 ? 'DRAW' : won ? 'VICTORY!' : 'DEFEAT';
+    let tourBlock = '';
+    if (tr) {
+      const st = TOUR[tr.stop];
+      const labels = ['Win', 'Be MVP', st.star3.text];
+      const hearts = Array.from({ length: TOUR_HEARTS }, (_, i) => `<i class="${i < tr.hearts ? 'on' : ''}">♥</i>`).join('');
+      const nextStop = TOUR[tr.stop + 1];
+      const msg = tr.finished
+        ? `${TOUR_TIERS[tr.tier].medal} You conquered all five worlds!${tr.firstTrophy ? ' <b>🏆 Tour Trophy hat unlocked!</b>' : ''}`
+        : tr.won ? `Stop cleared! Next up: <b>${esc(nextStop.title)}</b> in ${esc(WORLDS[nextStop.world].theme.name)}`
+        : tr.failed ? 'Out of hearts: the tour starts over. Your stars are kept.'
+        : tr.draw ? 'A draw: no heart lost. Try again!'
+        : 'You lost a heart. Shake it off and try again!';
+      tourBlock = `<div class="tour-res ${tr.finished ? 'champ' : ''}">
+        <div class="tr-head">🏆 World Tour · Stop ${tr.stop + 1}/${TOUR.length} · ${esc(st.title)} <span class="hearts">${hearts}</span></div>
+        <div class="tr-stars">${tr.stars.map((on, i) => `<div class="${on ? 'on' : ''}"><i>★</i><span>${esc(labels[i])}</span></div>`).join('')}</div>
+        <div class="tr-msg">${msg}${tr.newBest && !tr.finished ? ' <em>New best stars!</em>' : ''}</div>
+      </div>`;
+    }
     const rows = (t: number) =>
       s.actors.filter((a) => a.team === t).sort((a, b) => b.stats.score - a.stats.score)
         .map((a) => `<tr class="${a.isPlayer ? 'me' : ''}"><td>${a === s.mvp ? '⭐ ' : ''}${esc(a.name)}</td><td>${a.stats.score}</td><td>${a.stats.kills}</td><td>${a.stats.deaths}</td><td>${a.stats.assists}</td></tr>`).join('');
@@ -464,10 +584,11 @@ export class Menu {
     const xpRows = s.xp.map((x) => `<div class="xprow"><span>${esc(x.label)}</span><b>${x.value ? '+' + x.value : ''}</b></div>`).join('');
     const need = xpForLevel(profile.level);
     d.innerHTML = `
-      <div class="panel results ${won ? 'won' : s.winner === -1 ? 'draw' : 'lost'}">
+      <div class="panel results ${won ? 'won' : s.winner === -1 ? 'draw' : 'lost'} ${tr?.finished ? 'champ' : ''}">
         <div class="res-title">${title}</div>
         <div class="res-score"><span style="color:var(--blue)">BLUE ${s.score[0]}</span> — <span style="color:var(--red)">${s.score[1]} RED</span></div>
         <div class="res-sub">${esc(WORLDS[s.cfg.world].theme.name)} · ${MODE_INFO[s.cfg.mode].name} · ${DIFFICULTIES[s.cfg.difficulty].name}${s.mvp ? ` · MVP: <b>${esc(s.mvp.name)}</b>` : ''}</div>
+        ${tourBlock}
         <div class="res-grid">
           <div class="res-tables"><table class="blue"><caption>BLUE</caption>${head}${rows(0)}</table><table class="red"><caption>RED</caption>${head}${rows(1)}</table></div>
           <div class="res-xp">
@@ -483,13 +604,21 @@ export class Menu {
           </div>
         </div>
         <div class="res-buttons">
-          <button class="btn big primary again">↻ PLAY AGAIN</button>
-          <button class="btn setup">⚙ Change setup</button>
+          ${tr ? (tr.won && !tr.finished ? '<button class="btn big primary tnext">▶ NEXT STOP</button>'
+            : !tr.won && !tr.failed ? '<button class="btn big primary tnext">↻ RETRY STOP</button>' : '')
+            + `<button class="btn ${tr.finished || tr.failed ? 'big primary' : ''} tmap">🗺 Tour map</button>`
+            : `<button class="btn big primary again">↻ PLAY AGAIN</button>
+          <button class="btn setup">⚙ Change setup</button>`}
           <button class="btn tomenu">⏏ Main menu</button>
         </div>
       </div>`;
-    d.querySelector('.again')!.addEventListener('click', () => this.startMatch());
-    d.querySelector('.setup')!.addEventListener('click', () => {
+    d.querySelector('.tnext')?.addEventListener('click', () => this.startTourStop());
+    d.querySelector('.tmap')?.addEventListener('click', () => {
+      this.game.startAttract(this.game.worldId ?? settings.lastWorld);
+      this.show('tour');
+    });
+    d.querySelector('.again')?.addEventListener('click', () => this.startMatch());
+    d.querySelector('.setup')?.addEventListener('click', () => {
       this.game.startAttract(settings.lastWorld);
       this.show('play');
     });

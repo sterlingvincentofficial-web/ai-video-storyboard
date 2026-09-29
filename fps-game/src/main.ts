@@ -5,6 +5,7 @@ import { Game } from './game/Game';
 import { Menu } from './ui/Menu';
 import { settings } from './core/Settings';
 import { audio } from './core/Audio';
+import * as Tour from './core/Tour';
 
 const q = new URLSearchParams(location.search);
 
@@ -24,6 +25,7 @@ function boot() {
   window.addEventListener('touchstart', unlock, { once: true });
   (window as unknown as { __game: Game; __menu: Menu }).__game = game;
   (window as unknown as { __game: Game; __menu: Menu }).__menu = menu;
+  (window as unknown as { __tour: typeof Tour }).__tour = Tour;
   document.getElementById('boot')?.remove();
   // test hook: ?autostart=world:mode
   const auto = q.get('autostart');

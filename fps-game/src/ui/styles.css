@@ -559,3 +559,79 @@ body.touch-ui .killfeed { top: calc(56px + var(--safe-t)); }
   body.touch-ui .tbtn.fire2 { left: calc(14px * var(--ts) + var(--safe-l)); bottom: calc(250px * var(--ts) + var(--safe-b)); width: calc(52px * var(--ts)); height: calc(52px * var(--ts)); }
   body.touch-ui .tbtn.sprint { left: calc(14px * var(--ts) + var(--safe-l)); bottom: calc(180px * var(--ts) + var(--safe-b)); width: calc(46px * var(--ts)); height: calc(46px * var(--ts)); }
 }
+
+/* ============================================================ world tour */
+.tourbtn { position: relative; background: linear-gradient(#fff, #ffe9f3); }
+.tourbtn small { margin-left: 8px; font-size: 12px; background: var(--ink); color: #ffd23f; border-radius: 8px; padding: 1px 6px; font-family: var(--font-body); font-weight: 700; letter-spacing: 0.3px; }
+.tour-sub { font-weight: 600; opacity: 0.8; margin: 6px 0 10px; max-width: 70ch; line-height: 1.35; }
+.tour-bar { display: flex; flex-wrap: wrap; align-items: center; gap: 12px 18px; margin-bottom: 12px; }
+.tour-bar .tier-pick { display: flex; align-items: center; gap: 10px; }
+.tour-bar .tier-pick > span { font-family: var(--font-display); font-size: 18px; }
+.tour-bar .tier-now { font-family: var(--font-display); font-size: 20px; }
+.tour-bar .tstat { font-family: var(--font-display); font-size: 20px; color: #e0a100; -webkit-text-stroke: 1px var(--ink); paint-order: stroke fill; }
+.tour-bar .medals { margin-left: auto; font-size: 26px; display: flex; gap: 4px; }
+.tour-bar .medals span { filter: grayscale(1) opacity(0.3); }
+.tour-bar .medals span.got { filter: none; }
+.hearts { display: inline-flex; gap: 2px; font-size: 24px; line-height: 1; }
+.hearts i { font-style: normal; color: #d8d2e6; -webkit-text-stroke: 1.5px var(--ink); }
+.hearts i.on { color: #ff3b6b; }
+.tour-path { display: grid; grid-template-columns: repeat(5, minmax(0, 1fr)); gap: 14px; position: relative; }
+.tstop { position: relative; border: 4px solid var(--ink); border-radius: 18px; background: #fff; overflow: hidden; box-shadow: 0 5px 0 var(--ink); padding-bottom: 8px; min-width: 0; }
+.tstop:not(:last-child)::after { content: '➜'; position: absolute; right: -15px; top: 22%; font-size: 18px; z-index: 2; color: var(--ink); }
+.tstop .img { aspect-ratio: 16 / 9; background-size: cover; background-position: center; border-bottom: 4px solid var(--ink); position: relative; }
+.tstop .num { position: absolute; left: 6px; top: 6px; width: 30px; height: 30px; border-radius: 50%; background: #fff; border: 3px solid var(--ink); display: grid; place-items: center; font-family: var(--font-display); font-size: 17px; }
+.tstop .tick { position: absolute; right: 6px; top: 6px; width: 30px; height: 30px; border-radius: 50%; background: #3ccf6a; color: #fff; border: 3px solid var(--ink); display: grid; place-items: center; font-weight: 800; }
+.tstop .tname { font-family: var(--font-display); font-size: 17px; margin: 6px 10px 2px; line-height: 1.05; }
+.tstop .tmeta { font-size: 12px; line-height: 1.3; margin: 0 10px; font-weight: 600; }
+.tstop .tdiff { font-size: 12px; margin: 3px 10px 0; font-weight: 700; color: #7a4bd6; }
+.tstop .tstars { margin: 4px 10px 0; font-size: 20px; letter-spacing: 1px; }
+.tstop .tstars i, .tr-stars i { font-style: normal; color: #ddd6ea; -webkit-text-stroke: 1px var(--ink); }
+.tstop .tstars i.on, .tr-stars .on i { color: #ffc629; }
+.tstop .tgoal { font-size: 11px; margin: 2px 10px 0; opacity: 0.75; line-height: 1.25; }
+.tstop.locked .img { filter: saturate(0.35) brightness(0.8); }
+.tstop.next { background: #fff3b8; outline: 4px solid #ffb800; outline-offset: 2px; transform: translateY(-4px); animation: tourPulse 1.6s ease-in-out infinite; }
+.tstop.done { background: #e9fbe9; }
+@keyframes tourPulse { 50% { outline-color: #ff7ab8; } }
+.tour-next { margin-top: 14px; font-weight: 600; line-height: 1.35; }
+.screen-tour .start-row { gap: 14px; align-items: center; }
+.abandon.confirm { background: #ffd6d6; }
+.tour-res { margin: 4px auto 12px; max-width: 760px; border: 4px solid var(--ink); border-radius: 18px; background: linear-gradient(135deg, #fff7d6, #ffe6f2); padding: 10px 14px; text-align: center; box-shadow: 0 4px 0 var(--ink); }
+.tour-res .tr-head { font-family: var(--font-display); font-size: 18px; display: flex; justify-content: center; align-items: center; gap: 10px; flex-wrap: wrap; }
+.tour-res .hearts { font-size: 20px; }
+.tr-stars { display: flex; justify-content: center; gap: 18px; margin: 6px 0 4px; flex-wrap: wrap; }
+.tr-stars > div { display: flex; flex-direction: column; align-items: center; min-width: 80px; }
+.tr-stars i { font-size: 34px; line-height: 1; }
+.tr-stars .on i { animation: starPop 0.5s cubic-bezier(.3,1.8,.5,1) backwards; }
+.tr-stars > div:nth-child(2) i { animation-delay: 0.25s; }
+.tr-stars > div:nth-child(3) i { animation-delay: 0.5s; }
+.tr-stars span { font-size: 12px; font-weight: 700; opacity: 0.8; }
+.tr-msg { font-weight: 600; }
+.tr-msg em { color: #d0337a; font-style: normal; font-weight: 800; }
+@keyframes starPop { from { transform: scale(0) rotate(-40deg); } }
+.results.champ .res-title { background: linear-gradient(90deg, #ffd23f, #ff7ab8, #5ad1ff, #ffd23f); background-size: 300% 100%; -webkit-background-clip: text; background-clip: text; color: transparent; animation: champShine 3s linear infinite; }
+@keyframes champShine { to { background-position: 300% 0; } }
+.tour-res.champ { background: linear-gradient(135deg, #fff1a8, #ffd6ec, #d6f3ff); }
+@media (max-width: 1000px), (max-height: 560px) {
+  .tour-path { grid-template-columns: repeat(5, minmax(128px, 1fr)); overflow-x: auto; padding: 6px 4px 8px; }
+  .tstop:not(:last-child)::after { display: none; }
+  .tour-sub { font-size: 13px; margin: 2px 0 6px; }
+  .tour-bar { margin-bottom: 6px; }
+  .tour-next { margin-top: 6px; font-size: 13px; }
+  .tr-stars i { font-size: 26px; }
+  .tour-res { margin-bottom: 8px; padding: 6px 10px; }
+}
+@media (orientation: portrait) {
+  .tour-path { grid-template-columns: repeat(5, minmax(140px, 1fr)); }
+}
+@media (max-height: 450px) {
+  .screen-tour .tour-sub, .screen-tour .tour-next { display: none; }
+  .screen-tour .tour-bar { margin-bottom: 2px; gap: 6px 12px; }
+  .screen-tour .seg > div { padding: 4px 10px; font-size: 14px; }
+  .screen-tour .medals { font-size: 20px; }
+  .tstop .img { aspect-ratio: 5 / 2; }
+  .tstop .tname { font-size: 15px; margin-top: 4px; }
+  .tstop .tstars { font-size: 16px; margin-top: 2px; }
+  .tstop .tgoal { display: none; }
+  .screen-tour .start-row { margin-top: 6px; padding: 6px 0 8px; }
+  .screen-tour .start-row .btn.big { font-size: 20px; padding: 8px 22px; }
+}
