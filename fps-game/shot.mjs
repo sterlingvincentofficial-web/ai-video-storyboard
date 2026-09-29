@@ -9,7 +9,7 @@ const page = await browser.newPage({ viewport: { width: +w, height: +h } });
 const logs = [];
 page.on('console', (m) => logs.push(`[${m.type()}] ${m.text()}`));
 page.on('pageerror', (e) => logs.push(`[pageerror] ${e.message}\n${e.stack}`));
-await page.goto('http://localhost:5173/' + path, { waitUntil: 'load' });
+await page.goto('http://localhost:' + (process.env.PORT || 5173) + '/' + path, { waitUntil: 'load' });
 await page.waitForTimeout(+wait);
 const info = await page.evaluate(() => { const i = window.__info; return i ? { calls: i.calls?.(), tris: i.tris?.(), nav: i.nav, frames: window.__frames, extra: i.extra?.() } : null; });
 await page.screenshot({ path: out });
