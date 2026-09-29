@@ -547,6 +547,25 @@ export class CharacterModel {
     consolidate(this.gun, this.mat);
   }
 
+  private bubble: THREE.Sprite | null = null;
+  private bubbleT = 0;
+  /** Comic speech bubble above the head for a couple of seconds. */
+  say(text: string) {
+    if (!this.bubble) {
+      this.bubble = new THREE.Sprite(new THREE.SpriteMaterial({ depthWrite: false, fog: false, transparent: true }));
+      this.bubble.renderOrder = 11;
+      this.root.add(this.bubble);
+    }
+    const mat = this.bubble.material as THREE.SpriteMaterial;
+    mat.map?.dispose();
+    mat.map = bubbleTexture(text);
+    mat.needsUpdate = true;
+    this.bubble.scale.set(2.2, 0.9, 1);
+    this.bubble.position.y = this.nameTag.position.y + 0.75;
+    this.bubble.visible = true;
+    this.bubbleT = 2.6;
+  }
+
   setTagVisible(v: boolean) {
     this.nameTag.visible = v;
   }
@@ -609,6 +628,12 @@ export class CharacterModel {
       this.mfTime -= dt;
       if (this.mfTime <= 0) this.mf.visible = false;
     }
+    if (this.bubble && this.bubbleT > 0) {
+      this.bubbleT -= dt;
+      const k = Math.min(1, this.bubbleT * 3, (2.6 - this.bubbleT) * 8);
+      (this.bubble.material as THREE.SpriteMaterial).opacity = k;
+      if (this.bubbleT <= 0) this.bubble.visible = false;
+    }
     if (this.cape) this.cape.rotation.x = 0.15 + moving * 0.6 + Math.sin(this.phase * 0.5) * 0.08;
     if (this.spinner) this.spinner.rotation.y += dt * (8 + s.speed * 3);
     if (this.bobber) this.bobber.position.y = 0.52 + Math.sin(performance.now() * 0.004) * 0.03;
@@ -645,8 +670,36 @@ export class CharacterModel {
     this.mat.dispose();
     this.extraMats.forEach((m) => m.dispose());
     (this.nameTag.material as THREE.SpriteMaterial).map?.dispose();
+    if (this.bubble) {
+      (this.bubble.material as THREE.SpriteMaterial).map?.dispose();
+      this.bubble.material.dispose();
+    }
     this.nameTag.material.dispose();
   }
+}
+
+function bubbleTexture(text: string) {
+  return canvasTexture(320, 130, (g, w, h) => {
+    g.font = '700 30px "Fredoka", "Luckiest Guy", sans-serif';
+    const tw = Math.min(w - 16, g.measureText(text).width + 36);
+    const x0 = (w - tw) / 2;
+    g.fillStyle = '#ffffff';
+    g.strokeStyle = '#14102a';
+    g.lineWidth = 6;
+    g.beginPath();
+    g.roundRect(x0, 8, tw, 76, 30);
+    g.moveTo(w / 2 - 14, 82);
+    g.lineTo(w / 2, 118);
+    g.lineTo(w / 2 + 14, 82);
+    g.fill();
+    g.stroke();
+    g.fillStyle = '#ffffff';
+    g.fillRect(w / 2 - 12, 78, 24, 8);
+    g.fillStyle = '#14102a';
+    g.textAlign = 'center';
+    g.textBaseline = 'middle';
+    g.fillText(text, w / 2, 47, tw - 24);
+  }, { mip: false });
 }
 
 const embGeoCache = new Map<string, THREE.BufferGeometry>();

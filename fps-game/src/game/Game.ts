@@ -19,6 +19,7 @@ import { applyTally, CHALLENGE_XP } from '../core/Challenges';
 import { announcer } from '../core/Announcer';
 import type { Actor } from '../entities/Actor';
 import { CharacterModel, type CosmeticHat } from '../render/Character';
+import { Weather, type WeatherKind } from '../render/Weather';
 
 export type GameState = 'menu' | 'playing' | 'paused' | 'ended';
 
@@ -56,6 +57,7 @@ export class Game {
   private frameNo = 0;
   private autoQ = { t: 0, n: 0, sum: 0, done: false };
   preview: CharacterModel | null = null;
+  private weather: Weather | null = null;
   private previewSpot = new THREE.Vector3();
   private previewYaw = 0;
   onQualityAuto: ((q: Quality) => void) | null = null;
@@ -214,6 +216,9 @@ export class Game {
     this.camera.add(this.vm.root);
     this.vm.setAspect(this.camera.aspect);
     this.pipeline.setStyle(th.style);
+    this.weather?.dispose();
+    const wk: Record<string, WeatherKind> = { neon: 'rain', paper: 'paper', plaza: 'bubbles' };
+    this.weather = this.quality === 'low' ? null : new Weather(wk[id] ?? 'none', this.world.scene);
     this.hud.setTheme(th.hudClass, [th.teams[0].primary, th.teams[1].primary], [th.teams[0].name, th.teams[1].name]);
     audio.setWorld(id);
     // warm up shaders
@@ -369,6 +374,7 @@ export class Game {
     this.handleEvents(m);
     w.update(dt, this.time);
     this.updateCamera(dt, m);
+    this.weather?.update(gdt, this.camera.position, this.time);
     this.fx!.update(gdt, this.camera);
     if (this.state === 'playing' || this.state === 'ended' || this.state === 'paused') {
       this.hud.update(dt, m, this.camera, { spectating: false, aiming: !!m.player?.aiming, fps: 1 / Math.max(rawDt, 1e-3) });
@@ -592,6 +598,7 @@ export class Game {
           break;
         case 'chat':
           if (playing) hud.chatLine(e.actor, e.text);
+          if (e.actor.model && e.actor.alive) e.actor.model.say(e.text);
           break;
         case 'message':
           if (playing) {

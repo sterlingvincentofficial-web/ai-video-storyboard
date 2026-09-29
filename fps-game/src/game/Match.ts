@@ -709,6 +709,10 @@ export class Match implements BotWorld {
       if (multi) this.emit({ type: 'streak', actor: killer, text: multi });
       const streak = { 3: 'ON A ROLL!', 5: 'RAMPAGE!', 7: 'UNSTOPPABLE!', 10: 'LEGENDARY!', 15: 'CARTOON GOD!' }[killer.stats.streak];
       if (streak) this.emit({ type: 'streak', actor: killer, text: streak });
+      if (killer.stats.streak === 5 || killer.stats.streak === 10) {
+        killer.overcharge = Math.max(killer.overcharge, 10);
+        this.emit({ type: 'message', text: `${killer.name}: STREAK BONUS — OVERCHARGED!`, color: killer.team === 0 ? '#5aa9ff' : '#ff6b6b' });
+      }
       if (!killer.isPlayer && Math.random() < 0.18) this.emit({ type: 'chat', actor: killer, text: killer.team === 0 && v.team === 1 && Math.random() < 0.4 ? pick(CHAT_TEAM) : pick(CHAT_KILL) });
     } else {
       v.stats.score = Math.max(0, v.stats.score - 25);
