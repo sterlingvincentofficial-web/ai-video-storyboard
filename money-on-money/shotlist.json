@@ -1,0 +1,160 @@
+{
+ "song": "Young Thug - Money on Money (feat. Future), 0:00-1:00",
+ "bpm": 120,
+ "beat_s": 0.5,
+ "bar_s": 2.0,
+ "aspect": "9:16",
+ "style": "surreal money chaos x cinematic luxury flex; anamorphic, 35mm grain, night, teal/pink/gold grade",
+ "shots": [
+  {
+   "n": 1,
+   "in": 0,
+   "out": 4,
+   "key": "Empty wet downtown Atlanta street at night, neon reflections, thousands of hundred-dollar bills falling UPWARD into the sky, LEAD standing in the middle of the road looking up, low-angle wide",
+   "move": "slow crane up following the bills rising, bills flutter upward",
+   "keyframe_job": "297b95e0-0ce9-4ef8-8335-3a4e2b0b29bd",
+   "clip_job": "0e6bbe5d-6d27-4f05-a006-1a7a9476b86a",
+   "clip_file": "hf_20260929_014846_0e6bbe5d-6d27-4f05-a006-1a7a9476b86a.mp4"
+  },
+  {
+   "n": 2,
+   "in": 4,
+   "out": 8,
+   "key": "Luxury penthouse at night with floor-to-ceiling windows over city skyline, the room flooded waist-deep with cash like water, LEAD standing still in it, pink fur coat, chains glinting",
+   "move": "slow push-in, waves of cash ripple around him",
+   "keyframe_job": "d8e55fc3-8189-4914-acb2-760ad04bc384",
+   "clip_job": "83e7c834-b1a0-4bd4-98ac-3dd8300dd63d",
+   "clip_file": "hf_20260929_014831_83e7c834-b1a0-4bd4-98ac-3dd8300dd63d.mp4"
+  },
+  {
+   "n": 3,
+   "in": 8,
+   "out": 12,
+   "key": "Matte pink supercar (no logos) drifting on a wet night highway, trunk open, a storm of cash blasting out behind it, LEAD visible through window",
+   "move": "fast tracking shot alongside the drift, bills explode toward camera",
+   "keyframe_job": "5579ec56-9b4b-49e9-a979-dbe3b540b282",
+   "clip_job": "1f729ef3-6064-4940-ab97-c42827c340a5",
+   "clip_file": "hf_20260929_014832_1f729ef3-6064-4940-ab97-c42827c340a5.mp4"
+  },
+  {
+   "n": 4,
+   "in": 12,
+   "out": 16,
+   "key": "Extreme macro close-up of LEAD's stacked diamond chains and iced grill smile, light refracting into rainbow sparkles, cash counter machine blur in foreground",
+   "move": "quick rack focus from money counter to diamonds, sparkle flares",
+   "keyframe_job": "0d8bd7d3-9111-4d13-8040-aff23a9fbda2",
+   "clip_job": "654cfffe-75fc-444d-84d5-3e5448f4c1f4",
+   "clip_file": "hf_20260929_014831_654cfffe-75fc-444d-84d5-3e5448f4c1f4.mp4"
+  },
+  {
+   "n": 5,
+   "in": 16,
+   "out": 20,
+   "key": "Private jet cabin, cream leather, a swirling vortex of cash inside the cabin, LEAD lounging calmly in the seat with sunglasses",
+   "move": "slow orbit around LEAD as cash swirls in a tornado",
+   "keyframe_job": "15a4f56c-3214-4966-b84d-36f1cb3a8ce1",
+   "clip_job": "529cb1c1-4258-4542-b923-6e0d64af834b",
+   "clip_file": "hf_20260929_014845_529cb1c1-4258-4542-b923-6e0d64af834b.mp4"
+  },
+  {
+   "n": 6,
+   "in": 20,
+   "out": 24,
+   "key": "Massive tornado made entirely of dollar bills touching down over downtown Atlanta skyline at night, lightning, tiny silhouette of LEAD on a rooftop in front",
+   "move": "epic slow push toward the tornado",
+   "keyframe_job": "374ebdc3-cc8f-4519-b8a9-53be71ec8c93",
+   "clip_job": "1f401f2c-1db3-47ec-bfb4-db505dcca07b",
+   "clip_file": "hf_20260929_014831_1f401f2c-1db3-47ec-bfb4-db505dcca07b.mp4"
+  },
+  {
+   "n": 7,
+   "in": 24,
+   "out": 28,
+   "key": "Endless gold vault corridor, walls stacked floor-to-ceiling with gold bars and cash bricks, LEAD walking toward camera, symmetrical",
+   "move": "steady dolly backward as he walks forward, confident strut",
+   "keyframe_job": "7bf981f9-4590-4053-ad18-d52d27359dad",
+   "clip_job": "6077d0c7-492e-45e5-82f4-f651c4d214df",
+   "clip_file": "hf_20260929_014832_6077d0c7-492e-45e5-82f4-f651c4d214df.mp4"
+  },
+  {
+   "n": 8,
+   "in": 28,
+   "out": 32,
+   "key": "Rooftop infinity pool filled with cash instead of water, night skyline, LEAD mid-air cannonballing in, bills splashing up",
+   "move": "slow motion splash, cash sprays toward camera",
+   "keyframe_job": "f2f1b49c-6cfb-4f3e-94fb-98253568a932",
+   "clip_job": "67a35b99-7b9b-4156-a894-360cddd9d8b3",
+   "clip_file": "hf_20260929_014832_67a35b99-7b9b-4156-a894-360cddd9d8b3.mp4"
+  },
+  {
+   "n": 9,
+   "in": 32,
+   "out": 36,
+   "key": "Dark recording studio filled with red smoke, FEATURE in black leather trench coat and frozen Cuban link, sitting on a stack of cash bricks, red neon",
+   "move": "slow push-in, smoke drifting, he leans forward",
+   "keyframe_job": "2cfed7fc-d705-4c9a-9b76-395e4f51f5a8",
+   "clip_job": "19244671-c7e0-4b53-a837-5d47bfae3de2",
+   "clip_file": "hf_20260929_014831_19244671-c7e0-4b53-a837-5d47bfae3de2.mp4"
+  },
+  {
+   "n": 10,
+   "in": 36,
+   "out": 40,
+   "key": "A skyscraper built entirely from stacked cash bricks rising above the city, LEAD and FEATURE standing on the very top, wind blowing coats",
+   "move": "fast drone rise from street level to the top, revealing them",
+   "keyframe_job": "7f0fb63f-e6b6-4697-a65f-1a8f067951ed",
+   "clip_job": "8ea59883-0cf5-407a-b3ee-0ae68e726dc6",
+   "clip_file": "hf_20260929_014832_8ea59883-0cf5-407a-b3ee-0ae68e726dc6.mp4"
+  },
+  {
+   "n": 11,
+   "in": 40,
+   "out": 44,
+   "key": "Black helicopter landing on a helipad at night, rotor downwash blasting a whirlwind of cash, FEATURE stepping out, LEAD waiting",
+   "move": "handheld low angle, bills whip past the lens",
+   "keyframe_job": "27ff75af-54a2-46cf-b3b0-50a7a30f6583",
+   "clip_job": "606741e8-1698-4d16-b866-fb3c4244c02a",
+   "clip_file": "hf_20260929_014832_606741e8-1698-4d16-b866-fb3c4244c02a.mp4"
+  },
+  {
+   "n": 12,
+   "in": 44,
+   "out": 48,
+   "key": "Infinite mirror maze, dozens of reflections of LEAD each fanning out stacks of hundreds, pink and gold lighting",
+   "move": "slow sideways slide revealing endless reflections",
+   "keyframe_job": "7fddc5eb-04c5-44d2-80a9-52d82d333231",
+   "clip_job": "8a67f161-1db3-412d-a72e-e0d7d81c2991",
+   "clip_file": "hf_20260929_014832_8a67f161-1db3-412d-a72e-e0d7d81c2991.mp4"
+  },
+  {
+   "n": 13,
+   "in": 48,
+   "out": 52,
+   "key": "Cloud of dollar bills over the city at sunset morphing into a flock of birds, LEAD on a balcony arms spread",
+   "move": "bills transform into birds flying across frame, camera tilts up",
+   "keyframe_job": "129476f9-f1c5-44ed-b8c8-418c4ff827fd",
+   "clip_job": "809adc65-1236-4f4d-9867-d266616016a4",
+   "clip_file": "hf_20260929_014834_809adc65-1236-4f4d-9867-d266616016a4.mp4"
+  },
+  {
+   "n": 14,
+   "in": 52,
+   "out": 56,
+   "key": "Solid gold luxury sedan (no logos) parked on a dark street, melting into liquid gold that pools across the asphalt, LEAD and FEATURE leaning on it",
+   "move": "slow push-in as the gold melts and drips",
+   "keyframe_job": "60755299-4816-46fa-91b6-eca72337044a",
+   "clip_job": "1ff60f22-7d45-4f3a-8569-7bfb19dab84d",
+   "clip_file": "hf_20260929_014834_1ff60f22-7d45-4f3a-8569-7bfb19dab84d.mp4"
+  },
+  {
+   "n": 15,
+   "in": 56,
+   "out": 60,
+   "key": "LEAD and FEATURE on giant thrones made of cash bricks in a dark marble palace, gold light shafts, piles of money everywhere",
+   "move": "slow pull-back reveal, then cash bursts upward from the piles",
+   "keyframe_job": "660b18c6-bb53-4445-b271-8334460ee1fe",
+   "clip_job": "7566c412-a17b-46f9-af3f-2c4bfc730053",
+   "clip_file": "hf_20260929_014834_7566c412-a17b-46f9-af3f-2c4bfc730053.mp4"
+  }
+ ]
+}
