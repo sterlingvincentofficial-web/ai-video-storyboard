@@ -106,6 +106,7 @@ export interface FlagState {
 
 export class CTF extends Mode {
   info = MODE_INFO.ctf;
+  respawnTime = 5;
   flags: FlagState[] = [];
   private roles = new Map<number, 'attack' | 'defend' | 'mid'>();
 
@@ -117,7 +118,7 @@ export class CTF extends Mode {
     // assign roles
     for (const t of [0, 1]) {
       const team = m.actors.filter((a) => a.team === t && !a.isPlayer);
-      team.forEach((a, i) => this.roles.set(a.id, i === 0 ? 'defend' : i === team.length - 1 ? 'mid' : 'attack'));
+      team.forEach((a, i) => this.roles.set(a.id, i === 0 ? 'defend' : 'attack'));
     }
   }
 
@@ -219,7 +220,7 @@ export class CTF extends Mode {
     if (role === 'mid') {
       if (Math.random() < 0.5) return this.roam(m, a);
     }
-    return { kind: 'attack', pos: enemy.pos.clone(), radius: 0.5, urgency: 0.55 };
+    return { kind: 'attack', pos: enemy.pos.clone(), radius: 0.5, urgency: 0.72 };
   }
 
   objective(_m: Match): Objective {

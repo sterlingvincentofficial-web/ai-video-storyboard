@@ -2474,7 +2474,7 @@ export class AudioEngine {
 
   startMusic(track: MusicTrack): void {
     try {
-      if (!(track in TRACKS)) return;
+      if (typeof track !== 'string' || !Object.prototype.hasOwnProperty.call(TRACKS, track)) return;
       this.wantTrack = track;
       const ctx = this.ctx, ch = this.ch;
       if (!ctx || !ch) return; // will start on unlock()

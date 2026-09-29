@@ -311,6 +311,8 @@ export class Match implements BotWorld {
     }
     a.spawnShield = Math.max(0, a.spawnShield - dt);
     a.overcharge = Math.max(0, a.overcharge - dt);
+    // cartoon regen: heal up after a few seconds out of combat
+    if (a.health < a.maxHealth && this.time - a.lastDamageTime > 4.5) a.health = Math.min(a.maxHealth, a.health + 14 * dt);
     a.fireCd -= dt;
     a.grenadeCd -= dt;
     if (a.switchT > 0) {

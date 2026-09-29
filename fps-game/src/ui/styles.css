@@ -97,7 +97,7 @@ button { font-family: inherit; }
 .chips { display: flex; flex-wrap: wrap; gap: 8px; }
 .chip { border: 3px solid var(--ink); border-radius: 999px; padding: 5px 14px; font-weight: 700; cursor: pointer; background: #fff; }
 .chip.on { background: #ff66cc; color: #fff; }
-.start-row { display: flex; justify-content: center; margin-top: 18px; }
+.start-row { display: flex; justify-content: center; margin-top: 18px; position: sticky; bottom: -24px; padding: 10px 0 14px; background: linear-gradient(transparent, #fffdf5 35%); }
 .hats { display: grid; grid-template-columns: repeat(auto-fill, minmax(104px, 1fr)); gap: 10px; }
 .hat { border: 3px solid var(--ink); border-radius: 16px; padding: 8px; text-align: center; cursor: pointer; background: #fff; box-shadow: 0 4px 0 var(--ink); position: relative; }
 .hat.sel { background: #ffd23f; }
@@ -311,12 +311,18 @@ tr.deadrow td { opacity: 0.5; }
 .tbtn.sprint { left: calc(24px * var(--ts) + var(--safe-l)); bottom: calc(130px * var(--ts) + var(--safe-b)); width: calc(52px * var(--ts)); height: calc(52px * var(--ts)); }
 .tbtn.pause { left: 50%; top: calc(8px + var(--safe-t)); transform: translateX(170px); }
 .tbtn.score { left: 50%; top: calc(8px + var(--safe-t)); transform: translateX(-210px); }
-body.in-game .touch:not(.hidden) ~ .hud .ammobox, .touch-on .ammobox { }
+/* touch layout: keep the right side free for buttons */
+body.touch-ui .hpbox { left: calc(10px + var(--safe-l)); bottom: calc(8px + var(--safe-b)); }
+body.touch-ui .ammobox { left: calc(250px + var(--safe-l)); right: auto; top: auto; bottom: calc(8px + var(--safe-b)); min-width: 0; padding: 4px 10px 5px; text-align: left; }
+body.touch-ui .ammobox .slots { justify-content: flex-start; }
+body.touch-ui .chat { bottom: 70px; left: calc(10px + var(--safe-l)); }
+body.touch-ui .crosshair { transform: scale(1.1); }
 
 /* On touch/small screens: compact HUD so it doesn't collide with buttons */
 @media (max-width: 1000px), (max-height: 560px) {
   .minimap { width: 104px; height: 104px; }
-  .hpbox { padding: 5px 10px 5px 5px; bottom: calc(8px + var(--safe-b)); left: calc(90px + var(--safe-l)); }
+  .hpbox { padding: 5px 10px 5px 5px; bottom: calc(8px + var(--safe-b)); }
+  body.touch-ui .ammobox .wname { display: none; }
   .hpbox .portrait { width: 30px; height: 30px; font-size: 16px; }
   .hpbar { width: 110px; height: 14px; }
   .hpnum { font-size: 24px; min-width: 44px; }

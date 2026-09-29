@@ -452,7 +452,7 @@ export class Menu {
         <div class="res-buttons">
           <button class="btn big primary again">↻ PLAY AGAIN</button>
           <button class="btn setup">⚙ Change setup</button>
-          <button class="btn menu">⏏ Main menu</button>
+          <button class="btn tomenu">⏏ Main menu</button>
         </div>
       </div>`;
     d.querySelector('.again')!.addEventListener('click', () => this.startMatch());
@@ -460,7 +460,7 @@ export class Menu {
       this.game.startAttract(settings.lastWorld);
       this.show('play');
     });
-    d.querySelector('.menu')!.addEventListener('click', () => {
+    d.querySelector(".tomenu")!.addEventListener('click', () => {
       this.game.startAttract(settings.lastWorld);
       this.show('title');
     });

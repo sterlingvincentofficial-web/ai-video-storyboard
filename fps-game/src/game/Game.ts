@@ -46,7 +46,7 @@ export class Game {
   vm: ViewModel | null = null;
   state: GameState = 'menu';
   quality: Quality;
-  private clock = new THREE.Clock();
+  private lastT = performance.now();
   private time = 0;
   private shake = 0;
   private recoilPitch = 0;
@@ -245,7 +245,7 @@ export class Game {
     this.input.clear();
     this.touch.setActive(this.touchMode);
     if (!this.touchMode) this.input.requestLock();
-    this.clock.getDelta();
+    this.lastT = performance.now();
   }
 
   quitToMenu() {
@@ -269,7 +269,9 @@ export class Game {
 
   // ------------------------------------------------------------------ main loop
   private frame() {
-    let dt = this.clock.getDelta();
+    const now = performance.now();
+    let dt = (now - this.lastT) / 1000;
+    this.lastT = now;
     const rawDt = dt;
     dt = Math.min(dt, 1 / 20);
     this.time += dt;

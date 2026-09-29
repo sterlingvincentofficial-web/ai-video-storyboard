@@ -178,6 +178,7 @@ export class TouchControls {
   setActive(v: boolean) {
     this.active = v;
     this.root.classList.toggle('hidden', !v);
+    document.body.classList.toggle('touch-ui', v);
     this.root.style.setProperty('--ts', String(settings.touchScale));
     if (!v) {
       this.stickId = this.lookId = this.fireLookId = null;

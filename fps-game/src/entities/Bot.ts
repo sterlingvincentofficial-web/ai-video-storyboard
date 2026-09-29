@@ -271,7 +271,7 @@ export class BotBrain {
     const dist = t ? a.pos.distanceTo(t.pos) : 999;
     if (a.carrying >= 0) dest = goal.pos; // flag carrier: always run home
     else if (this.detour && (!t || a.health < 35)) dest = this.detour.pos;
-    else if (t && goal.urgency < 0.9) combatMove = true;
+    else if (t && goal.urgency < 0.6) combatMove = true;
     else if (!t && w.time - this.lastKnownT < 4 && goal.urgency < 0.6 && this.aggression > 0.4) dest = this.lastKnown;
     else dest = goal.pos;
 
@@ -330,6 +330,15 @@ export class BotBrain {
       const p = this.followPath(w, target, dt);
       if (p) { steerX = p.x - a.pos.x; steerZ = p.z - a.pos.z; }
       else if (dd > 1) { steerX = dest.x - a.pos.x; steerZ = dest.z - a.pos.z; }
+      if (t) {
+        // run & gun: jink sideways while pushing the objective
+        this.strafeT -= dt;
+        if (this.strafeT <= 0) { this.strafeDir = Math.random() < 0.5 ? -1 : 1; this.strafeT = rand(0.3, 0.9); }
+        const l = Math.hypot(steerX, steerZ) || 1;
+        steerX = steerX / l - (steerZ / l) * this.strafeDir * 0.35 * this.diff.strafe;
+        steerZ = steerZ / l + (steerX / l) * this.strafeDir * 0.35 * this.diff.strafe;
+        if (Math.random() < this.diff.jumpiness * dt * 2 && a.onGround) a.wantJump = true;
+      }
     }
 
     // edge safety: don't walk into the void

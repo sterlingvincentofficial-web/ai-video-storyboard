@@ -1,0 +1,12 @@
+import { chromium } from 'playwright-core';
+const [,, screen, out, w = '1280', h = '720', mobile = ''] = process.argv;
+const browser = await chromium.launch({ executablePath: '/opt/pw-browsers/chromium-1194/chrome-linux/chrome', args: ['--use-gl=angle', '--use-angle=swiftshader', '--enable-unsafe-swiftshader', '--ignore-gpu-blocklist'] });
+const ctx = await browser.newContext({ viewport: { width: +w, height: +h }, hasTouch: !!mobile, isMobile: !!mobile, deviceScaleFactor: mobile ? 2 : 1 });
+const page = await ctx.newPage();
+page.on('pageerror', (e) => console.log('[pageerror]', e.message));
+await page.goto('http://localhost:' + (process.env.PORT || 5173) + '/', { waitUntil: 'load' });
+await page.waitForTimeout(2500);
+await page.evaluate((s) => { window.__menu.show(s); }, screen);
+await page.waitForTimeout(1500);
+await page.screenshot({ path: out });
+await browser.close();
