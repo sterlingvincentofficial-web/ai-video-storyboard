@@ -135,7 +135,7 @@ export class ViewModel {
         muzzle.position.set(0, 0.02, -0.66);
         this.hand(g, 0.02, -0.16, 0.14, 0.2, 0, 0.1);
         this.hand(g, -0.05, -0.12, -0.18, 0.1, 0.3, -0.4);
-        g.position.set(0.3, -0.31, -0.78);
+        g.position.set(0.33, -0.33, -0.84);
         break;
       }
       case 'scatter': {
@@ -151,7 +151,7 @@ export class ViewModel {
         muzzle.position.set(0, 0, -0.66);
         this.hand(g, 0.02, -0.2, 0.22, 0.2, 0, 0.1);
         this.hand(g, -0.02, -0.17, -0.22, 0.2, 0.2, -0.3);
-        g.position.set(0.3, -0.3, -0.74);
+        g.position.set(0.33, -0.32, -0.8);
         break;
       }
       case 'boomer': {
@@ -166,7 +166,7 @@ export class ViewModel {
         muzzle.position.set(0, 0, -0.6);
         this.hand(g, 0.02, -0.26, 0.12, 0.2, 0, 0.1);
         this.hand(g, -0.1, -0.16, -0.25, 0.1, 0.4, -0.6);
-        g.position.set(0.3, -0.29, -0.76);
+        g.position.set(0.33, -0.31, -0.82);
         break;
       }
       case 'zapper': {
@@ -180,7 +180,7 @@ export class ViewModel {
         muzzle.position.set(0, 0.02, -0.96);
         this.hand(g, 0.02, -0.17, 0.2, 0.2, 0, 0.1);
         this.hand(g, -0.02, -0.1, -0.32, 0.15, 0.2, -0.3);
-        g.position.set(0.28, -0.28, -0.78);
+        g.position.set(0.31, -0.3, -0.84);
         break;
       }
     }

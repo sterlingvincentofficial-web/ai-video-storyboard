@@ -94,6 +94,9 @@ export class Game {
     this.input.onWantLock = () => {
       if (this.state === 'playing' && !this.touchMode) this.input.requestLock();
     };
+    this.input.onLockFailed = () => {
+      if (this.state === 'playing') this.hud.hint('🖱️ Mouse capture is blocked here — drag with the LEFT button to aim & shoot, RIGHT button to just look. Arrow keys turn too.', 9);
+    };
     document.addEventListener('pointerlockchange', () => {
       if (!document.pointerLockElement && this.state === 'playing' && !this.touchMode && this.lockedOnce) {
         this.onPauseRequest?.();
@@ -221,6 +224,16 @@ export class Game {
     const p = this.match.player!;
     this.camYaw = p.yaw;
     this.camPitch = 0;
+    let seen = false;
+    try { seen = !!localStorage.getItem('toonfire.tutorial'); localStorage.setItem('toonfire.tutorial', '1'); } catch { /* storage blocked */ }
+    if (!seen) {
+      this.hud.hint(this.touchMode
+        ? '🕹️ Left thumb: move · Right thumb: look · 🔥 fire (drag it to aim) · ⤒ jump twice to double-jump'
+        : '⌨️ WASD move · SPACE jump (twice = double jump) · SHIFT sprint · LMB fire · RMB scope · R reload · G bomb · TAB scores', 10);
+    } else {
+      const obj: Record<string, string> = { tdm: 'Splat the red team! First to the kill limit wins.', ctf: 'Grab the red flag and bring it to your base!', koth: 'Hold the glowing zone to score!', elim: 'No respawns — last team standing wins the round!' };
+      this.hud.hint(obj[cfg.mode] ?? '', 5);
+    }
   }
 
   setState(s: GameState) {
@@ -343,8 +356,8 @@ export class Game {
     // aim assist
     const assist = (settings.aimAssist || this.touchMode) ? this.findAssistTarget(p) : null;
     if (assist && settings.aimAssist) sens *= 0.6;
-    p.yaw -= inp.lookDX * sens;
-    p.pitch -= inp.lookDY * sens * (settings.invertY ? -1 : 1);
+    p.yaw -= inp.lookDX * sens + inp.turnX * 2.4 * dt * zoom;
+    p.pitch -= (inp.lookDY * sens + inp.turnY * 1.6 * dt * zoom) * (settings.invertY ? -1 : 1);
     if (assist && settings.aimAssist && (inp.moveX !== 0 || inp.moveY !== 0 || Math.abs(inp.lookDX) > 0)) {
       const ty = yawTo(p.pos.x, p.pos.z, assist.pos.x, assist.pos.z);
       p.yaw += clamp(angleDiff(p.yaw, ty), -0.5 * dt, 0.5 * dt);
@@ -670,9 +683,13 @@ export class Game {
       this.vm!.muzzleWorld(m.playerMuzzle);
       if (p.overcharge > 0) { this.pipeline.flashColor.setRGB(0.6, 0.1, 0.6); this.pipeline.flashAmt = Math.max(this.pipeline.flashAmt, 0.06); }
     } else if (p) {
-      // kill cam
+      // kill cam (then spectate a teammate when there are no respawns)
       this.vm!.setHidden(true);
-      const k = p.killer && p.killer.alive ? p.killer : null;
+      let k = p.killer && p.killer.alive ? p.killer : null;
+      if (!m.mode.respawn && m.time - p.deathTime > 3.5) {
+        const mate = m.actors.find((a) => a.team === p.team && a.alive);
+        if (mate) k = mate;
+      }
       const focus = k ? k.pos : p.pos;
       const a = this.time * 0.4;
       this.camPos.set(focus.x + Math.sin(a) * 4.5, focus.y + 2.8, focus.z + Math.cos(a) * 4.5);

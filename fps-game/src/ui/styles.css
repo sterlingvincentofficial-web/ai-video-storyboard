@@ -383,3 +383,9 @@ body.hud-neon {
 body.hud-neon .hpnum, body.hud-neon .ammorow, body.hud-neon .timer { text-shadow: 0 0 10px #33e1ff; }
 body.hud-neon .scorebar .team { box-shadow: 0 0 16px currentColor; }
 body.hud-neon .hpbar .fill { background: linear-gradient(90deg, #33e1ff, #7cfffb); box-shadow: 0 0 10px #33e1ff; }
+
+.hint { position: absolute; left: 50%; bottom: calc(110px + var(--safe-b)); transform: translateX(-50%); max-width: min(760px, 92vw); text-align: center; background: rgba(14, 10, 40, 0.8); color: #fff; font-weight: 700; font-size: 15px; padding: 8px 16px; border-radius: 14px; border: 3px solid rgba(255,255,255,0.7); opacity: 0; transition: opacity 0.4s; font-family: var(--font-body); }
+.hint.show { opacity: 1; }
+body.touch-ui .hint { bottom: auto; top: calc(88px + var(--safe-t)); font-size: 13px; }
+.shield { position: absolute; left: 50%; top: 58%; transform: translateX(-50%); font-family: var(--hud-font); font-size: 16px; color: #7cf3ff; -webkit-text-stroke: 3px var(--ink); paint-order: stroke fill; display: none; }
+.shield.show { display: block; animation: pulse 0.4s infinite alternate; }

@@ -86,8 +86,10 @@ export class Input {
 
   private updateAxes() {
     const k = this.keys;
-    const kx = (k.has('KeyD') || k.has('ArrowRight') ? 1 : 0) - (k.has('KeyA') || k.has('ArrowLeft') ? 1 : 0);
-    const ky = (k.has('KeyW') || k.has('ArrowUp') ? 1 : 0) - (k.has('KeyS') || k.has('ArrowDown') ? 1 : 0);
+    const kx = (k.has('KeyD') ? 1 : 0) - (k.has('KeyA') ? 1 : 0);
+    const ky = (k.has('KeyW') ? 1 : 0) - (k.has('KeyS') ? 1 : 0);
+    this.turnX = (k.has('ArrowRight') ? 1 : 0) - (k.has('ArrowLeft') ? 1 : 0);
+    this.turnY = (k.has('ArrowDown') ? 1 : 0) - (k.has('ArrowUp') ? 1 : 0);
     this.kbX = kx;
     this.kbY = ky;
     this.jumpHeld = k.has('Space');
@@ -95,17 +97,29 @@ export class Input {
   }
   private kbX = 0;
   private kbY = 0;
+  turnX = 0;
+  turnY = 0;
+  /** Set when pointer lock was refused (sandboxed iframe): drag-to-look mode. */
+  lockFailed = false;
+  onLockFailed: (() => void) | null = null;
   private kbSprint = false;
 
   private onMouseDown(e: MouseEvent) {
     if (!this.enabled) return;
     this.touchMode = false;
     if (!this.pointerLocked) {
-      this.onWantLock?.();
-      // drag-look fallback when pointer lock unavailable (e.g. sandboxed iframes)
+      if (!this.lockFailed) {
+        // first click just captures the mouse
+        this.onWantLock?.();
+        return;
+      }
+      // drag-look fallback when pointer lock unavailable (e.g. sandboxed iframes):
+      // LMB-drag = look + fire, RMB-drag = look only
       this.dragLook = true;
       this.lastX = e.clientX;
       this.lastY = e.clientY;
+      if (e.button === 0) this.fire = true;
+      return;
     }
     if (e.button === 0) this.fire = true;
     if (e.button === 2) this.aim = true;
@@ -165,11 +179,22 @@ export class Input {
   }
 
   requestLock() {
+    const fail = () => {
+      if (!this.lockFailed) {
+        this.lockFailed = true;
+        this.onLockFailed?.();
+      }
+    };
     try {
-      const p = this.el.requestPointerLock?.() as unknown as Promise<void> | undefined;
-      if (p && typeof p.catch === 'function') p.catch(() => {});
+      if (!this.el.requestPointerLock) return fail();
+      const p = this.el.requestPointerLock() as unknown as Promise<void> | undefined;
+      if (p && typeof p.catch === 'function') p.catch(fail);
+      // browsers without the promise form: detect via error event / timeout
+      const onErr = () => { fail(); document.removeEventListener('pointerlockerror', onErr); };
+      document.addEventListener('pointerlockerror', onErr);
+      setTimeout(() => document.removeEventListener('pointerlockerror', onErr), 1500);
     } catch {
-      /* not allowed (iframe sandbox) — drag-look fallback is used */
+      fail();
     }
   }
   exitLock() {

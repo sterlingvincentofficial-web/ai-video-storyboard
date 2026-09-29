@@ -134,6 +134,18 @@ export class Hud {
     this.scoreboard = el('div', 'scoreboard', this.root);
     this.fps = el('div', 'fps', this.root);
     this.vignette = el('div', 'hurtvig', this.root);
+    this.hintEl = el('div', 'hint', this.root);
+    this.shieldEl = el('div', 'shield', this.root, '🛡️ SPAWN SHIELD');
+  }
+  private hintEl: HTMLDivElement;
+  private shieldEl: HTMLDivElement;
+  private hintT = 0;
+
+  hint(text: string, seconds = 6) {
+    if (!text) return;
+    this.hintEl.textContent = text;
+    this.hintEl.classList.add('show');
+    this.hintT = seconds;
   }
 
   show(v: boolean) {
@@ -335,6 +347,11 @@ export class Hud {
       this.hitT -= dt;
       if (this.hitT <= 0) this.hitmarker.classList.remove('show');
     }
+    if (this.hintT > 0) {
+      this.hintT -= dt;
+      if (this.hintT <= 0) this.hintEl.classList.remove('show');
+    }
+    this.shieldEl.classList.toggle('show', !!p && p.alive && p.spawnShield > 0 && m.state === 'playing');
     if (this.toastT > 0) {
       this.toastT -= dt;
       if (this.toastT <= 0) this.toast.classList.remove('show');
