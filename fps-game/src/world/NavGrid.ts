@@ -122,15 +122,19 @@ export class NavGrid {
         this.height[i] = hgt;
         if (hgt === -Infinity || hgt < data.killY + 1) continue;
         let ok = true;
+        let ledge = false;
         for (const [sx, sz] of samples) {
           const hh = col.topAt(wx + sx, wz + sz);
-          if (hh > hgt + STEP || hh === -Infinity || hh < hgt - 3) {
+          // ledges a bot can jump onto don't block the cell in front of them
+          if (hh > hgt + JUMP_UP || hh === -Infinity || hh < hgt - 3) {
             ok = false;
             break;
           }
+          if (hh > hgt + STEP) ledge = true;
         }
         if (!ok) continue;
         this.walk[i] = 1;
+        if (ledge) this.tight[i] = 1;
         for (const [sx, sz] of samples2) {
           const hh = col.topAt(wx + sx, wz + sz);
           if (hh > hgt + STEP || hh === -Infinity) {
