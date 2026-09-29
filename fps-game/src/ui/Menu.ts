@@ -519,7 +519,8 @@ export class Menu {
             <li>➕ Health (+50) · 📦 Ammo + bomb</li>
             <li>🌟 <b>Overcharge</b> — double damage for 15 s</li>
             <li>🟡 Jump pads launch you to high ground</li>
-            <li>Earn XP each match to level up and unlock hats</li></ul></div>
+            <li>Earn XP each match to level up and unlock hats</li>
+            <li>🏆 <b>World Tour</b>: five stops across all five worlds, three hearts, three stars per stop. Finish it for the Tour Trophy hat</li></ul></div>
         </div>
       </div>`;
     d.querySelector('.back')!.addEventListener('click', () => this.show('title'));
