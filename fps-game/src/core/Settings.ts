@@ -26,6 +26,8 @@ export interface SettingsData {
   screenShake: boolean;
   announcer: boolean;
   crosshair: number;
+  colorblind: boolean;
+  haptics: boolean;
 }
 
 const KEY = 'toonfire.settings.v1';
@@ -54,9 +56,11 @@ function defaults(): SettingsData {
     difficulty: 1,
     scoreLimitScale: 1,
     mutators: [],
-    screenShake: true,
+    screenShake: !(typeof matchMedia === 'function' && matchMedia('(prefers-reduced-motion: reduce)').matches),
     announcer: true,
     crosshair: 0,
+    colorblind: false,
+    haptics: true,
   };
 }
 

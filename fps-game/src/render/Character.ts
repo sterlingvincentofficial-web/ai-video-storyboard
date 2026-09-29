@@ -129,7 +129,22 @@ export interface AnimState {
 const tmpColor = new THREE.Color();
 
 /** Procedural cartoon trooper. Faces -Z at yaw 0. Root origin is at the feet. */
+let blobTex: THREE.Texture | null = null;
+function blobTexture() {
+  if (blobTex) return blobTex;
+  blobTex = canvasTexture(64, 64, (g, w, h) => {
+    const gr = g.createRadialGradient(w / 2, h / 2, 2, w / 2, h / 2, w / 2);
+    gr.addColorStop(0, 'rgba(0,0,0,0.55)');
+    gr.addColorStop(1, 'rgba(0,0,0,0)');
+    g.fillStyle = gr;
+    g.fillRect(0, 0, w, h);
+  }, { mip: false });
+  return blobTex;
+}
+
 export class CharacterModel {
+  /** When shadow maps are off (low quality), draw a soft blob under each character. */
+  static blobShadows = false;
   root = new THREE.Group();
   body = new THREE.Group();
   hips = new THREE.Group();
@@ -284,6 +299,14 @@ export class CharacterModel {
 
     for (const g of [this.legL, this.legR, this.armL, this.armR, this.torso]) consolidate(g, this.mat);
     consolidate(this.head, this.mat, true);
+    if (CharacterModel.blobShadows) {
+      const blob = new THREE.Mesh(new THREE.PlaneGeometry(1.3, 1.3), new THREE.MeshBasicMaterial({ map: blobTexture(), transparent: true, depthWrite: false, polygonOffset: true, polygonOffsetFactor: -2, polygonOffsetUnits: -4 }));
+      blob.rotation.x = -Math.PI / 2;
+      blob.position.y = 0.03;
+      blob.renderOrder = 1;
+      this.root.add(blob);
+      this.extraMats.push(blob.material as THREE.Material);
+    }
     if (style.flat) this.body.scale.z = 0.55;
     this.setBigHead(!!o.bigHead);
     this.root.traverse((c) => {

@@ -88,6 +88,7 @@ export class BotBrain {
   private burstT = 0;
   private burstOff = 0;
   wantGrenade = false;
+  wantMelee = false;
   private detour: PickupInfo | null = null;
   /** Personality tweaks. */
   private aggression = rand(0.3, 1);
@@ -443,6 +444,7 @@ export class BotBrain {
     // ----- firing
     a.wantFire = false;
     this.wantGrenade = false;
+    this.wantMelee = false;
     if (t && this.reactT <= 0) {
       const def = a.weapon.def;
       const offYaw = Math.abs(angleDiff(a.yaw, yawTo(a.pos.x, a.pos.z, t.pos.x, t.pos.z)));
@@ -465,6 +467,7 @@ export class BotBrain {
       }
       if (a.weapon.mag === 0 && a.weapon.reserve > 0) a.startReload();
       if (a.grenades > 0 && dist > 7 && dist < 20 && Math.random() < this.diff.grenade * dt) this.wantGrenade = true;
+      if (dist < 2.2 && a.meleeCd <= 0 && (a.weapon.mag === 0 || Math.random() < 0.6)) this.wantMelee = true;
     }
   }
 }

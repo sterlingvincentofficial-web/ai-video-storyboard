@@ -5,6 +5,7 @@ import { NavGrid } from './NavGrid';
 import { MaterialKit } from '../render/Materials';
 import { Batcher, mergeStatic } from '../render/Batcher';
 import type { Quality, WorldDef, WorldTheme } from '../worlds/types';
+import { settings } from '../core/Settings';
 
 /** A loaded world: scene graph, collision, navigation. */
 export class WorldScene {
@@ -22,6 +23,10 @@ export class WorldScene {
 
   constructor(public def: WorldDef, public quality: Quality, renderer: THREE.WebGLRenderer) {
     this.theme = def.theme;
+    if (settings.colorblind) {
+      // blue vs orange instead of blue vs red for characters, HUD and effects
+      this.theme = { ...def.theme, teams: [def.theme.teams[0], { name: 'Orange', primary: 0xff8c1a, secondary: 0xb35900, dark: 0x6b3500, light: 0xffc27a }] };
+    }
     this.level = def.level();
     this.col = new Collision(this.level);
     this.nav = new NavGrid(this.col, this.level, 1);

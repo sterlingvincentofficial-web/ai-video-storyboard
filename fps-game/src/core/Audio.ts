@@ -2414,6 +2414,136 @@ export class AudioEngine {
       s.onended = () => safeDisconnect([s]);
       s.start(0);
       if (this.wantTrack && !this.cur) this.startMusic(this.wantTrack);
+      if (this.wantAmb && !this.amb) this.startAmbience(this.wantAmb);
+    } catch {
+      /* no-throw */
+    }
+  }
+
+  // ------------------------------------------------------------- ambience
+  private amb: { out: GainNode; srcs: AudioScheduledSourceNode[]; nodes: AudioNode[]; timer: ReturnType<typeof setInterval> | null } | null = null;
+  private wantAmb: WorldId | null = null;
+
+  /** Quiet looping world atmosphere (rain, wind, city hum, clock, fountain + birds). */
+  startAmbience(world: WorldId | null): void {
+    try {
+      this.stopAmbience();
+      this.wantAmb = world;
+      if (!world || !this.ctx || !this.ch) return;
+      const ac = this.ctx, ch = this.ch;
+      const out = ac.createGain();
+      out.gain.value = 0;
+      out.connect(ch.sfxGame);
+      const nodes: AudioNode[] = [out];
+      const srcs: AudioScheduledSourceNode[] = [];
+      const noise = (kind: 'white' | 'pink' | 'brown', ...chain: AudioNode[]) => {
+        const s = ac.createBufferSource();
+        s.buffer = ch.noise[kind];
+        s.loop = true;
+        s.playbackRate.value = 0.9 + Math.random() * 0.2;
+        let prev: AudioNode = s;
+        for (const n of chain) { prev.connect(n); prev = n; nodes.push(n); }
+        prev.connect(out);
+        s.start();
+        srcs.push(s);
+      };
+      const filt = (type: BiquadFilterType, f: number, q = 0.7) => {
+        const b = ac.createBiquadFilter();
+        b.type = type;
+        b.frequency.value = f;
+        b.Q.value = q;
+        return b;
+      };
+      const gain = (v: number) => { const g = ac.createGain(); g.gain.value = v; return g; };
+      let level = 0.05;
+      let event: (() => void) | null = null;
+      const blip = (freq: number, dur: number, vol: number, type: OscillatorType = 'sine', slide = 0, when = 0) => {
+        const t = ac.currentTime + 0.02 + when;
+        const o = ac.createOscillator();
+        o.type = type;
+        o.frequency.setValueAtTime(freq, t);
+        if (slide) o.frequency.exponentialRampToValueAtTime(Math.max(40, freq + slide), t + dur);
+        const g = ac.createGain();
+        g.gain.setValueAtTime(0.0001, t);
+        g.gain.exponentialRampToValueAtTime(vol, t + 0.01);
+        g.gain.exponentialRampToValueAtTime(0.0001, t + dur);
+        o.connect(g);
+        g.connect(out);
+        o.start(t);
+        o.stop(t + dur + 0.05);
+        o.onended = () => safeDisconnect([o, g]);
+      };
+      switch (world) {
+        case 'neon': // steady rain + distant hum
+          noise('pink', filt('highpass', 900), filt('lowpass', 6500), gain(0.9));
+          noise('brown', filt('lowpass', 120), gain(0.6));
+          level = 0.045;
+          event = () => { if (Math.random() < 0.5) blip(2400 + Math.random() * 1500, 0.04, 0.15, 'sine', -800); };
+          break;
+        case 'paper': { // breezy wind with slow gusts
+          const g = gain(0.8);
+          noise('brown', filt('bandpass', 420, 0.6), g);
+          const lfo = ac.createOscillator();
+          lfo.frequency.value = 0.09;
+          const lg = gain(0.5);
+          lfo.connect(lg);
+          lg.connect(g.gain);
+          lfo.start();
+          srcs.push(lfo);
+          nodes.push(lg);
+          level = 0.05;
+          event = () => { if (Math.random() < 0.25) blip(900 + Math.random() * 300, 0.12, 0.05, 'triangle', 200); };
+          break;
+        }
+        case 'comic': // city rumble + far-off horns
+          noise('brown', filt('lowpass', 260), gain(1));
+          noise('pink', filt('bandpass', 1800, 0.4), gain(0.15));
+          level = 0.05;
+          event = () => {
+            if (Math.random() < 0.12) { const f = 330 + Math.random() * 80; blip(f, 0.25, 0.12, 'square'); blip(f * 1.26, 0.3, 0.1, 'square', 0, 0.28); }
+          };
+          break;
+        case 'toy': // quiet room tone + a ticking clock
+          noise('pink', filt('lowpass', 500), gain(0.5));
+          level = 0.035;
+          event = () => { blip(3200, 0.025, 0.25, 'square'); blip(2600, 0.025, 0.18, 'square', 0, 0.5); };
+          break;
+        case 'plaza': // fountain splash + birdsong
+        default:
+          noise('white', filt('bandpass', 1600, 0.5), gain(0.35));
+          noise('pink', filt('highpass', 3000), gain(0.12));
+          level = 0.045;
+          event = () => {
+            if (Math.random() < 0.35) {
+              const base = 2200 + Math.random() * 1400;
+              for (let i = 0; i < 2 + Math.floor(Math.random() * 3); i++) blip(base + Math.random() * 400, 0.08, 0.12, 'sine', 700, i * 0.11);
+            }
+          };
+      }
+      const t0 = ac.currentTime;
+      out.gain.setValueAtTime(0, t0);
+      out.gain.linearRampToValueAtTime(level, t0 + 2.5);
+      const timer = event ? setInterval(() => { try { if (!this.paused) event!(); } catch { /* ignore */ } }, 1000) : null;
+      this.amb = { out, srcs, nodes, timer };
+    } catch {
+      /* no-throw */
+    }
+  }
+
+  stopAmbience(): void {
+    try {
+      const a = this.amb;
+      this.amb = null;
+      if (!a || !this.ctx) return;
+      if (a.timer) clearInterval(a.timer);
+      const t = this.ctx.currentTime;
+      a.out.gain.cancelScheduledValues(t);
+      a.out.gain.setValueAtTime(a.out.gain.value, t);
+      a.out.gain.linearRampToValueAtTime(0, t + 0.6);
+      setTimeout(() => {
+        for (const s of a.srcs) { try { s.stop(); } catch { /* ignore */ } }
+        safeDisconnect([...a.srcs, ...a.nodes]);
+      }, 800);
     } catch {
       /* no-throw */
     }

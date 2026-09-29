@@ -14,6 +14,7 @@ export class Input {
   sprint = false;
   reloadPressed = false;
   grenadePressed = false;
+  meleePressed = false;
   slotPressed = -1;
   cycle = 0;
   scoreboard = false;
@@ -74,6 +75,7 @@ export class Input {
       case 'Space': this.jumpPressed = true; e.preventDefault(); break;
       case 'KeyR': this.reloadPressed = true; break;
       case 'KeyG': case 'KeyQ': this.grenadePressed = true; break;
+      case 'KeyV': case 'KeyC': this.meleePressed = true; break;
       case 'KeyE': case 'KeyF': this.usePressed = true; break;
       case 'Digit1': this.slotPressed = 0; break;
       case 'Digit2': this.slotPressed = 1; break;
@@ -122,6 +124,7 @@ export class Input {
     }
     if (e.button === 0) this.fire = true;
     if (e.button === 2) this.aim = true;
+    if (e.button === 1) { this.meleePressed = true; e.preventDefault(); }
   }
   private onMouseUp(e: MouseEvent) {
     if (e.button === 0) this.fire = false;
@@ -143,15 +146,70 @@ export class Input {
     }
   }
 
+  // ---- gamepad (standard mapping)
+  private padPrev: boolean[] = [];
+  private padFire = false;
+  private padAim = false;
+  padActive = false;
+  private padX = 0;
+  private padY = 0;
+  private padSprint = false;
+  onPadPause: (() => void) | null = null;
+
+  private pollPad(dt: number) {
+    let pads: (Gamepad | null)[] = [];
+    try { pads = navigator.getGamepads ? Array.from(navigator.getGamepads()) : []; } catch { return; }
+    const gp = pads.find((p) => p && p.connected && p.mapping === 'standard') ?? pads.find((p) => p && p.connected);
+    if (!gp) {
+      if (this.padActive) { this.padActive = false; this.padX = this.padY = 0; if (this.padFire) this.fire = false; if (this.padAim) this.aim = false; this.padFire = this.padAim = false; }
+      return;
+    }
+    const dz = (v: number) => (Math.abs(v) < 0.15 ? 0 : (v - Math.sign(v) * 0.15) / 0.85);
+    const ax = gp.axes;
+    const lx = dz(ax[0] ?? 0), ly = dz(ax[1] ?? 0), rx = dz(ax[2] ?? 0), ry = dz(ax[3] ?? 0);
+    const b = (i: number) => !!gp.buttons[i]?.pressed || (gp.buttons[i]?.value ?? 0) > 0.4;
+    const pressed = (i: number) => b(i) && !this.padPrev[i];
+    const any = lx || ly || rx || ry || gp.buttons.some((x) => x.pressed);
+    if (any) { this.padActive = true; this.touchMode = false; }
+    if (!this.padActive) return;
+    this.padX = lx;
+    this.padY = -ly;
+    // look: quadratic curve for fine aim, ~3 rad/s at full tilt (expressed in mouse-pixel units)
+    const curve = (v: number) => Math.sign(v) * v * v;
+    this.lookDX += curve(rx) * 1300 * dt;
+    this.lookDY += curve(ry) * 900 * dt;
+    if (this.enabled) {
+      const fire = b(7), aim = b(6);
+      if (fire !== this.padFire) { this.fire = fire; this.padFire = fire; }
+      if (aim !== this.padAim) { this.aim = aim; this.padAim = aim; }
+      if (pressed(0)) this.jumpPressed = true;
+      this.jumpHeld = this.jumpHeld || b(0);
+      if (pressed(2)) this.reloadPressed = true;
+      if (pressed(3)) this.cycle = 1;
+      if (pressed(4)) this.grenadePressed = true;
+      if (pressed(5) || pressed(1)) this.meleePressed = true;
+      if (pressed(10)) this.padSprint = !this.padSprint;
+      if (ly > -0.3) this.padSprint = false;
+      if (pressed(12)) this.slotPressed = 0;
+      if (pressed(13)) this.slotPressed = 1;
+      if (pressed(14)) this.slotPressed = 2;
+      if (pressed(15)) this.slotPressed = 3;
+      this.scoreboard = b(8) || this.keys.has('Tab');
+    }
+    if (pressed(9)) this.onPadPause?.();
+    this.padPrev = gp.buttons.map((x) => x.pressed || x.value > 0.4);
+  }
+
   /** Called each frame before reading. Merges keyboard + touch axes. */
-  poll() {
-    let x = this.kbX + this.touchMoveX;
-    let y = this.kbY + this.touchMoveY;
+  poll(dt = 1 / 60) {
+    this.pollPad(dt);
+    let x = this.kbX + this.touchMoveX + this.padX;
+    let y = this.kbY + this.touchMoveY + this.padY;
     const l = Math.hypot(x, y);
     if (l > 1) { x /= l; y /= l; }
     this.moveX = x;
     this.moveY = y;
-    this.sprint = this.kbSprint || this.touchSprint;
+    this.sprint = this.kbSprint || this.touchSprint || this.padSprint;
   }
 
   /** Clear edge-triggered flags after the frame used them. */
@@ -161,6 +219,7 @@ export class Input {
     this.jumpPressed = false;
     this.reloadPressed = false;
     this.grenadePressed = false;
+    this.meleePressed = false;
     this.slotPressed = -1;
     this.cycle = 0;
     this.pausePressed = false;

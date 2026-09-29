@@ -13,7 +13,7 @@ import { TouchControls } from '../ui/Touch';
 import { audio, type SfxName } from '../core/Audio';
 import { EYE } from '../entities/Actor';
 import { WEAPONS } from '../entities/Weapons';
-import { angleDiff, clamp, damp, dirFromYawPitch, isTouchDevice, rand, yawTo } from '../core/utils';
+import { angleDiff, clamp, damp, dirFromYawPitch, isTouchDevice, rand, randomTip, yawTo } from '../core/utils';
 import { addXp, profile, saveProfile } from '../core/Profile';
 import { applyTally, CHALLENGE_XP } from '../core/Challenges';
 import { announcer } from '../core/Announcer';
@@ -35,6 +35,7 @@ export interface MatchSummary {
   levelsGained: number[];
   unlocked: string[];
   challenges: string[];
+  accuracy: number;
 }
 
 export class Game {
@@ -109,6 +110,9 @@ export class Game {
     this.touchMode = isTouchDevice();
     this.input.onWantLock = () => {
       if (this.state === 'playing' && !this.touchMode) this.input.requestLock();
+    };
+    this.input.onPadPause = () => {
+      if (this.state === 'playing' || this.state === 'paused') this.onPauseRequest?.();
     };
     this.input.onLockFailed = () => {
       if (this.lockHintShown) return;
@@ -195,11 +199,17 @@ export class Game {
       el.id = 'loading';
       document.body.appendChild(el);
     }
-    el.textContent = label;
+    el.innerHTML = `<div>${label}</div><small>💡 ${randomTip()}</small>`;
     el.classList.add('show');
     requestAnimationFrame(() => requestAnimationFrame(() => {
       try { fn(); } finally { el!.classList.remove('show'); }
     }));
+  }
+
+  /** Rebuild the current world (settings that affect world construction). */
+  reloadWorld() {
+    this.forceReload = true;
+    if (this.state === 'menu' && this.worldId) this.startAttract(this.worldId);
   }
 
   needsLoad(id: WorldId) {
@@ -209,6 +219,7 @@ export class Game {
 
   loadWorld(id: WorldId) {
     if (this.worldId === id && this.world && !this.forceReload) return;
+    CharacterModel.blobShadows = this.quality === 'low';
     this.forceReload = false;
     this.disposeMatch();
     if (this.world) {
@@ -223,7 +234,7 @@ export class Game {
     this.fx = new Effects(this.world.scene, this.world.mats.mat(0xffffff), th.impact, th.hitWords);
     const t0 = th.teams[0];
     if (this.vm) this.camera.remove(this.vm.root);
-    this.vm = new ViewModel(this.world.mats, t0.primary, th.accent, 0x2a2a3a, th.character.glove, t0.primary, t0.light);
+    this.vm = new ViewModel(this.world.mats, t0.primary, th.accent, 0x2a2a3a, th.character.glove, t0.primary, t0.light, id);
     this.camera.add(this.vm.root);
     this.vm.setAspect(this.camera.aspect);
     this.pipeline.setStyle(th.style);
@@ -232,6 +243,7 @@ export class Game {
     this.weather = this.quality === 'low' ? null : new Weather(wk[id] ?? 'none', this.world.scene);
     this.hud.setTheme(th.hudClass, [th.teams[0].primary, th.teams[1].primary], [th.teams[0].name, th.teams[1].name]);
     audio.setWorld(id);
+    audio.startAmbience(id);
     // warm up shaders
     this.renderer.compile(this.world.scene, this.camera);
   }
@@ -245,6 +257,7 @@ export class Game {
 
   /** Menu background: bots-only match with a cinematic camera. */
   startAttract(id: WorldId) {
+    this.lineup = null;
     const keepHat = this.preview ? this.previewHat : null;
     if (keepHat) this.setPreview(false);
     this.loadWorld(id);
@@ -266,6 +279,7 @@ export class Game {
   }
 
   startMatch(cfg: MatchConfig) {
+    this.lineup = null;
     this.loadWorld(cfg.world);
     this.disposeMatch();
     this.fx!.clear();
@@ -288,6 +302,7 @@ export class Game {
     const p = this.match.player!;
     this.camYaw = p.yaw;
     this.camPitch = 0;
+    this.hud.message(this.world!.theme.name.toUpperCase(), false, '#ffd23f', `${this.world!.theme.name} · ${this.match.mode.info.icon} ${this.match.mode.info.name}`);
     let seen = false;
     try { seen = !!localStorage.getItem('toonfire.tutorial'); localStorage.setItem('toonfire.tutorial', '1'); } catch { /* storage blocked */ }
     if (!seen) {
@@ -360,7 +375,7 @@ export class Game {
       this.renderer.clear();
       return;
     }
-    this.input.poll();
+    this.input.poll(Math.min(rawDt, 0.05));
     if (this.slowT > 0) {
       this.slowT -= dt;
       if (this.slowT <= 0) this.timeScale = 1;
@@ -508,6 +523,7 @@ export class Game {
     if (inp.slotPressed >= 0 && p.switchTo(inp.slotPressed)) m.emit({ type: 'switch', actor: p });
     if (inp.cycle && p.cycle(inp.cycle)) m.emit({ type: 'switch', actor: p });
     if (inp.grenadePressed) m.throwGrenade(p);
+    if (inp.meleePressed) m.melee(p);
     if (p.weapon.def.id !== this.lastWeapon) {
       this.lastWeapon = p.weapon.def.id;
       this.vm!.show(p.weapon.def.id);
@@ -583,6 +599,7 @@ export class Game {
           break;
         case 'damaged':
           if (e.victim === p) {
+            this.buzz(Math.min(60, 15 + e.dmg));
             hud.damageFrom(e.from);
             audio.play('hurt', { volume: 0.8 });
             this.pipeline.flashColor.setRGB(1, 0.15, 0.1);
@@ -598,6 +615,7 @@ export class Game {
           } else if (e.killer === p && playing) {
             hud.toastMsg(`${e.head ? '🎯 HEADSHOT! ' : ''}You splatted ${e.victim.name}  +${100 + (e.head ? 25 : 0)}`);
             this.slowMo(0.25, 0.07);
+            this.buzz([18, 40, 18]);
             if (e.head) announcer.say('Headshot!');
           }
           if (e.assist === p && playing) hud.toastMsg(`Assist on ${e.victim.name}  +50`);
@@ -643,6 +661,13 @@ export class Game {
           break;
         case 'switch':
           if (e.actor === p) { audio.play('switch', { volume: 0.6 }); this.wasReloading = false; }
+          break;
+        case 'melee':
+          if (e.actor === p) {
+            this.vm!.bash();
+            audio.play(e.hit ? 'headshot' : 'whoosh', { volume: e.hit ? 1 : 0.6 });
+            if (e.hit) { this.shake = Math.min(1, this.shake + 0.35); this.slowMo(0.3, 0.06); }
+          } else if (this.isNearCam(e.actor.pos, 20)) audio.play(e.hit ? 'headshot' : 'whoosh', { pos: e.actor.pos, volume: 0.6 });
           break;
         case 'grenade':
           audio.play('grenade_throw', e.actor === p ? {} : { pos: e.actor.pos });
@@ -720,6 +745,11 @@ export class Game {
     }
   }
 
+  private buzz(pattern: number | number[]) {
+    if (!settings.haptics || !this.touchMode) return;
+    try { navigator.vibrate?.(pattern); } catch { /* unsupported */ }
+  }
+
   private isNearCam(p: THREE.Vector3, r: number) {
     return this.camera.position.distanceToSquared(p) < r * r;
   }
@@ -740,14 +770,49 @@ export class Game {
     this.hud.message(winner === -1 ? 'DRAW!' : won ? 'VICTORY!' : 'DEFEAT!', true, winner === -1 ? '#fff' : won ? '#ffd23f' : '#ff5a5a', winner === -1 ? '' : `${winner === 0 ? 'BLUE' : 'RED'} TEAM WINS`);
     audio.play(won ? 'victory' : 'defeat');
     audio.stopMusic(2);
-    // winners dance
-    for (const a of m.actors) {
-      if (a.model && (a.team === winner || winner === -1)) {
-        if (!a.alive) m.spawn(a);
-        a.model.dance = 0.001;
+    this.buildLineup(m, winner);
+  }
+
+  private lineup: { center: THREE.Vector3; fwd: THREE.Vector3 } | null = null;
+
+  /** Winners (or everyone on a draw) line up by their base and dance for the camera. */
+  private buildLineup(m: Match, winner: number) {
+    const team = winner === -1 ? 0 : winner;
+    const dancers = m.actors.filter((a) => winner === -1 || a.team === winner);
+    // MVP in the middle
+    dancers.sort((a, b) => b.stats.score - a.stats.score);
+    const order = [dancers[2], dancers[0], dancers[1], dancers[3], ...dancers.slice(4)].filter(Boolean);
+    const sp = m.world.level.spawns.filter((s) => s.team === team);
+    const base = new THREE.Vector3(...sp[0].pos);
+    // centre of the team's spawns, facing the arena
+    base.set(0, 0, 0);
+    for (const s of sp) base.add(new THREE.Vector3(...s.pos));
+    base.multiplyScalar(1 / sp.length);
+    const yaw = sp[0].yaw;
+    const fwd = new THREE.Vector3(-Math.sin(yaw), 0, -Math.cos(yaw));
+    const right = new THREE.Vector3(Math.cos(yaw), 0, -Math.sin(yaw));
+    const nav = m.world.nav;
+    const c = nav.nearestWalkable(base.x, base.y, base.z, 6);
+    const center = c >= 0 ? nav.cellCenter(c) : base.clone();
+    order.forEach((a, i) => {
+      const off = (i - (order.length - 1) / 2) * 1.6;
+      const target = center.clone().addScaledVector(right, off).addScaledVector(fwd, i === 1 ? 0.6 : 0);
+      const cell = nav.nearestWalkable(target.x, center.y, target.z, 4);
+      const pos = cell >= 0 ? nav.cellCenter(cell) : target;
+      if (!a.alive) m.spawn(a);
+      a.pos.copy(pos);
+      a.vel.set(0, 0, 0);
+      a.yaw = yaw;
+      a.pitch = 0;
+      a.spawnShield = 0;
+      if (a.model) {
+        a.model.dance = 0.001 + i * 0.13;
         a.model.root.visible = true;
+        a.model.root.position.copy(pos);
       }
-    }
+    });
+    // everyone else stays put; the losing side stops shooting (match is over)
+    this.lineup = { center, fwd };
   }
 
   private updateEnd(dt: number, m: Match) {
@@ -796,9 +861,9 @@ export class Game {
       profile.playTime += m.time;
       saveProfile();
       const lv = addXp(total);
-      return { cfg: m.cfg, winner: m.winner, score: [...m.score] as [number, number], player: p, actors: m.actors, mvp: m.mvp, xp, xpTotal: total, levelsGained: lv.gained, unlocked: lv.unlocked, challenges: this.lastChallenges };
+      return { cfg: m.cfg, winner: m.winner, score: [...m.score] as [number, number], player: p, actors: m.actors, mvp: m.mvp, xp, xpTotal: total, levelsGained: lv.gained, unlocked: lv.unlocked, challenges: this.lastChallenges, accuracy: m.tally.shots ? Math.round((m.tally.hits / m.tally.shots) * 100) : 0 };
     }
-    return { cfg: m.cfg, winner: m.winner, score: [...m.score] as [number, number], player: null, actors: m.actors, mvp: m.mvp, xp, xpTotal: 0, levelsGained: [], unlocked: [], challenges: [] };
+    return { cfg: m.cfg, winner: m.winner, score: [...m.score] as [number, number], player: null, actors: m.actors, mvp: m.mvp, xp, xpTotal: 0, levelsGained: [], unlocked: [], challenges: [], accuracy: 0 };
   }
 
   // ------------------------------------------------------------------ camera
@@ -822,6 +887,25 @@ export class Game {
     } else if (this.state === 'menu' || (this.state === 'ended' && !p)) {
       this.spectatorCam(dt, m);
       targetFov = 70;
+    } else if (this.state === 'ended' && this.lineup) {
+      // victory lineup: camera in front of the dancers, gently swaying
+      const L = this.lineup;
+      const sway = Math.sin(this.time * 0.5) * 1.6;
+      const side = new THREE.Vector3(-L.fwd.z, 0, L.fwd.x);
+      this.camPos.copy(L.center).addScaledVector(L.fwd, 6.5).addScaledVector(side, sway);
+      this.camPos.y = L.center.y + 2.1;
+      // keep the camera out of walls: pull it in front of the first obstacle
+      const from = new THREE.Vector3(L.center.x, L.center.y + 1.6, L.center.z);
+      const dir = this.camPos.clone().sub(from);
+      const len = dir.length();
+      dir.normalize();
+      const hit = m.col.raycast(from, dir, len);
+      if (hit) this.camPos.copy(from).addScaledVector(dir, Math.max(1.8, hit.t - 0.4));
+      if (cam.position.distanceTo(this.camPos) > 30) cam.position.copy(this.camPos);
+      cam.position.lerp(this.camPos, 1 - Math.exp(-dt * 3));
+      cam.lookAt(L.center.x, L.center.y + 1.25, L.center.z);
+      targetFov = 55;
+      this.pipeline.desat = damp(this.pipeline.desat, 0, 3, dt);
     } else if (this.state === 'ended') {
       // orbit the MVP / player
       const focus = (m.mvp && m.mvp.alive ? m.mvp : p) ?? m.actors[0];
@@ -832,7 +916,30 @@ export class Game {
       cam.lookAt(focus.pos.x, focus.pos.y + 1.2, focus.pos.z);
       targetFov = 60;
       this.pipeline.desat = damp(this.pipeline.desat, 0, 3, dt);
+    } else if (p && p.alive && m.state === 'countdown' && m.countdown > 0.05 && m.time < 4) {
+      // intro flyover: orbit the arena, then swoop into the player's eyes
+      const total = 3.5;
+      const t = Math.min(1, Math.max(0, 1 - m.countdown / total));
+      const b = m.world.level.bounds;
+      const cx = (b.minX + b.maxX) / 2, cz = (b.minZ + b.maxZ) / 2;
+      const R = Math.min(b.maxX - b.minX, b.maxZ - b.minZ) * 0.34;
+      const eye = new THREE.Vector3(p.pos.x, p.pos.y + EYE, p.pos.z);
+      const eyeQ = new THREE.Quaternion().setFromEuler(new THREE.Euler(p.pitch, p.yaw, 0, 'YXZ'));
+      const a = Math.PI * 0.15 + t * Math.PI * 0.55;
+      const orbit = new THREE.Vector3(cx + Math.sin(a) * R, 30 - t * 8, cz + Math.cos(a) * R);
+      const look = new THREE.Vector3(cx, 0, cz);
+      const k = t < 0.7 ? 0 : (t - 0.7) / 0.3;
+      const e = k * k * (3 - 2 * k);
+      cam.position.copy(orbit).lerp(eye, e);
+      const m4 = new THREE.Matrix4().lookAt(orbit, look, new THREE.Vector3(0, 1, 0));
+      const orbitQ = new THREE.Quaternion().setFromRotationMatrix(m4);
+      cam.quaternion.copy(orbitQ).slerp(eyeQ, e);
+      cam.rotation.setFromQuaternion(cam.quaternion, 'YXZ');
+      this.vm!.setHidden(e < 0.9);
+      this.hud.root.classList.toggle('intro', e < 0.9);
+      targetFov = 70 + (settings.fov - 70) * e;
     } else if (p && p.alive) {
+      this.hud.root.classList.remove('intro');
       // recoil recovery
       this.recoilPitch = damp(this.recoilPitch, 0, 9, dt);
       this.recoilYaw = damp(this.recoilYaw, 0, 9, dt);
@@ -864,6 +971,7 @@ export class Game {
       m.col.pushOut(this.camPos, 0.3, 0.1, 0);
       const t = m.time - p.deathTime;
       if (t < 0.1) cam.position.set(p.pos.x, p.pos.y + EYE, p.pos.z);
+      if (cam.position.distanceTo(this.camPos) > 25) cam.position.copy(this.camPos);
       cam.position.lerp(this.camPos, 1 - Math.exp(-dt * 3));
       cam.lookAt(focus.x, focus.y + 1.2, focus.z);
       this.pipeline.desat = damp(this.pipeline.desat, 0.65, 4, dt);

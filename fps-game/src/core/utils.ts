@@ -82,3 +82,19 @@ export function formatTime(sec: number) {
 export function hexToCss(hex: number) {
   return '#' + hex.toString(16).padStart(6, '0');
 }
+
+export const TIPS = [
+  'Fire the Boomer at your feet mid-jump for a rocket jump!',
+  'Bonk (V) enemies from behind for double damage.',
+  'Double-jump to dodge — bots have a hard time tracking you mid-air.',
+  'Headshots with the Zapper are one-hit knockouts.',
+  'Overcharge doubles your damage for 15 seconds. Streaks of 5 grant it too!',
+  'Health regenerates after a few seconds out of combat.',
+  'Splat Bombs bounce — bank them around corners.',
+  'The duck carrier can\'t regenerate health. Keep them covered!',
+  'In CTF your own flag must be home before you can score.',
+  'Jump pads launch you to high ground in a hurry.',
+  'Rocket knockback can push enemies off the Neon Rooftops.',
+  'Hold the zone uncontested to score in King of the Hill.',
+];
+export const randomTip = () => TIPS[Math.floor(Math.random() * TIPS.length)];

@@ -3,11 +3,11 @@ import type { Match, MatchEvent } from '../game/Match';
 import type { Actor } from '../entities/Actor';
 import { WEAPONS, WEAPON_ORDER } from '../entities/Weapons';
 import { CTF, KOTH, Elimination, DuckMode } from '../modes/Modes';
-import { formatTime, hexToCss } from '../core/utils';
+import { formatTime, hexToCss, randomTip } from '../core/utils';
 import { settings } from '../core/Settings';
 
 const WEAPON_ICON: Record<string, string> = {
-  blaster: '🔫', scatter: '💥', boomer: '🚀', zapper: '⚡', grenade: '💣', void: '🕳️', world: '💫',
+  blaster: '🔫', scatter: '💥', boomer: '🚀', zapper: '⚡', grenade: '💣', bonk: '👊', void: '🕳️', world: '💫',
 };
 
 function el<K extends keyof HTMLElementTagNameMap>(tag: K, cls = '', parent?: HTMLElement, html = ''): HTMLElementTagNameMap[K] {
@@ -135,9 +135,12 @@ export class Hud {
     this.fps = el('div', 'fps', this.root);
     this.vignette = el('div', 'hurtvig', this.root);
     this.hintEl = el('div', 'hint', this.root);
+    this.markerLayer = el('div', 'markers', this.root);
     this.shieldEl = el('div', 'shield', this.root, '🛡️ SPAWN SHIELD');
   }
   private hintEl: HTMLDivElement;
+  private markerLayer!: HTMLDivElement;
+  private markers: HTMLDivElement[] = [];
   private shieldEl: HTMLDivElement;
   private hintT = 0;
 
@@ -174,6 +177,13 @@ export class Hud {
     this.dirs.forEach((d) => d.el.remove());
     this.dirs = [];
     this.cache.clear();
+  }
+
+  /** Set a style property only when it changes (DOM writes are costly on phones). */
+  private sty(key: string, e: HTMLElement, prop: string, v: string) {
+    if (this.cache.get(key) === v) return;
+    this.cache.set(key, v);
+    e.style.setProperty(prop, v);
   }
 
   private set(key: string, e: HTMLElement, v: string, html = false) {
@@ -260,8 +270,8 @@ export class Hud {
     this.set('sb', this.scoreB, String(m.score[0]));
     this.set('sr', this.scoreR, String(m.score[1]));
     const lim = m.mode.scoreLimit;
-    this.barB.style.width = `${Math.min(100, (m.score[0] / lim) * 100)}%`;
-    this.barR.style.width = `${Math.min(100, (m.score[1] / lim) * 100)}%`;
+    this.sty('barB', this.barB, 'width', `${Math.min(100, (m.score[0] / lim) * 100)}%`);
+    this.sty('barR', this.barR, 'width', `${Math.min(100, (m.score[1] / lim) * 100)}%`);
     const tl = m.state === 'countdown' ? m.timeLeft : m.timeLeft;
     this.set('timer', this.timer, formatTime(tl));
     this.timer.classList.toggle('urgent', tl < 30 && m.state === 'playing');
@@ -293,13 +303,14 @@ export class Hud {
       this.centerT = 0.3;
     }
 
+    this.root.classList.toggle('ended', m.state === 'ended');
     const alive = !!p && p.alive && !opts.spectating;
     this.root.classList.toggle('dead', !alive);
     this.root.classList.toggle('spectate', opts.spectating);
     if (p) {
       const hp = Math.max(0, Math.ceil(p.health));
       this.set('hp', this.hpNum, String(hp));
-      this.hpFill.style.width = `${Math.min(100, hp)}%`;
+      this.sty('hpw', this.hpFill, 'width', `${Math.min(100, hp)}%`);
       this.hpBox.classList.toggle('low', hp <= 30);
       this.hpBox.classList.toggle('over', hp > 100);
       this.set('oc', this.oc, p.overcharge > 0 ? `⚡ OVERCHARGE ${Math.ceil(p.overcharge)}s` : '');
@@ -326,8 +337,9 @@ export class Hud {
       if (!p.onGround) spread *= 1.6;
       else if (p.horizSpeed() > 2 && !opts.aiming) spread *= 1.25;
       const px = (spread / ((cam.fov * Math.PI) / 360)) * (window.innerHeight / 2);
-      this.crosshair.style.setProperty('--gap', `${Math.max(4, Math.min(80, px + 4))}px`);
+      this.sty('gap', this.crosshair, '--gap', `${Math.round(Math.max(4, Math.min(80, px + 4)))}px`);
       this.crosshair.classList.toggle('scatter', def.id === 'scatter');
+      this.crosshair.dataset.style = String(settings.crosshair);
       this.crosshair.classList.toggle('hidden', opts.aiming && def.id === 'zapper');
       this.scope.classList.toggle('show', opts.aiming && def.id === 'zapper' && alive);
       this.carry.classList.toggle('show', p.carrying >= 0 && alive);
@@ -339,7 +351,8 @@ export class Hud {
         const t = Math.max(0, Math.ceil(p.respawnTimer));
         const html = `<div class="rs-title">${k ? `SPLATTED BY <span style="color:${this.teamColors[k.team]}">${esc(k.name)}</span>` : 'SPLATTED!'}</div>` +
           (k ? `<div class="rs-sub">${k.health > 0 ? `${esc(k.name)} has ${Math.ceil(k.health)} HP left` : ''}</div>` : '') +
-          `<div class="rs-count">${elim ? 'Spectating until next round…' : m.state === 'playing' ? `Respawning in ${t}` : ''}</div>`;
+          `<div class="rs-count">${elim ? 'Spectating until next round…' : m.state === 'playing' ? `Respawning in ${t}` : ''}</div>` +
+          `<div class="rs-tip">💡 ${esc(this.tipFor(p.deathTime))}</div>`;
         this.set('rs', this.respawn, html, true);
         this.respawn.classList.add('show');
       } else this.respawn.classList.remove('show');
@@ -387,6 +400,8 @@ export class Hud {
       this.vignette.classList.toggle('low', p.alive && p.health <= 30);
     }
 
+    this.updateMarkers(m, cam, alive);
+
     // minimap @ ~20fps
     this.mapT -= dt;
     if (this.mapT <= 0) {
@@ -403,6 +418,51 @@ export class Hud {
       }
       this.fps.style.display = 'block';
     } else this.fps.style.display = 'none';
+  }
+
+  /** Objective markers (flags, zone, duck) projected to screen and clamped to the edges. */
+  private updateMarkers(m: Match, cam: THREE.PerspectiveCamera, alive: boolean) {
+    const list: { pos: THREE.Vector3; icon: string; color: string; label: string }[] = [];
+    const p = m.player;
+    if (alive && p && m.state !== 'ended') {
+      const my = p.team, en = my === 0 ? 1 : 0;
+      if (m.mode instanceof CTF) {
+        const fe = m.mode.flags[en], fo = m.mode.flags[my];
+        if (p.carrying >= 0) list.push({ pos: fo.home, icon: '🏠', color: this.teamColors[my], label: 'HOME' });
+        else if (!fe.carrier || fe.carrier !== p) list.push({ pos: fe.pos, icon: '🚩', color: this.teamColors[en], label: fe.carrier ? 'ESCORT' : 'TAKE' });
+        if (!fo.atHome) list.push({ pos: fo.pos, icon: '🚩', color: this.teamColors[my], label: fo.carrier ? 'STOLEN' : 'RETURN' });
+      } else if (m.mode instanceof KOTH) {
+        const z = m.mode;
+        list.push({ pos: z.center, icon: '👑', color: z.owner < 0 ? '#ffffff' : this.teamColors[z.owner], label: z.contested ? 'FIGHT' : z.owner === my ? 'HOLD' : 'TAKE' });
+      } else if (m.mode instanceof DuckMode) {
+        const d = m.mode;
+        if (d.carrier !== p) list.push({ pos: d.pos, icon: '🦆', color: d.carrier ? this.teamColors[d.carrier.team] : '#ffd23f', label: !d.carrier ? 'GRAB' : d.carrier.team === my ? 'GUARD' : 'CHASE' });
+      }
+    }
+    while (this.markers.length < list.length) this.markers.push(el('div', 'marker', this.markerLayer));
+    const W = window.innerWidth, H = window.innerHeight;
+    const v = new THREE.Vector3();
+    this.markers.forEach((mk, i) => {
+      const it = list[i];
+      if (!it) { mk.style.display = 'none'; return; }
+      mk.style.display = '';
+      v.set(it.pos.x, it.pos.y + 2.6, it.pos.z).project(cam);
+      let x = v.x, y = v.y;
+      const behind = v.z > 1;
+      if (behind) { x = -x; y = -y; }
+      const margin = 0.88;
+      const off = behind || Math.abs(x) > margin || Math.abs(y) > margin;
+      if (off) {
+        const k = margin / Math.max(Math.abs(x), Math.abs(y), 1e-3);
+        x *= k; y *= k;
+        if (behind && Math.abs(y) < margin * 0.9) y = -margin; // behind you: stick to bottom edge
+      }
+      const dist = Math.round(cam.position.distanceTo(it.pos));
+      const html = `<b style="--mc:${it.color}">${it.icon}</b><span>${it.label} · ${dist}m</span>`;
+      if (mk.dataset.h !== html) { mk.innerHTML = html; mk.dataset.h = html; }
+      mk.classList.toggle('edge', off);
+      mk.style.transform = `translate(${(x * 0.5 + 0.5) * W}px, ${(-y * 0.5 + 0.5) * H}px) translate(-50%, -50%)`;
+    });
   }
 
   private buildMapImage(m: Match) {
@@ -511,6 +571,13 @@ export class Hud {
     g.beginPath();
     g.arc(S / 2, S / 2, S / 2 - 3, 0, Math.PI * 2);
     g.stroke();
+  }
+
+  private tipKey = -1;
+  private tip = '';
+  private tipFor(key: number) {
+    if (key !== this.tipKey) { this.tipKey = key; this.tip = randomTip(); }
+    return this.tip;
   }
 
   showScoreboard(v: boolean, m: Match | null) {

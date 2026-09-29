@@ -56,6 +56,7 @@ export class Actor {
   switchT = 0;
   grenades = 2;
   grenadeCd = 0;
+  meleeCd = 0;
   overcharge = 0;
   stats: Stats = { kills: 0, deaths: 0, assists: 0, score: 0, caps: 0, returns: 0, damage: 0, streak: 0, bestStreak: 0, headshots: 0, zoneTime: 0 };
   damagers = new Map<number, number>();

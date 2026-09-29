@@ -313,6 +313,7 @@ tr.deadrow td { opacity: 0.5; }
 .tbtn.reload { right: calc(30px * var(--ts) + var(--safe-r)); bottom: calc(200px * var(--ts) + var(--safe-b)); }
 .tbtn.swap { right: calc(200px * var(--ts) + var(--safe-r)); bottom: calc(96px * var(--ts) + var(--safe-b)); }
 .tbtn.nade { right: calc(26px * var(--ts) + var(--safe-r)); bottom: calc(18px * var(--ts) + var(--safe-b)); width: calc(52px * var(--ts)); height: calc(52px * var(--ts)); }
+.tbtn.melee { right: calc(212px * var(--ts) + var(--safe-r)); bottom: calc(196px * var(--ts) + var(--safe-b)); width: calc(52px * var(--ts)); height: calc(52px * var(--ts)); }
 .tbtn.sprint { left: calc(24px * var(--ts) + var(--safe-l)); bottom: calc(130px * var(--ts) + var(--safe-b)); width: calc(52px * var(--ts)); height: calc(52px * var(--ts)); }
 .tbtn.pause { left: 50%; top: calc(8px + var(--safe-t)); transform: translateX(170px); }
 .tbtn.score { left: 50%; top: calc(8px + var(--safe-t)); transform: translateX(-210px); }
@@ -457,3 +458,44 @@ body.touch-ui .hint { bottom: auto; top: calc(88px + var(--safe-t)); font-size: 
 }
 
 #ctxlost { position: fixed; inset: 0; z-index: 200; display: grid; place-items: center; background: rgba(14, 10, 40, 0.92); color: #fff; font-family: var(--font-display); font-size: 26px; text-align: center; padding: 20px; cursor: pointer; }
+
+.crosshair[data-style="1"] i:not(.d) { display: none; }
+.crosshair[data-style="1"] .d { width: 6px; height: 6px; left: -3px; top: -3px; }
+.crosshair[data-style="2"] i:not(.d) { display: none; }
+.crosshair[data-style="2"]::before { content: ''; position: absolute; left: calc(-1 * var(--gap) - 6px); top: calc(-1 * var(--gap) - 6px); width: calc(2 * var(--gap) + 12px); height: calc(2 * var(--gap) + 12px); border-radius: 50%; border: 2.5px solid #fff; box-shadow: 0 0 0 1.5px rgba(0,0,0,0.8), inset 0 0 0 1.5px rgba(0,0,0,0.8); box-sizing: border-box; }
+
+.hud.intro .crosshair, .hud.intro .hitmarker { display: none; }
+
+.hud.ended .hpbox, .hud.ended .ammobox, .hud.ended .crosshair, .hud.ended .hint, .hud.ended .minimap, .hud.ended .scope, .hud.ended .respawn, .hud.ended .carry, .hud.ended .shield, .hud.ended .dirlayer, .hud.ended .hurtvig { display: none !important; }
+
+.markers { position: absolute; inset: 0; pointer-events: none; }
+.marker { position: absolute; left: 0; top: 0; display: flex; flex-direction: column; align-items: center; gap: 1px; font-family: var(--font-body); }
+.marker b { display: grid; place-items: center; width: 30px; height: 30px; border-radius: 50%; background: var(--mc); border: 3px solid #fff; box-shadow: 0 0 0 2px rgba(0,0,0,0.6), 0 0 12px var(--mc); font-size: 15px; }
+.marker span { font-size: 11px; font-weight: 800; color: #fff; text-shadow: 0 1px 0 #000, 0 0 3px #000; white-space: nowrap; }
+.marker.edge { opacity: 0.85; }
+.marker.edge b { width: 24px; height: 24px; font-size: 12px; }
+.hud.dead .markers { display: none; }
+
+/* results on short landscape screens: two columns, compact tables, buttons always visible */
+.res-buttons { position: sticky; bottom: -16px; padding: 8px 0 12px; background: linear-gradient(transparent, #fffdf5 30%); }
+@media (max-height: 560px) and (min-width: 640px) {
+  .res-title { font-size: 40px; -webkit-text-stroke: 4px var(--ink); }
+  .res-score { font-size: 20px; }
+  .res-sub { font-size: 12px; margin-bottom: 4px; }
+  .res-grid { grid-template-columns: 1.3fr 1fr; gap: 10px; }
+  .res-tables table { font-size: 11px; }
+  .res-tables th, .res-tables td { padding: 1px 6px; }
+  .res-tables caption { font-size: 14px; }
+  .res-xp { padding: 6px 10px; font-size: 12px; }
+  .xprow.total { font-size: 16px; }
+  .levelup { font-size: 16px; }
+  .res-buttons .btn.big { font-size: 20px; padding: 8px 20px; }
+}
+
+.res-stats { display: grid; grid-template-columns: repeat(3, 1fr); gap: 6px; margin-bottom: 6px; }
+.res-stats div { border: 2px solid var(--ink); border-radius: 10px; text-align: center; padding: 2px 4px; background: #f6f3ff; }
+.res-stats b { display: block; font-family: var(--font-display); font-size: 18px; font-variant-numeric: tabular-nums; }
+.res-stats span { font-size: 11px; font-weight: 700; opacity: 0.7; }
+
+.rs-tip { margin-top: 10px; font-weight: 700; font-size: 14px; color: #fff; background: rgba(14, 10, 40, 0.7); border-radius: 12px; padding: 6px 12px; max-width: min(520px, 90vw); font-family: var(--font-body); }
+#loading small { display: block; font-family: var(--font-body); font-size: 14px; color: #fff; margin-top: 6px; max-width: 420px; font-weight: 600; }

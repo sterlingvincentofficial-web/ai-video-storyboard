@@ -37,6 +37,8 @@ Built with Three.js and TypeScript. Everything is procedural: the geometry, text
 
 **Pickups:** health, ammo, the Boomer and Zapper, and Overcharge (double damage).
 
+**Melee:** V, or middle-click, does a **BONK** with your blaster. It does double damage from behind.
+
 **Movement:** double jump, sprint, and jump pads.
 
 ## Progression and extras
@@ -44,7 +46,16 @@ Built with Three.js and TypeScript. Everything is procedural: the geometry, text
 - XP and levels, with 15 unlockable hats.
 - Three daily challenges.
 - Career stats.
-- Kill cam, then an end-of-match victory dance and results screen.
+- A camera flyover of the map at the start of each match.
+- Kill cam, then an end-of-match victory lineup where the winners dance, followed by the results screen.
+- A live 3D preview of your trooper in the Loadout screen. You can try on locked hats.
+- A cartoon announcer using the browser's speech synthesis (can be turned off), speech bubbles over bots when they chat, and hit-stop and slow-motion on big moments.
+- Ambient weather: rain on Neon Rooftops, paper flakes in Paper Fort, soap bubbles in Splat Plaza.
+- Objective markers for flags, the KOTH zone and the duck, with distances. They clamp to the screen edge when off-screen.
+- A first-person blaster styled for each world: cardboard and tape, a finned ray gun, a foam-dart blaster, or a glowing plasma gun.
+- A colour-blind option (blue vs orange teams), three crosshair styles, reduced-motion support, and phone vibration.
+- Gamepad support (standard mapping).
+- Match stats on the results screen (damage, accuracy, best streak) and gameplay tips while respawning and loading.
 
 Settings and progress are saved in `localStorage`.
 
@@ -54,8 +65,9 @@ Settings and progress are saved in `localStorage`.
 |---|---|
 | WASD move · Shift sprint · Space jump (twice to double jump) | Left thumb: floating joystick (push to the edge to sprint) |
 | Mouse aim · LMB fire · RMB aim/scope | Right thumb: drag to look |
-| R reload · 1–4 / wheel switch · G or Q Splat Bomb | 🔥 fire (drag on it to aim while firing), ⤒ jump, ◎ scope, ↻ reload, ⇄ swap, 💣 bomb |
+| R reload · 1–4 / wheel switch · G or Q Splat Bomb · V bonk | 🔥 fire (drag on it to aim while firing), ⤒ jump, ◎ scope, ↻ reload, ⇄ swap, 💣 bomb, 👊 bonk |
 | Tab scoreboard · Esc pause | ☰ scoreboard · Ⅱ pause |
+| 🎮 Gamepad: sticks move/aim · RT fire · LT scope · A jump · X reload · Y swap · LB bomb · RB/B bonk · Start pause | |
 
 If the page can't capture the mouse (some embedded frames block it), drag with the left button to aim and fire, or with the right button to just look. The arrow keys also turn.
 

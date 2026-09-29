@@ -12,6 +12,8 @@ export interface MatchTally {
   duckTime: number;
   doubleJumps: number;
   pickups: number;
+  shots: number;
+  hits: number;
   won: boolean;
   mode: string;
   world: string;
@@ -19,7 +21,7 @@ export interface MatchTally {
 }
 
 export function emptyTally(mode: string, world: string): MatchTally {
-  return { kills: 0, headshots: 0, weaponKills: {}, bestStreak: 0, caps: 0, zoneTime: 0, duckTime: 0, doubleJumps: 0, pickups: 0, won: false, mode, world, played: true };
+  return { kills: 0, headshots: 0, weaponKills: {}, bestStreak: 0, caps: 0, zoneTime: 0, duckTime: 0, doubleJumps: 0, pickups: 0, shots: 0, hits: 0, won: false, mode, world, played: true };
 }
 
 interface ChallengeDef {
@@ -31,7 +33,7 @@ interface ChallengeDef {
 
 const WORLD_NAMES: Record<string, string> = { plaza: 'Splat Plaza', paper: 'Paper Fort', comic: 'Ink City', toy: 'Toy Box', neon: 'Neon Rooftops' };
 const MODE_NAMES: Record<string, string> = { tdm: 'Team Splat', ctf: 'Capture the Flag', koth: 'King of the Hill', duck: 'Duck Rush', elim: 'Elimination' };
-const WEAPON_NAMES: Record<string, string> = { blaster: 'the Blaster', scatter: 'the Scatter', boomer: 'the Boomer', zapper: 'the Zapper', grenade: 'Splat Bombs' };
+const WEAPON_NAMES: Record<string, string> = { blaster: 'the Blaster', scatter: 'the Scatter', boomer: 'the Boomer', zapper: 'the Zapper', grenade: 'Splat Bombs', bonk: 'melee bonks' };
 
 const POOL: ChallengeDef[] = [
   { id: 'kills20', text: 'Splat 20 enemies', goal: 20, add: (t) => t.kills },
@@ -44,7 +46,7 @@ const POOL: ChallengeDef[] = [
   { id: 'caps2', text: 'Capture 2 flags', goal: 2, add: (t) => t.caps },
   { id: 'zone60', text: 'Stand in the KOTH zone for 60 s', goal: 60, add: (t) => Math.round(t.zoneTime) },
   { id: 'duck30', text: 'Carry the duck for 30 s', goal: 30, add: (t) => Math.round(t.duckTime) },
-  ...['blaster', 'scatter', 'boomer', 'zapper', 'grenade'].map((w) => ({ id: `w_${w}`, text: `Splat 6 enemies with ${WEAPON_NAMES[w]}`, goal: 6, add: (t: MatchTally) => t.weaponKills[w] ?? 0 })),
+  ...['blaster', 'scatter', 'boomer', 'zapper', 'grenade', 'bonk'].map((w) => ({ id: `w_${w}`, text: `Splat ${w === 'bonk' ? 3 : 6} enemies with ${WEAPON_NAMES[w]}`, goal: w === 'bonk' ? 3 : 6, add: (t: MatchTally) => t.weaponKills[w] ?? 0 })),
   ...Object.keys(WORLD_NAMES).map((w) => ({ id: `win_${w}`, text: `Win a match in ${WORLD_NAMES[w]}`, goal: 1, add: (t: MatchTally) => (t.won && t.world === w ? 1 : 0) })),
   ...Object.keys(MODE_NAMES).map((m) => ({ id: `mode_${m}`, text: `Play 2 matches of ${MODE_NAMES[m]}`, goal: 2, add: (t: MatchTally) => (t.mode === m ? 1 : 0) })),
 ];

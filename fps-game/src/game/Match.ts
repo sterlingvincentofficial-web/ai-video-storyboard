@@ -49,6 +49,7 @@ export type MatchEvent =
   | { type: 'empty'; actor: Actor }
   | { type: 'switch'; actor: Actor }
   | { type: 'grenade'; actor: Actor }
+  | { type: 'melee'; actor: Actor; hit: boolean }
   | { type: 'bounce'; pos: THREE.Vector3 }
   | { type: 'end'; winner: number };
 
@@ -299,6 +300,7 @@ export class Match implements BotWorld {
       }
       b.update(dt, this);
       if (b.wantGrenade) this.throwGrenade(a);
+      if (b.wantMelee) this.melee(a);
     }
 
     for (const a of this.actors) this.updateActor(a, dt, active);
@@ -326,6 +328,7 @@ export class Match implements BotWorld {
     if (a.health < a.maxHealth && a.carrying !== 2 && this.time - a.lastDamageTime > 4.5) a.health = Math.min(a.maxHealth, a.health + 14 * dt);
     a.fireCd -= dt;
     a.grenadeCd -= dt;
+    a.meleeCd -= dt;
     if (a.switchT > 0) {
       a.switchT -= dt;
       if (a.model) a.model.setWeapon(a.weapon.def.id, this.world.mats, this.weaponColor(a));
@@ -495,6 +498,10 @@ export class Match implements BotWorld {
         this.fx.impactWorld(wall.point, wall.normal, color, def.id === 'zapper');
       }
     }
+    if (a.isPlayer) {
+      this.tally.shots++;
+      if (hitAgg.size) this.tally.hits++;
+    }
     for (const [o, h] of hitAgg) this.damage(o, h.dmg, a, def.id, h.head, h.pos, dir);
   }
 
@@ -525,6 +532,40 @@ export class Match implements BotWorld {
     mesh.position.copy(muzzle);
     this.group.add(mesh);
     this.projectiles.push({ kind: 'rocket', owner: a, pos: pos.clone(), vel: dir.multiplyScalar(def.projectile!.speed), life: 4, mesh, def, alive: true, overcharged: a.overcharge > 0, bounces: 0 });
+  }
+
+  /** Cartoon bonk: short-range bash with the blaster. Hits from behind do double damage. */
+  melee(a: Actor) {
+    if (!a.alive || a.meleeCd > 0 || this.state !== 'playing') return;
+    a.meleeCd = 0.7;
+    a.spawnShield = 0;
+    const dir = dirFromYawPitch(a.yaw, Math.max(-0.4, Math.min(0.4, a.pitch)), new THREE.Vector3());
+    const eye = new THREE.Vector3(a.pos.x, a.pos.y + EYE - 0.3, a.pos.z);
+    let best: Actor | null = null;
+    let bestD = 2.7;
+    const to = new THREE.Vector3();
+    for (const o of this.actors) {
+      if (!o.alive || o.team === a.team) continue;
+      to.set(o.pos.x, o.pos.y + 1, o.pos.z).sub(eye);
+      const d = to.length();
+      if (d > bestD) continue;
+      if (to.dot(dir) / Math.max(d, 1e-3) < 0.55 && d > 1.1) continue;
+      if (!this.col.lineOfSight(eye, o.center(new THREE.Vector3()))) continue;
+      best = o;
+      bestD = d;
+    }
+    a.model?.fire();
+    this.emit({ type: 'melee', actor: a, hit: !!best });
+    if (!best) return;
+    const fwd = dirFromYawPitch(best.yaw, 0, new THREE.Vector3());
+    const back = fwd.x * dir.x + fwd.z * dir.z > 0.5; // attacker is behind the victim
+    const pos = best.center(new THREE.Vector3()).add(new THREE.Vector3(0, 0.4, 0));
+    this.damage(best, back ? 100 : 55, a, 'bonk', false, pos, dir);
+    best.vel.addScaledVector(new THREE.Vector3(dir.x, 0, dir.z).normalize(), 7);
+    best.vel.y += 3.5;
+    best.onGround = false;
+    this.fx.pop(pos, back ? 'BACK BONK!' : 'BONK!', back ? 1.7 : 1.4);
+    this.fx.impactActor(pos, this.world.theme.teams[best.team].primary, true);
   }
 
   throwGrenade(a: Actor) {

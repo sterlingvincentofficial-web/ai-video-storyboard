@@ -43,6 +43,7 @@ export class TouchControls {
     mk('reload', '↻');
     mk('swap', '⇄');
     mk('nade', '💣');
+    mk('melee', '👊');
     mk('sprint', '»');
     mk('pause', 'Ⅱ', 'tiny');
     mk('score', '☰', 'tiny');
@@ -159,6 +160,7 @@ export class TouchControls {
     press('reload', () => { this.input.reloadPressed = true; });
     press('swap', () => { this.input.cycle = 1; });
     press('nade', () => { this.input.grenadePressed = true; });
+    press('melee', () => { this.input.meleePressed = true; });
     press('sprint', () => { this.sprintLatch = !this.sprintLatch; this.input.touchSprint = this.sprintLatch; this.btns.sprint.classList.toggle('latched', this.sprintLatch); });
     press('pause', () => this.onPause?.());
     press('score', () => { this.sbOn = !this.sbOn; this.onScoreboard?.(this.sbOn); });

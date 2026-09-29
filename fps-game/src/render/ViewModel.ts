@@ -52,8 +52,21 @@ export class ViewModel {
   private sleeve: THREE.Material;
 
   accentColor: number;
-  constructor(private mats: MaterialKit, body: number, accent: number, dark: number, glove: number, sleeve: number, glowColor: number) {
+  private style: string;
+  constructor(private mats: MaterialKit, body: number, accent: number, dark: number, glove: number, sleeve: number, glowColor: number, style = 'plaza') {
     this.accentColor = accent;
+    this.style = style;
+    if (style === 'paper') {
+      // cardboard-and-tape blaster in team colours
+      accent = body;
+      body = 0xc8955a;
+      this.accentColor = accent;
+    } else if (style === 'toy') {
+      dark = 0xff8a1a; // foam-dart orange details
+    } else if (style === 'comic') {
+      accent = 0xffd21f;
+      this.accentColor = accent;
+    }
     this.root.scale.setScalar(SCALE);
     this.root.add(this.sway);
     this.sway.add(this.kick);
@@ -185,6 +198,7 @@ export class ViewModel {
       }
     }
     g.add(muzzle);
+    this.decorate(id, g, muzzle, B, A, D, G);
     consolidate(g, this.vmMat, true);
     g.userData.base = g.position.clone();
     g.visible = false;
@@ -199,11 +213,74 @@ export class ViewModel {
     this.sway.position.set(-0.2 * t, -0.04 * t, -0.42 * t);
   }
 
+  /** World-specific extra parts so each world's guns match its concept art. */
+  private decorate(id: WeaponId, g: THREE.Group, muzzle: THREE.Object3D, B: THREE.Material, A: THREE.Material, D: THREE.Material, G: THREE.Material) {
+    const add = (geo: THREE.BufferGeometry, m: THREE.Material, x: number, y: number, z: number, rx = 0, ry = 0, rz = 0) => {
+      const mesh = new THREE.Mesh(geo, m);
+      mesh.position.set(x, y, z);
+      mesh.rotation.set(rx, ry, rz);
+      g.add(mesh);
+      return mesh;
+    };
+    const mz = muzzle.position.z;
+    const my = muzzle.position.y;
+    const len = Math.abs(mz);
+    switch (this.style) {
+      case 'paper': {
+        const tape = new THREE.MeshLambertMaterial({ color: 0xece3cf });
+        for (const z of [-len * 0.15, len * 0.35]) add(new THREE.BoxGeometry(id === 'boomer' ? 0.38 : 0.24, 0.05, 0.08), tape, 0, id === 'boomer' ? 0.17 : 0.11, z);
+        add(new THREE.BoxGeometry(0.02, 0.1, 0.18), A, 0.1, 0.02, -len * 0.05);
+        break;
+      }
+      case 'comic': {
+        // retro ray-gun fins and rings
+        for (let i = 0; i < 3; i++) add(new THREE.TorusGeometry(id === 'boomer' ? 0.2 : 0.08, 0.022, 6, 14), A, 0, my, mz + 0.12 + i * 0.07);
+        const fin = new THREE.BoxGeometry(0.02, 0.14, 0.16);
+        add(fin, D, 0, 0.15, 0.18, 0.3);
+        add(fin, D, 0.1, 0.02, 0.2, 0, 0, -1.2);
+        add(fin, D, -0.1, 0.02, 0.2, 0, 0, 1.2);
+        add(new THREE.SphereGeometry(0.06, 10, 8), A, 0, 0.16, 0.06);
+        break;
+      }
+      case 'toy': {
+        // foam dart tips peeking out of the barrel + priming handle
+        const tipM = new THREE.MeshLambertMaterial({ color: 0xff7a1a });
+        const n = id === 'scatter' ? 3 : 1;
+        for (let i = 0; i < n; i++) add(new THREE.CylinderGeometry(0.035, 0.035, 0.06, 10), tipM, (i - (n - 1) / 2) * 0.07, my, mz - 0.01, Math.PI / 2);
+        add(new THREE.BoxGeometry(0.12, 0.05, 0.1), tipM, 0, 0.15, 0.22);
+        add(new THREE.SphereGeometry(0.05, 10, 8), A, 0.09, 0.05, 0.1);
+        break;
+      }
+      case 'neon': {
+        // glowing side strips (kept as separate glow meshes)
+        for (const s of [-1, 1]) {
+          const strip = add(new THREE.BoxGeometry(0.012, 0.02, len * 0.7), G, s * (id === 'boomer' ? 0.175 : 0.105), 0.02, -len * 0.25);
+          strip.userData.keep = true;
+        }
+        break;
+      }
+      default: {
+        // plaza: paint drips on the tank / body
+        const drip = new THREE.MeshLambertMaterial({ color: this.accentColor });
+        add(new THREE.SphereGeometry(0.04, 8, 6), drip, 0.1, -0.06, -len * 0.2);
+        add(new THREE.SphereGeometry(0.03, 8, 6), drip, 0.09, -0.1, -len * 0.18);
+        break;
+      }
+    }
+    void B;
+  }
+
   show(id: WeaponId) {
     this.current = id;
     this.guns.forEach((g, k) => (g.visible = k === id));
     const m = this.muzzles.get(id)!;
     m.add(this.flash);
+  }
+
+  private bashT = 0;
+  /** Melee swing. */
+  bash() {
+    this.bashT = 1;
   }
 
   fire(strength = 1) {
@@ -261,6 +338,15 @@ export class ViewModel {
       rl * 0.5 + this.sprintT * 0.3,
     );
     g.position.y -= sw * 0.4 + rl * 0.12;
+    if (this.bashT > 0) {
+      this.bashT = Math.max(0, this.bashT - dt * 3.2);
+      const k = Math.sin((1 - this.bashT) * Math.PI);
+      g.position.x -= k * 0.22;
+      g.position.z -= k * 0.28;
+      g.position.y += k * 0.06;
+      g.rotation.y += k * 0.9;
+      g.rotation.z += k * 0.5;
+    }
     const spin = this.spinners.get(this.current);
     if (spin) {
       if (this.current === 'scatter') spin.position.z = -0.22 + Math.max(0, this.recoil - 0.6) * 0.15;

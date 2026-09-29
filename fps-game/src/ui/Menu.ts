@@ -315,6 +315,7 @@ export class Menu {
             ${toggle('invertY', 'Invert Y')}
             ${toggle('aimAssist', 'Aim assist')}
             ${toggle('autoFire', 'Auto-fire (touch)')}
+            ${toggle('haptics', 'Vibration (touch)')}
             ${slider('touchScale', 'Touch button size', 0.7, 1.4, 0.05)}
             <h3>Audio</h3>
             ${slider('master', 'Master', 0, 1, 0.05, (v) => `${Math.round(v * 100)}%`)}
@@ -330,6 +331,8 @@ export class Menu {
             ${toggle('screenShake', 'Screen shake')}
             ${toggle('damageNumbers', 'Damage numbers')}
             ${toggle('showFps', 'Show FPS')}
+            ${toggle('colorblind', 'Colour-blind teams')}
+            <label class="row"><span>Crosshair</span><div class="seg xh">${['Cross', 'Dot', 'Circle'].map((n, i) => `<div class="${s.crosshair === i ? 'sel' : ''}" data-x="${i}">${n}</div>`).join('')}</div></label>
             <h3>Data</h3>
             <div class="row"><button class="btn small reset-s">Reset settings</button></div>
           </div>
@@ -354,6 +357,7 @@ export class Menu {
         t.classList.toggle('on', !!s[k]);
         saveSettings();
         this.applyLive();
+        if (k === 'colorblind') this.game.reloadWorld();
       }),
     );
     d.querySelectorAll<HTMLElement>('.seg.q > div').forEach((c) =>
@@ -362,6 +366,13 @@ export class Menu {
         saveSettings();
         d.querySelectorAll('.seg.q > div').forEach((x) => x.classList.toggle('sel', x === c));
         this.game.applyQuality();
+      }),
+    );
+    d.querySelectorAll<HTMLElement>('.seg.xh > div').forEach((c) =>
+      c.addEventListener('click', () => {
+        s.crosshair = +c.dataset.x!;
+        saveSettings();
+        d.querySelectorAll('.seg.xh > div').forEach((x) => x.classList.toggle('sel', x === c));
       }),
     );
     d.querySelector('.reset-s')!.addEventListener('click', () => {
@@ -388,13 +399,14 @@ export class Menu {
             <li><kbd>Space</kbd> jump — press again in the air to <b>double jump</b></li>
             <li><kbd>Mouse</kbd> aim · <kbd>LMB</kbd> fire · <kbd>RMB</kbd> aim / scope</li>
             <li><kbd>R</kbd> reload · <kbd>1-4</kbd> / wheel switch weapon</li>
-            <li><kbd>G</kbd> or <kbd>Q</kbd> throw a Splat Bomb</li>
-            <li><kbd>Tab</kbd> scoreboard · <kbd>Esc</kbd> pause</li></ul></div>
+            <li><kbd>G</kbd> or <kbd>Q</kbd> throw a Splat Bomb · <kbd>V</kbd> / middle-click <b>BONK</b> (double damage from behind!)</li>
+            <li><kbd>Tab</kbd> scoreboard · <kbd>Esc</kbd> pause</li>
+            <li>🎮 Gamepads work too: sticks move/aim, RT fire, LT scope, A jump, X reload, Y swap, LB bomb, RB/B bonk, Start pause</li></ul></div>
           <div><h3>📱 Mobile</h3><ul>
             <li>Left thumb: floating joystick (push to the top edge to sprint)</li>
             <li>Right thumb: drag anywhere to look</li>
             <li>🔥 fire (drag on it to aim while shooting)</li>
-            <li>⤒ jump (tap twice to double jump), ◎ scope, ↻ reload, ⇄ swap, 💣 bomb</li>
+            <li>⤒ jump (tap twice to double jump), ◎ scope, ↻ reload, ⇄ swap, 💣 bomb, 👊 bonk</li>
             <li>Aim assist and auto-fire can be toggled in Settings</li></ul></div>
           <div><h3>🔫 Arsenal</h3><ul>
             <li><b>Blaster</b> — full-auto all-rounder</li>
@@ -459,6 +471,7 @@ export class Menu {
         <div class="res-grid">
           <div class="res-tables"><table class="blue"><caption>BLUE</caption>${head}${rows(0)}</table><table class="red"><caption>RED</caption>${head}${rows(1)}</table></div>
           <div class="res-xp">
+            ${p ? `<div class="res-stats"><div><b>${Math.round(p.stats.damage)}</b><span>Damage</span></div><div><b>${s.accuracy}%</b><span>Accuracy</span></div><div><b>${p.stats.bestStreak}</b><span>Best streak</span></div></div>` : ''}
             <h3>XP earned</h3>${xpRows}
             <div class="xprow total"><span>Total</span><b>+${s.xpTotal}</b></div>
             <div class="lvline">Level <b>${profile.level}</b></div>
