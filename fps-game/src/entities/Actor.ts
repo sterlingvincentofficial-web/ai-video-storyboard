@@ -6,7 +6,7 @@ import type { Collision } from '../world/Level';
 export const RADIUS = 0.45;
 export const HEIGHT = 1.7;
 export const EYE = 1.55;
-export const STEP_UP = 0.6;
+export const STEP_UP = 0.62;
 
 export interface Physics {
   gravity: number;

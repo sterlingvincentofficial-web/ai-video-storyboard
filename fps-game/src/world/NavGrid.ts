@@ -7,8 +7,8 @@ import type { Collision, LevelData } from './Level';
  * Jump pads add one-way links.
  */
 
-const STEP = 0.6;
-const JUMP_UP = 1.35;
+const STEP = 0.601;
+const JUMP_UP = 1.351;
 const MAX_DROP = 9;
 
 export interface NavPoint {
