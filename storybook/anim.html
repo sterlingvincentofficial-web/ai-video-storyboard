@@ -1,0 +1,181 @@
+<!doctype html>
+<html><head><meta charset="utf-8"><link rel="stylesheet" href="fonts.css">
+<style>html,body{margin:0;background:#000}canvas{display:block}</style></head>
+<body><canvas id="c" width="1920" height="1080"></canvas>
+<script src="timeline.js"></script>
+<script>
+const W=1920,H=1080,cv=document.getElementById('c'),ctx=cv.getContext('2d');
+const DUR=TL.DUR,L=TL.L,S=i=>L[i][0],D=i=>L[i][1],E=i=>L[i][0]+L[i][1];
+const clamp=(v,a=0,b=1)=>Math.max(a,Math.min(b,v)),P=(t,a,b)=>clamp((t-a)/(b-a));
+const eo=t=>1-Math.pow(1-t,3),eio=t=>t<.5?4*t*t*t:1-Math.pow(-2*t+2,3)/2;
+const eb=t=>{if(t<=0)return 0;if(t>=1)return 1;const c1=2.2,c3=c1+1;return 1+c3*Math.pow(t-1,3)+c1*Math.pow(t-1,2)};
+function rnd(i){const x=Math.sin(i*127.1+311.7)*43758.5453;return x-Math.floor(x)}
+const at=(i,f)=>S(i)+D(i)*f;                       // moment inside a narration line
+const yawnC=p=>p<=0||p>=1?0:p<.5?eio(p/.5):p<.7?1:1-eio((p-.7)/.3);
+const EV=new Set();window.EV=EV;
+const ev=(kind,t)=>EV.add(kind+':'+t.toFixed(2));
+
+// ---------- assets ----------
+const NAMES=['c00','c01','c02','c03','c04','c05','c07','c08','c09','c10','c11','c12','b13','b14','b15','b16'];
+const IMG={};
+window.ready=Promise.all([...NAMES.map(n=>new Promise(r=>{const im=new Image();im.onload=r;im.onerror=r;im.src='assets/'+n+(n[0]=='b'?'.jpg':'.png');IMG[n]=im})),
+  ...[...Array(10)].map((_,i)=>document.fonts.load(`40px R${i}`).catch(()=>0))]).then(()=>{
+    // blue-tinted copy of the brain for the "cooling" beat
+    const b=IMG.c08;if(!b.naturalWidth)return;const c=document.createElement('canvas');c.width=b.naturalWidth;c.height=b.naturalHeight;
+    const x=c.getContext('2d');x.drawImage(b,0,0);x.globalCompositeOperation='source-atop';x.fillStyle='rgba(80,160,230,.55)';x.fillRect(0,0,c.width,c.height);IMG.brainCool=c;
+  });
+
+// ---------- paper grain + vignette ----------
+const grain=document.createElement('canvas');grain.width=960;grain.height=540;
+{const g=grain.getContext('2d'),d=g.createImageData(960,540);for(let i=0;i<d.data.length;i+=4){const v=128+(Math.random()-.5)*90;d.data[i]=d.data[i+1]=d.data[i+2]=v;d.data[i+3]=255}g.putImageData(d,0,0)}
+function overlays(){
+  ctx.save();ctx.globalAlpha=.07;ctx.globalCompositeOperation='overlay';ctx.drawImage(grain,0,0,W,H);ctx.restore();
+  const v=ctx.createRadialGradient(W/2,H/2,H*.45,W/2,H/2,H*1.05);v.addColorStop(0,'rgba(0,0,0,0)');v.addColorStop(1,'rgba(40,20,0,.32)');
+  ctx.fillStyle=v;ctx.fillRect(0,0,W,H);
+}
+
+// ---------- paper cut-out sticker ----------
+// anchored bottom-centre; pops (overshoot) or rises from below; boils at 8fps like stop-motion
+function stk(n,x,y,h,t,t0,{from='pop',seed=1,sy=1,a=1,flip=false,rot=0}={}){
+  const im=IMG[n];if(!im||!(im.naturalWidth||im.width))return;const lt=t-t0;if(lt<0)return;ev(from==='rise'?'rise':'pop',t0);
+  const iw=im.naturalWidth||im.width,ih=im.naturalHeight||im.height,w=h*iw/ih;
+  let k=1,dy=0;if(from==='pop')k=eb(clamp(lt/.42));else if(from==='rise')dy=(1-eb(clamp(lt/.7)))*h*1.05;
+  const f=Math.floor(t*8),boil=(rnd(f*7.3+seed)-.5)*.022,jx=(rnd(f*3.1+seed)-.5)*3;
+  ctx.save();ctx.globalAlpha*=a;ctx.translate(x+jx,y+dy);ctx.rotate(rot+boil);ctx.scale(k*(flip?-1:1),k*sy);
+  ctx.shadowColor='rgba(50,30,10,.33)';ctx.shadowBlur=16;ctx.shadowOffsetX=6;ctx.shadowOffsetY=9;
+  ctx.drawImage(im,-w/2,-h,w,h);ctx.restore();
+}
+// yawn stretch multiplier for a figure that yawns at time ty
+const yS=(t,ty,len=2.2)=>1+.075*yawnC(P(t,ty,ty+len));
+// gentle idle bob
+const bob=(t,s)=>Math.sin(t*2.2+s)*.012;
+
+// ---------- ransom-note letters ----------
+const PAL=[['#1d1d1f','#f4ecd8'],['#f4ecd8','#1d1d1f'],['#e9b949','#1d1d1f'],['#d9483b','#f7f0e0'],['#f2a7b5','#1d3557'],
+  ['#1d3557','#f4ecd8'],['#2a7f7a','#f7f0e0'],['#fbf7ee','#d9483b'],['#f7e3a1','#1d3557'],['#fbf7ee','#1d1d1f']];
+function ransom(str,cx,cy,size,t,t0,seed=1,{stag=.05}={}){
+  if(t<t0)return;ctx.save();
+  const ch=[...str],items=[];let total=0;
+  ch.forEach((c,i)=>{const r=seed*31+i*7;if(c===' '){items.push({sp:1,w:size*.42});total+=size*.42;return}
+    const s=size*(.84+rnd(r)*.3),fi=Math.floor(rnd(r+1)*10),pal=PAL[Math.floor(rnd(r+2)*PAL.length)];
+    ctx.font=`${s}px R${fi}`;const tw=ctx.measureText(c).width,w=Math.max(tw+s*.28,s*.62);
+    items.push({c,s,fi,pal,w,r});total+=w+size*.05});
+  let x=cx-total/2;
+  items.forEach((it,i)=>{if(it.sp){x+=it.w;return}
+    const tp=t0+i*stag,lt=t-tp;if(lt>=0){if(i%2===0)ev('tick',tp);
+      const k=eb(clamp(lt/.32)),h=it.s*1.18,w=it.w,r=it.r,j=q=>(rnd(r+q)-.5)*7;
+      ctx.save();ctx.translate(x+w/2,cy+(rnd(r+5)-.5)*size*.16);ctx.rotate((rnd(r+6)-.5)*.2);ctx.scale(k,k);
+      ctx.shadowColor='rgba(40,25,10,.3)';ctx.shadowBlur=8;ctx.shadowOffsetX=3;ctx.shadowOffsetY=5;
+      ctx.beginPath();ctx.moveTo(-w/2+j(1),-h/2+j(2));ctx.lineTo(w/2+j(3),-h/2+j(4));ctx.lineTo(w/2+j(5),h/2+j(6));ctx.lineTo(-w/2+j(7),h/2+j(8));ctx.closePath();
+      ctx.fillStyle=it.pal[0];ctx.fill();ctx.shadowColor='transparent';
+      ctx.fillStyle=it.pal[1];ctx.font=`${it.s}px R${it.fi}`;ctx.textAlign='center';ctx.textBaseline='middle';ctx.fillText(it.c,0,it.s*.05);
+      ctx.restore();}
+    x+=it.w+size*.05});
+  ctx.restore();
+}
+
+// ---------- pencil doodles ----------
+function pencilPath(pts,col,w,t,seed=1){
+  const f=Math.floor(t*8);
+  for(let pass=0;pass<2;pass++){ctx.beginPath();pts.forEach(([x,y],i)=>{const jx=(rnd(f*11+i*3+pass*7+seed)-.5)*3,jy=(rnd(f*13+i*5+pass*9+seed)-.5)*3;i?ctx.lineTo(x+jx,y+jy):ctx.moveTo(x+jx,y+jy)});
+    ctx.strokeStyle=col;ctx.globalAlpha=pass?.45:.85;ctx.lineWidth=pass?w*.6:w;ctx.lineCap='round';ctx.lineJoin='round';ctx.stroke()}
+  ctx.globalAlpha=1;
+}
+function qmark(x,y,size,t,t0,seed=1){if(t<t0)return;const k=eb(clamp((t-t0)/.4));const f=Math.floor(t*8);
+  ctx.save();ctx.translate(x,y+Math.sin(t*3+seed)*6);ctx.rotate((rnd(f+seed)-.5)*.12+.1);ctx.scale(k,k);ctx.font=`${size}px R4`;ctx.fillStyle='#3b3530';ctx.textAlign='center';ctx.textBaseline='middle';ctx.fillText('?',0,0);ctx.restore()}
+function underline(x,y,len,t,t0){const p=eo(P(t,t0,t0+.6));if(p<=0)return;const pts=[];for(let i=0;i<=20*p;i++){const u=i/20;pts.push([x+u*len,y+Math.sin(u*9)*4+u*6])}pencilPath(pts,'#c8413a',7,t,4)}
+function squiggle(x,y,hgt,col,t,seed,amp=14){const pts=[];for(let i=0;i<=16;i++){const u=i/16;pts.push([x+Math.sin(u*10+t*6+seed)*amp*(1-u*.5),y-u*hgt])}pencilPath(pts,col,6,t,seed)}
+function star(x,y,r,t,seed){const tw=1+Math.sin(t*3+seed*2)*.12,f=Math.floor(t*8);ctx.save();ctx.translate(x,y);ctx.rotate(seed+(rnd(f+seed)-.5)*.06);ctx.scale(tw,tw);
+  ctx.beginPath();for(let i=0;i<10;i++){const a=i*Math.PI/5-Math.PI/2,rr=i%2?r*.45:r;ctx.lineTo(Math.cos(a)*rr,Math.sin(a)*rr)}ctx.closePath();
+  ctx.shadowColor='rgba(0,0,0,.35)';ctx.shadowBlur=8;ctx.shadowOffsetY=4;ctx.lineWidth=7;ctx.strokeStyle='#fbf7ee';ctx.stroke();ctx.shadowColor='transparent';ctx.fillStyle='#e9b949';ctx.fill();ctx.restore()}
+function heart(x,y,s,t,t0){if(t<t0)return;ev('pop',t0);const k=eb(clamp((t-t0)/.4))*(1+Math.sin((t-t0)*7)*.06);ctx.save();ctx.translate(x,y);ctx.scale(k*s/100,k*s/100);
+  ctx.beginPath();ctx.moveTo(0,30);ctx.bezierCurveTo(-70,-20,-40,-80,0,-40);ctx.bezierCurveTo(40,-80,70,-20,0,30);ctx.closePath();
+  ctx.shadowColor='rgba(0,0,0,.3)';ctx.shadowBlur=10;ctx.shadowOffsetY=5;ctx.lineWidth=10;ctx.strokeStyle='#fbf7ee';ctx.stroke();ctx.shadowColor='transparent';ctx.fillStyle='#d9483b';ctx.fill();ctx.restore()}
+function bubble(x,y,r,a){ctx.save();ctx.globalAlpha*=a;ctx.beginPath();ctx.arc(x,y,r,0,7);ctx.fillStyle='#bfe3ef';ctx.fill();ctx.lineWidth=5;ctx.strokeStyle='#fbf7ee';ctx.stroke();
+  ctx.fillStyle='#1d3557';ctx.font=`${r*.8}px R1`;ctx.textAlign='center';ctx.textBaseline='middle';ctx.fillText('O₂',0+x,y+2);ctx.restore()}
+
+// ---------- scenes ----------
+const B=i=>S(i)-.5;   // scene boundary just before a narration line
+const SC=[
+ {bg:'b13',to:()=>B(4),draw(t){
+   ransom('WHY DO WE',960,230,118,t,.25,3);ransom('YAWN?',960,405,172,t,.25+9*.05+.15,8,{stag:.07});
+   underline(640,520,640,t,S(0)+.6);
+   const kidT=E(2)-.2;
+   if(t<kidT)stk('c00',250,1015,420,t,.1,{seed:2,rot:bob(t,1)});else stk('c01',250,1015,430,t,kidT,{seed:3,sy:yS(t,kidT+.1)});
+   qmark(330,560,90,t,.9,1);
+   const bx=[640,930,1220,1510],nm=['c02','c03','c04','c05'],fr=[.02,.33,.63,.86];
+   nm.forEach((n,i)=>{const t0=at(2,fr[i]);stk(n,bx[i],1100,440,t,t0,{from:'rise',seed:10+i,sy:yS(t,t0+.45),rot:bob(t,i)})});
+ }},
+ {bg:'b16',dir:'left',to:()=>B(6),draw(t){
+   stk('c07',560,1030,660,t,B(4)+.15,{seed:21,rot:bob(t,2)});
+   for(let i=0;i<9;i++){const t0=at(4,.25)+i*.55,q=(t-t0)/3.2;if(q>0&&q<1)bubble(700+Math.sin(q*6+i)*50+i*12,720-q*560,34+rnd(i)*16,Math.sin(q*Math.PI))}
+   const kt=S(5)+.1;stk('c01',1360,1030,560,t,kt,{seed:22,sy:yS(t,kt+.3,2.4)});
+   ransom('NOPE!',1360,300,150,t,at(5,.62),5,{stag:.07});
+   qmark(640,300,110,t,at(5,.7),3);
+ }},
+ {bg:'b13',dir:'up',to:()=>B(7),draw(t){
+   const heat=P(t,at(6,.45),E(6));
+   for(let i=0;i<5;i++)if(heat>0){ctx.save();ctx.globalAlpha=heat;squiggle(740+i*110,430-Math.abs(i-2)*30,150+heat*60,'#d9483b',t,i*2);ctx.restore()}
+   stk('c08',960,950,560,t,B(6)+.15,{seed:31,sy:1+Math.sin(t*5)*.02*(1+heat*2),rot:bob(t,3)});
+   ransom('WARM!',1500,300,120,t,at(6,.78),9);
+ }},
+ {bg:'b13',dir:'left',to:()=>B(8),draw(t){
+   const air=P(t,S(7)+.3,S(7)+1.3);
+   for(let i=0;i<6;i++){const pts=[],ph=t*1.6+i*.9;for(let k=0;k<=24;k++){const u=k/24;pts.push([60+u*560,300+i*70+Math.sin(u*7-ph*3+i)*26*(1-u)+(1-u)*0-(i-2.5)*u*50])}
+     ctx.save();ctx.globalAlpha=air*(.55+.45*Math.sin(t*4+i));pencilPath(pts,'#3f8fd0',6,t,40+i);ctx.restore()}
+   const kt=B(7)+.15;stk('c01',760,1100,900,t,kt,{seed:41,sy:1+.05*Math.sin((t-kt)*1.9),rot:bob(t,4)});
+   const bt=at(7,.28),cool=P(t,at(7,.4),at(7,.75));
+   stk('c08',1500,640,380,t,bt,{seed:42,rot:bob(t,5)});
+   if(IMG.brainCool&&cool>0)stk('brainCool',1500,640,380,t,bt,{seed:42,a:cool,rot:bob(t,5)});
+   stk('c12',1740,330,190,t,at(7,.62),{seed:43});
+   ransom('BRAIN A/C',1500,150,86,t,at(7,.72),12);
+ }},
+ {bg:'b13',dir:'left',to:()=>B(9),draw(t){
+   const mid=[];for(let k=0;k<=14;k++)mid.push([960+Math.sin(k*1.3)*8,120+k*60]);if(t>S(8))pencilPath(mid,'#8a7f73',5,t,50);
+   stk('c12',540,720,400,t,S(8)+.05,{seed:51,rot:bob(t,6)});ransom('MORE YAWNS',540,850,72,t,at(8,.28),14);
+   stk('c11',1380,740,440,t,at(8,.52),{seed:52,rot:bob(t,7)});ransom('FEWER',1380,860,80,t,at(8,.72),15);
+ }},
+ {bg:'b14',dir:'up',to:()=>B(10),draw(t){
+   [[260,210,34],[520,120,24],[1500,160,30],[1760,320,22],[330,560,20],[1650,640,28],[1180,90,20],[760,300,18]].forEach(([x,y,r],i)=>star(x,y,r,t,i+1));
+   ransom('CONTAGIOUS!',960,190,110,t,at(9,.3),17);
+   const mt=at(9,.55);stk('c09',980,1000,640,t,mt,{from:'rise',seed:61,sy:yS(t,mt+.5,2.6)});
+ }},
+ {bg:'b15',dir:'down',to:()=>B(11),draw(t){
+   const k1=S(10)-.1;stk('c01',470,1010,520,t,k1,{seed:71,sy:yS(t,k1+.2)});
+   const k2=at(10,.24);stk('c05',840,1030,430,t,k2,{seed:72,sy:yS(t,k2+.3)});
+   heart(660,420,110,t,at(10,.46));
+   const k3=at(10,.7);stk('c10',1420,1025,500,t,k3,{seed:73,sy:yS(t,k3+.3)});
+ }},
+ {bg:'b13',dir:'left',to:()=>B(12),draw(t){
+   const xs=[230,540,830,1120,1410,1720],nm=['c01','c02','c03','c04','c05','c10'],ys=[1015,1110,1110,1110,1110,1020],hs=[440,420,420,420,420,380];
+   nm.forEach((n,i)=>{const t0=B(11)+.1+i*.13,w=at(11,.18)+i*.28;stk(n,xs[i],ys[i],hs[i],t,t0,{seed:80+i,from:i&&i<5?'rise':'pop',sy:yS(t,w)*yS(t,w+D(11)*.5),rot:bob(t,i)})});
+   ransom("WE'RE ALL IN",960,200,100,t,at(11,.66),19);ransom('THIS TOGETHER',960,340,100,t,at(11,.66)+.8,21);
+ }},
+ {bg:'b13',dir:'left',to:()=>DUR+1,draw(t){
+   ransom('DID YOU',1010,330,130,t,S(12)-.15,23);ransom('JUST YAWN?',1010,510,150,t,S(12)+.45,27,{stag:.06});
+   stk('c00',300,1015,430,t,B(12)+.1,{seed:91,rot:bob(t,9)});qmark(390,540,100,t,E(12),5);
+ }},
+];
+SC.forEach((s,i)=>{s.from=i?SC[i-1].to():0;s.end=s.to()});
+window.BOUNDS=SC.slice(1).map(s=>s.from);
+
+const DIRS={left:[1,0],up:[0,-1],down:[0,1]},TR=.42;
+function drawScene(i,t,p,dir,role){
+  const s=SC[i];let ox=0,oy=0;
+  if(dir){const [dx,dy]=DIRS[dir];if(role<0){ox=-dx*W*p;oy=-dy*H*p}else{ox=dx*W*(1-p);oy=dy*H*(1-p)}}
+  const kb=1+.035*clamp((t-s.from)/(s.end-s.from));
+  ctx.save();ctx.translate(ox,oy);ctx.translate(W/2,H/2);ctx.scale(kb,kb);ctx.translate(-W/2,-H/2);
+  const bg=IMG[s.bg];if(bg&&bg.naturalWidth)ctx.drawImage(bg,-20,-12,W+40,H+24);
+  s.draw(t);ctx.restore();
+}
+function render(t){
+  ctx.setTransform(1,0,0,1,0,0);ctx.globalAlpha=1;ctx.clearRect(0,0,W,H);
+  let i=SC.findIndex(s=>t<s.end);if(i<0)i=SC.length-1;const s=SC[i];
+  if(i>0&&t<s.from+TR){const p=eio((t-(s.from-TR))/(2*TR));drawScene(i-1,t,p,s.dir,-1);drawScene(i,t,p,s.dir,1)}
+  else if(i<SC.length-1&&t>s.end-TR){const n=SC[i+1],p=eio((t-(s.end-TR))/(2*TR));drawScene(i,t,p,n.dir,-1);drawScene(i+1,t,p,n.dir,1)}
+  else drawScene(i,t,0,null,0);
+  overlays();
+  const fade=P(t,DUR-.9,DUR);if(fade>0){ctx.fillStyle=`rgba(244,236,216,${fade})`;ctx.fillRect(0,0,W,H)}
+}
+window.render=render;window.DUR=DUR;
+</script></body></html>
