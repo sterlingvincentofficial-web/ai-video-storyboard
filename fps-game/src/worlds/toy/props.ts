@@ -224,19 +224,8 @@ export class MergeBatch implements BatchLike {
       this.add(m.geometry, Array.isArray(m.material) ? m.material[0] : m.material, m.matrixWorld);
     });
   }
-  static debug = false;
   private merged(): [THREE.Material, THREE.BufferGeometry][] {
     const out: [THREE.Material, THREE.BufferGeometry][] = [];
-    if (MergeBatch.debug) {
-      const rows: string[] = [];
-      let tot = 0;
-      this.groups.forEach((geos, mat) => {
-        const t = geos.reduce((a, g) => a + g.getAttribute('position').count / 3, 0);
-        tot += t;
-        rows.push(`${(mat as THREE.MeshStandardMaterial).color?.getHexString()} ${((mat as THREE.MeshStandardMaterial).map ? 'map' : '')} n=${geos.length} tris=${t}`);
-      });
-      console.log('MB total', tot, '\n' + rows.join('\n'));
-    }
     this.groups.forEach((geos, mat) => {
       const m = mergeGeometries(geos, false);
       geos.forEach((g) => g.dispose());
@@ -352,8 +341,6 @@ export class Kit {
     this.bbox(top, (min[0] + max[0]) / 2, (min[1] + max[1]) / 2, (min[2] + max[2]) / 2, sx - 0.1, sy - 0.04, sz - 0.1, 0.05);
     for (let c = 0; c < n; c++) {
       const y0 = min[1] + c * ch;
-      // x-running faces (at min z / max z)
-      const saveAlong = alongX;
       const fill = (ax: boolean, a0: number, a1: number, t0: number, t1: number) => {
         let a = a0;
         let first = true;
@@ -368,7 +355,6 @@ export class Kit {
           a += bl;
         }
       };
-      void saveAlong;
       fill(true, min[0], max[0], min[2], min[2] + skin);
       fill(true, min[0], max[0], max[2] - skin, max[2]);
       fill(false, min[2] + skin, max[2] - skin, min[0], min[0] + skin);
@@ -583,7 +569,7 @@ export function toyDrum(k: Kit, x: number, z: number, r: number, h: number) {
   // drumhead
   k.add(new THREE.CylinderGeometry(r - 0.05, r - 0.05, 0.12, segs), 0xf3e2c4, x, h - 0.08, z);
   // zig-zag cords
-  const n = 16;
+  const n = Math.round(r * 4.5);
   for (let i = 0; i < n; i++) {
     const a0 = (i / n) * Math.PI * 2, a1 = ((i + 0.5) / n) * Math.PI * 2;
     const p0 = new THREE.Vector3(Math.cos(a0) * r, 0.3, Math.sin(a0) * r);

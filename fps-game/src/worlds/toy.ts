@@ -26,7 +26,7 @@ const RING_TIERS = [
   { r: 1.35, y0: 3.6, y1: 4.6, color: C.green },
 ];
 const RING_PEG = { r: 0.8, top: 6.0 };
-const DRUM = { r: 3.6, h: 1.2 };
+const DRUM = { r: 5, h: 1.2 };
 const TRAIN_X = 13;
 const LOCO_Z = 6.2;
 const WAGON_Z = 0.7;
@@ -94,7 +94,7 @@ function layout(): LevelData {
 
   // ------------------------------------------------------------------ centre: toy drum hill + stacking ring towers
   disc(0, 0, DRUM.r, 0, DRUM.h, 'drum', false);
-  mB(-5.0, -3.4, -1.2, 1.2, 0, 0.6, 'step', { i: 2 });
+  mB(-6.3, -4.5, -1.3, 1.3, 0, 0.6, 'step', { i: 2 });
   for (const t of RING_TIERS) disc(RING_POS[0], RING_POS[1], t.r, t.y0, t.y1, 'rings', true);
   mB(RING_POS[0] - 0.75, RING_POS[0] + 0.75, RING_POS[1] - 0.75, RING_POS[1] + 0.75, 4.6, 7.7, 'rings', {}, { invisible: true });
 
@@ -109,6 +109,12 @@ function layout(): LevelData {
   aB(-6.0, 17, 1.8, 1.8);
   aB(7.5, 15.5, 2.0);
   mB(1.5, 6.5, 24, 25.2, 0, 1.2, 'lowwall');
+  aB(14.2, 23, 1.8);
+  mB(-14.6, -13.4, 20.9, 22.1, 0, 1.2, 'dice', { faces: [CELL.d1, CELL.d6, CELL.d2, CELL.d5, CELL.d3, CELL.d4] });
+  // alphabet block stacks against the left wall
+  aB(-28.7, 20.6, 2.4, 0, [CELL.starRed, CELL.O, CELL.moon, CELL.plainRed, CELL.T, CELL.Y]);
+  aB(-28.7, 20.6, 2.4, 2.4, [CELL.A, CELL.N2, CELL.starYellow, CELL.plainBlue, CELL.B, CELL.C]);
+  aB(-28.7, 23.0, 2.4, 0, [CELL.heart, CELL.N3, CELL.starGreen, CELL.plainGreen, CELL.N1, CELL.starBlue]);
   mB(-9.9, -8.1, 5.6, 7.4, 0, 1.8, 'dice', { faces: [CELL.d2, CELL.d5, CELL.d1, CELL.d6, CELL.d3, CELL.d4] });
   mB(-8.1, -6.9, 4.4, 5.6, 0, 1.2, 'dice', { faces: [CELL.d6, CELL.d1, CELL.d5, CELL.d2, CELL.d4, CELL.d3] });
 
@@ -145,7 +151,7 @@ function layout(): LevelData {
   // ------------------------------------------------------------------ spawns / objectives / pickups
   for (const [x, z] of [[-26, 34], [-21, 37], [-11.5, 35], [-4.5, 36], [4.5, 36], [11.5, 35], [21, 37], [26, 34]] as const) L.spawn(x, 0, z, 0);
   L.flags([0, 0, 34]);
-  L.zone([0, DRUM.h, 0], 7);
+  L.zone([0, DRUM.h, 0], DRUM.r - 0.4);
   L.pickup('health', -10, 0, 24.5);
   L.pickup('health', -20, 0, 32);
   L.pickup('health', 20.5, 2.4, 20.5);
@@ -200,7 +206,6 @@ function build(ctx: WorldBuildContext) {
   const matte = matteFactory(mats);
   const atlasMat = mats.mat(0xffffff, { map: blockAtlas() });
   const posterMat = matte(0xffffff, posterAtlas(), { rough: 0.7 });
-  MergeBatch.debug = new URLSearchParams(location.search).has('tri');
   const main = new MergeBatch();
   const detail = new MergeBatch();
   const k = new Kit(mats, main, atlasMat, detail);
@@ -223,7 +228,7 @@ function build(ctx: WorldBuildContext) {
         k.brickFill(b.min, b.max, team ? NEUTRAL_RED : NEUTRAL_BLUE, { course: 1.9, long: true });
         break;
       case 'chest':
-        toyChest(k, matte, posterMat, b, team);
+        toyChest(k, posterMat, b, team);
         break;
       case 'basewall': {
         k.brickFill(b.min, b.max, TEAM_PAL[team], { course: 1.07, studs: false });
@@ -491,7 +496,7 @@ function giantBook(k: Kit, b: BoxDef, col: number, mir: boolean) {
 }
 
 /** Toy chest in team colour with a TOYS label, open lid and toys peeking out. */
-function toyChest(k: Kit, matte: ReturnType<typeof matteFactory>, posterMat: THREE.Material, b: BoxDef, team: 0 | 1) {
+function toyChest(k: Kit, posterMat: THREE.Material, b: BoxDef, team: 0 | 1) {
   const sx = b.max[0] - b.min[0], sy = b.max[1] - b.min[1], sz = b.max[2] - b.min[2];
   const cx = (b.min[0] + b.max[0]) / 2, cz = (b.min[2] + b.max[2]) / 2;
   const col = team ? RED : BLUE;
@@ -526,7 +531,6 @@ function toyChest(k: Kit, matte: ReturnType<typeof matteFactory>, posterMat: THR
   const s = team ? -1 : 1;
   k.block(cx - 1.5 * s, sy - 0.4, cz + 0.4 * s, 1.3, [CELL.T, CELL.O, CELL.Y, CELL.plainYellow, CELL.A, CELL.B], 0.4);
   k.block(cx + 4.8 * s, sy - 0.5, cz + 0.1 * s, 1.2, [CELL.starBlue, CELL.C, CELL.N1, CELL.plainRed, CELL.heart, CELL.moon], -0.3);
-  void matte;
 }
 
 export const toy: WorldDef = {
