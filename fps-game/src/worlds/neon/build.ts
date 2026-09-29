@@ -918,7 +918,7 @@ type BatcherLike = { add(g: THREE.BufferGeometry, m: THREE.Material, mat?: THREE
 
 function moon() {
   const tex = T.moonTexture();
-  const m = new THREE.Mesh(new THREE.CircleGeometry(22, 40), new THREE.MeshBasicMaterial({ map: tex, transparent: true, fog: false, depthWrite: false, toneMapped: false, color: new THREE.Color(1.1, 1.05, 1.15) }));
+  const m = new THREE.Mesh(new THREE.CircleGeometry(32, 40), new THREE.MeshBasicMaterial({ map: tex, transparent: true, fog: false, depthWrite: false, toneMapped: false, color: new THREE.Color(1.1, 1.05, 1.15) }));
   const d = new THREE.Vector3(-0.35, 0.42, 1).normalize().multiplyScalar(390);
   m.position.copy(d);
   m.lookAt(0, 0, 0);
