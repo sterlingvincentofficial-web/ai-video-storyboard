@@ -83,18 +83,28 @@ export function hexToCss(hex: number) {
   return '#' + hex.toString(16).padStart(6, '0');
 }
 
-export const TIPS = [
-  'Fire the Boomer at your feet mid-jump for a rocket jump!',
-  'Bonk (V) enemies from behind for double damage.',
-  'Double-jump to dodge — bots have a hard time tracking you mid-air.',
-  'Headshots with the Zapper are one-hit knockouts.',
-  'Overcharge doubles your damage for 15 seconds. Streaks of 5 grant it too!',
-  'Health regenerates after a few seconds out of combat.',
-  'Splat Bombs bounce — bank them around corners.',
-  'The duck carrier can\'t regenerate health. Keep them covered!',
-  'In CTF your own flag must be home before you can score.',
-  'Jump pads launch you to high ground in a hurry.',
-  'Rocket knockback can push enemies off the Neon Rooftops.',
-  'Hold the zone uncontested to score in King of the Hill.',
+export interface Tip { text: string; modes?: string[]; worlds?: string[]; touch?: boolean }
+export const TIPS: Tip[] = [
+  { text: 'Fire the Boomer at your feet mid-jump for a rocket jump!' },
+  { text: 'Bonk (V) enemies from behind for double damage.', touch: false },
+  { text: 'Tap 👊 to bonk — double damage from behind!', touch: true },
+  { text: 'Double-jump to dodge — bots have a hard time tracking you mid-air.' },
+  { text: 'Headshots with the Zapper are one-hit knockouts.' },
+  { text: 'Overcharge doubles your damage for 15 seconds. A 5-splat streak grants it too!' },
+  { text: 'Health regenerates after a few seconds out of combat.' },
+  { text: 'Splat Bombs bounce — bank them around corners.' },
+  { text: "The duck carrier can't regenerate health. Keep them covered!", modes: ['duck'] },
+  { text: 'Your own flag must be at your base before you can score.', modes: ['ctf'] },
+  { text: 'Kill the enemy flag carrier, then touch your dropped flag to return it.', modes: ['ctf'] },
+  { text: 'Jump pads launch you to high ground in a hurry.' },
+  { text: 'Rocket knockback can push enemies off the rooftops!', worlds: ['neon'] },
+  { text: 'Hold the zone uncontested to score. Any enemy inside stops the clock.', modes: ['koth'] },
+  { text: 'No respawns this round — play it safe and stick with your team.', modes: ['elim'] },
+  { text: 'Drag on the 🔥 button to aim while you shoot.', touch: true },
+  { text: 'Use the arrow keys or drag the mouse if the pointer can\'t be captured.', touch: false },
 ];
-export const randomTip = () => TIPS[Math.floor(Math.random() * TIPS.length)];
+export function randomTip(o: { mode?: string; world?: string; touch?: boolean } = {}) {
+  const ok = TIPS.filter((t) => (!t.modes || (o.mode && t.modes.includes(o.mode))) && (!t.worlds || (o.world && t.worlds.includes(o.world))) && (t.touch === undefined || o.touch === undefined || t.touch === o.touch));
+  const list = ok.length ? ok : TIPS;
+  return list[Math.floor(Math.random() * list.length)].text;
+}

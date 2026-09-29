@@ -199,7 +199,7 @@ export class Game {
       el.id = 'loading';
       document.body.appendChild(el);
     }
-    el.innerHTML = `<div>${label}</div><small>💡 ${randomTip()}</small>`;
+    el.innerHTML = `<div>${label}</div><small>💡 ${randomTip({ touch: this.touchMode })}</small>`;
     el.classList.add('show');
     requestAnimationFrame(() => requestAnimationFrame(() => {
       try { fn(); } finally { el!.classList.remove('show'); }
@@ -258,6 +258,7 @@ export class Game {
   /** Menu background: bots-only match with a cinematic camera. */
   startAttract(id: WorldId) {
     this.lineup = null;
+    document.body.classList.remove('sb-open', 'p-dead');
     const keepHat = this.preview ? this.previewHat : null;
     if (keepHat) this.setPreview(false);
     this.loadWorld(id);
@@ -968,7 +969,7 @@ export class Game {
       const focus = k ? k.pos : p.pos;
       const a = this.time * 0.4;
       this.camPos.set(focus.x + Math.sin(a) * 4.5, focus.y + 2.8, focus.z + Math.cos(a) * 4.5);
-      m.col.pushOut(this.camPos, 0.3, 0.1, 0);
+      this.unclip(m, focus, this.camPos);
       const t = m.time - p.deathTime;
       if (t < 0.1) cam.position.set(p.pos.x, p.pos.y + EYE, p.pos.z);
       if (cam.position.distanceTo(this.camPos) > 25) cam.position.copy(this.camPos);
@@ -983,6 +984,18 @@ export class Game {
       cam.updateProjectionMatrix();
     }
     audio.setListener(cam.position, cam.rotation.y);
+  }
+
+  /** Pull a third-person camera in front of any wall between it and its subject. */
+  private unclip(m: Match, subject: THREE.Vector3, camPos: THREE.Vector3) {
+    const from = new THREE.Vector3(subject.x, subject.y + 1.5, subject.z);
+    const dir = camPos.clone().sub(from);
+    const len = dir.length();
+    if (len < 0.01) return;
+    dir.divideScalar(len);
+    const hit = m.col.raycast(from, dir, len + 0.3);
+    if (hit) camPos.copy(from).addScaledVector(dir, Math.max(0.6, hit.t - 0.35));
+    m.col.pushOut(camPos, 0.3, 0.1, 0);
   }
 
   private spectatorCam(dt: number, m: Match) {
@@ -1002,13 +1015,13 @@ export class Game {
       // chase cam behind the bot
       const fx = -Math.sin(t.yaw), fz = -Math.cos(t.yaw);
       this.camPos.set(t.pos.x - fx * 4.2 + Math.cos(t.yaw) * 1.2, t.pos.y + 2.3, t.pos.z - fz * 4.2 - Math.sin(t.yaw) * 1.2);
-      m.col.pushOut(this.camPos, 0.35, 0.1, 0);
+      this.unclip(m, t.pos, this.camPos);
       this.camLook.set(t.pos.x + fx * 6, t.pos.y + 1.3, t.pos.z + fz * 6);
     } else {
       // sweeping orbit
       const a = this.time * 0.25;
       this.camPos.set(t.pos.x + Math.sin(a) * 7, t.pos.y + 3.5, t.pos.z + Math.cos(a) * 7);
-      m.col.pushOut(this.camPos, 0.35, 0.1, 0);
+      this.unclip(m, t.pos, this.camPos);
       this.camLook.set(t.pos.x, t.pos.y + 1.2, t.pos.z);
     }
     if (cam.position.distanceTo(this.camPos) > 25) cam.position.copy(this.camPos);

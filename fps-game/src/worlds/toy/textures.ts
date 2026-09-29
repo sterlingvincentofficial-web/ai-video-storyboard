@@ -188,9 +188,12 @@ export function cellUV(i: number, inset = 0.012): [number, number, number, numbe
 // ---------------------------------------------------------------------------------------------
 /** Big patterned carpet covering the arena. Canvas top = -Z (red side), bottom = +Z (blue side). */
 export function rugTexture() {
-  return canvasTexture(356, 512, (g, w, h) => {
+  const S = 2.5;
+  const t = canvasTexture(Math.round(356 * S), Math.round(512 * S), (g) => {
+    g.scale(S, S);
+    const w = 356, h = 512;
     const r = mulberry(21);
-    g.fillStyle = '#efdcb8';
+    g.fillStyle = '#e8d2a8';
     g.fillRect(0, 0, w, h);
     const wave = (y0: number, amp: number, freq: number, phase: number, thick: number, color: string) => {
       g.fillStyle = color;
@@ -260,6 +263,8 @@ export function rugTexture() {
     g.strokeStyle = '#f2d9a8';
     g.strokeRect(5, 5, w - 10, h - 10);
   });
+  t.anisotropy = 8;
+  return t;
 }
 
 /** Warm honey wooden floor boards (repeating). */

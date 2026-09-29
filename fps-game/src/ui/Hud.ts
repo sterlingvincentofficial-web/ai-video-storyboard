@@ -306,6 +306,8 @@ export class Hud {
     this.root.classList.toggle('ended', m.state === 'ended');
     const alive = !!p && p.alive && !opts.spectating;
     this.root.classList.toggle('dead', !alive);
+    document.body.classList.toggle('p-dead', !alive && !!p && m.state !== 'ended');
+    this.root.classList.toggle('cm', this.center.classList.contains('show'));
     this.root.classList.toggle('spectate', opts.spectating);
     if (p) {
       const hp = Math.max(0, Math.ceil(p.health));
@@ -352,7 +354,7 @@ export class Hud {
         const html = `<div class="rs-title">${k ? `SPLATTED BY <span style="color:${this.teamColors[k.team]}">${esc(k.name)}</span>` : 'SPLATTED!'}</div>` +
           (k ? `<div class="rs-sub">${k.health > 0 ? `${esc(k.name)} has ${Math.ceil(k.health)} HP left` : ''}</div>` : '') +
           `<div class="rs-count">${elim ? 'Spectating until next round…' : m.state === 'playing' ? `Respawning in ${t}` : ''}</div>` +
-          `<div class="rs-tip">💡 ${esc(this.tipFor(p.deathTime))}</div>`;
+          `<div class="rs-tip">💡 ${esc(this.tipFor(p.deathTime, m))}</div>`;
         this.set('rs', this.respawn, html, true);
         this.respawn.classList.add('show');
       } else this.respawn.classList.remove('show');
@@ -575,13 +577,17 @@ export class Hud {
 
   private tipKey = -1;
   private tip = '';
-  private tipFor(key: number) {
-    if (key !== this.tipKey) { this.tipKey = key; this.tip = randomTip(); }
+  private tipFor(key: number, m: Match) {
+    if (key !== this.tipKey) {
+      this.tipKey = key;
+      this.tip = randomTip({ mode: m.cfg.mode, world: m.cfg.world, touch: document.body.classList.contains('touch-ui') });
+    }
     return this.tip;
   }
 
   showScoreboard(v: boolean, m: Match | null) {
     this.scoreboard.classList.toggle('show', v && !!m);
+    document.body.classList.toggle('sb-open', v && !!m);
     if (!v || !m) return;
     const rows = (t: number) =>
       m.actors

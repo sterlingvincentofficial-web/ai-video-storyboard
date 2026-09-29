@@ -1035,17 +1035,27 @@ export class Match implements BotWorld {
   }
 
   // ---------------------------------------------------------------- KOTH zone
+  private zoneGain = 1.1;
+  private zoneWallOpacity = 0.16;
   private buildZone() {
     const z = this.world.level.zone;
     const g = new THREE.Group();
-    const ring = new THREE.Mesh(new THREE.TorusGeometry(z.radius, 0.12, 6, 64), new THREE.MeshBasicMaterial({ color: 0xffffff, toneMapped: false }));
+    const bloom = !!this.world.theme.style.bloom;
+    this.zoneGain = bloom ? 0.38 : 1.1;
+    this.zoneWallOpacity = bloom ? 0.06 : 0.16;
+    const ring = new THREE.Mesh(new THREE.TorusGeometry(z.radius, 0.12, 6, 64), new THREE.MeshBasicMaterial({ color: 0xffd23f, toneMapped: bloom }));
     ring.rotation.x = Math.PI / 2;
     ring.position.y = 0.12;
-    const wall = new THREE.Mesh(new THREE.CylinderGeometry(z.radius, z.radius, 3, 48, 1, true), new THREE.MeshBasicMaterial({ color: 0xffffff, transparent: true, opacity: 0.16, side: THREE.DoubleSide, depthWrite: false, toneMapped: false }));
+    const wall = new THREE.Mesh(new THREE.CylinderGeometry(z.radius, z.radius, 3, 48, 1, true), new THREE.MeshBasicMaterial({ color: 0xffd23f, transparent: true, opacity: this.zoneWallOpacity, side: THREE.DoubleSide, depthWrite: false, toneMapped: bloom }));
+    // ground disc with a dark edge so the zone reads on bright floors too
+    const disc = new THREE.Mesh(new THREE.RingGeometry(z.radius - 0.35, z.radius + 0.05, 64), new THREE.MeshBasicMaterial({ color: 0x14102a, transparent: true, opacity: 0.35, depthWrite: false, polygonOffset: true, polygonOffsetFactor: -2, polygonOffsetUnits: -4 }));
+    disc.rotation.x = -Math.PI / 2;
+    disc.position.y = 0.04;
+    this.ownMaterials.push(disc.material as THREE.Material);
     this.ownMaterials.push(ring.material as THREE.Material, wall.material as THREE.Material);
     wall.position.y = 1.5;
     const crown = new THREE.Group();
-    const cm = this.world.mats.glow(0xffd23f, 1.4);
+    const cm = this.world.mats.glow(0xffd23f, this.world.theme.style.bloom ? 0.55 : 1.4);
     const band = new THREE.Mesh(new THREE.CylinderGeometry(0.55, 0.5, 0.4, 12, 1, true), cm);
     (band.material as THREE.MeshBasicMaterial).side = THREE.DoubleSide;
     crown.add(band);
@@ -1056,7 +1066,7 @@ export class Match implements BotWorld {
       crown.add(s);
     }
     crown.position.y = 6;
-    g.add(ring, wall, crown);
+    g.add(ring, wall, crown, disc);
     g.position.set(...z.pos);
     this.group.add(g);
     this.zoneMesh = g;
@@ -1066,12 +1076,12 @@ export class Match implements BotWorld {
     if (!(this.mode instanceof KOTH) || !this.zoneMesh) return;
     const k = this.mode;
     const th = this.world.theme;
-    const col = k.contested ? (Math.floor(this.time * 6) % 2 ? 0xffffff : 0xffd23f) : k.owner < 0 ? 0xffffff : th.teams[k.owner].light;
+    const col = k.contested ? (Math.floor(this.time * 6) % 2 ? 0xffffff : 0xffd23f) : k.owner < 0 ? 0xffd23f : th.teams[k.owner].light;
     const ring = this.zoneMesh.children[0] as THREE.Mesh;
     const wall = this.zoneMesh.children[1] as THREE.Mesh;
-    (ring.material as THREE.MeshBasicMaterial).color.setHex(col).multiplyScalar(1.4);
-    (wall.material as THREE.MeshBasicMaterial).color.setHex(col);
-    (wall.material as THREE.MeshBasicMaterial).opacity = 0.12 + Math.sin(this.time * 3) * 0.05;
+    (ring.material as THREE.MeshBasicMaterial).color.setHex(col).multiplyScalar(this.zoneGain);
+    (wall.material as THREE.MeshBasicMaterial).color.setHex(col).multiplyScalar(Math.min(1, this.zoneGain * 1.5));
+    (wall.material as THREE.MeshBasicMaterial).opacity = this.zoneWallOpacity + Math.sin(this.time * 3) * this.zoneWallOpacity * 0.35;
     const crown = this.zoneMesh.children[2];
     crown.rotation.y += dt;
     crown.position.y = 6 + Math.sin(this.time * 2) * 0.3;
