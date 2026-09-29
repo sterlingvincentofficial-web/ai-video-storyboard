@@ -82,6 +82,8 @@ interface Pad {
   pos: THREE.Vector3;
   target: THREE.Vector3;
   radius: number;
+  /** cached flight time */
+  T?: number;
   mesh: THREE.Object3D;
   bounce: number;
 }
@@ -247,6 +249,7 @@ export class Match implements BotWorld {
     a.alive = true;
     a.onGround = true;
     a.spawnShield = 2;
+    a.padT = 0;
     a.overcharge = 0;
     a.carrying = -1;
     a.damagers.clear();
@@ -949,10 +952,10 @@ export class Match implements BotWorld {
         if (!a.alive || a.vel.y > 1) continue;
         if (Math.hypot(a.pos.x - p.pos.x, a.pos.z - p.pos.z) > p.radius || Math.abs(a.pos.y - p.pos.y) > 0.6) continue;
         const dx = p.target.x - a.pos.x, dz = p.target.z - a.pos.z, dy = p.target.y - a.pos.y;
-        const dist = Math.hypot(dx, dz);
-        const T = clamp(dist / 11, 0.9, 1.7);
+        const T = p.T ?? (p.T = this.padFlightTime(p));
         const g = this.phys.gravity;
         a.vel.set(dx / T, (dy + 0.5 * g * T * T) / T, dz / T);
+        a.padT = T;
         a.onGround = false;
         a.jumpsUsed = 1;
         a.coyote = 0;
@@ -961,6 +964,33 @@ export class Match implements BotWorld {
         this.emit({ type: 'pad', actor: a });
       }
     }
+  }
+
+  /** Shortest flight time (from the old distance-based guess upward) whose arc clears the level. */
+  private padFlightTime(p: Pad) {
+    const g = this.phys.gravity;
+    const dx = p.target.x - p.pos.x, dz = p.target.z - p.pos.z, dy = p.target.y - p.pos.y;
+    const dist = Math.hypot(dx, dz);
+    const base = clamp(dist / 11, 0.9, 1.7);
+    const ux = dist > 0 ? dx / dist : 0, uz = dist > 0 ? dz / dist : 0;
+    const a = new THREE.Vector3(), b = new THREE.Vector3();
+    for (let T = base; T < 2.8; T += 0.1) {
+      const vy = (dy + 0.5 * g * T * T) / T;
+      let ok = true;
+      // check the feet line and the body's leading edge
+      for (const lead of [0, 0.45]) {
+        a.set(p.pos.x + ux * lead, p.pos.y + 0.35, p.pos.z + uz * lead);
+        for (let i = 1; i <= 20 && ok; i++) {
+          const t = (i / 20) * T * 0.9;
+          const f = t / T;
+          b.set(p.pos.x + dx * f + ux * lead, p.pos.y + 0.35 + vy * t - 0.5 * g * t * t, p.pos.z + dz * f + uz * lead);
+          if (!this.col.lineOfSight(a, b)) ok = false;
+          a.copy(b);
+        }
+      }
+      if (ok) return T;
+    }
+    return base;
   }
 
   // ---------------------------------------------------------------- CTF flags

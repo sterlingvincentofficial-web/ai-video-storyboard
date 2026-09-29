@@ -81,6 +81,8 @@ export class Actor {
   lastKillTime = -99;
   multi = 0;
   airTime = 0;
+  /** Remaining jump-pad flight time: air control is weak so the launch lands on target. */
+  padT = 0;
   stepAcc = 0;
 
   constructor(public name: string, public team: 0 | 1, public isPlayer = false) {
@@ -156,9 +158,21 @@ export class Actor {
     const wx = this.wish.x * cy + this.wish.y * -sy;
     const wz = this.wish.x * -sy + this.wish.y * -cy;
     const wl = Math.hypot(wx, wz);
-    const tx = wl > 0 ? (wx / Math.max(1, wl)) * maxSpeed : 0;
-    const tz = wl > 0 ? (wz / Math.max(1, wl)) * maxSpeed : 0;
-    const accel = this.onGround ? 60 : 16;
+    let tx = wl > 0 ? (wx / Math.max(1, wl)) * maxSpeed : 0;
+    let tz = wl > 0 ? (wz / Math.max(1, wl)) * maxSpeed : 0;
+    let accel = this.onGround ? 60 : 16;
+    if (!this.onGround) {
+      // steering along your current heading never bleeds launch/knockback speed
+      const hs = Math.hypot(this.vel.x, this.vel.z);
+      if (wl > 0.01 && hs > maxSpeed && this.vel.x * tx + this.vel.z * tz > 0) {
+        tx *= hs / maxSpeed;
+        tz *= hs / maxSpeed;
+      }
+      if (this.padT > 0) {
+        this.padT -= dt;
+        accel = 3;
+      }
+    }
     const dvx = tx - this.vel.x, dvz = tz - this.vel.z;
     const dl = Math.hypot(dvx, dvz);
     // in the air: only accelerate, don't brake hard (preserve knockback momentum)
@@ -197,6 +211,7 @@ export class Actor {
     const wasGround = this.onGround;
     const r = col.move(this.pos, this.vel, dt, RADIUS, HEIGHT, STEP_UP, wasGround && jumped === 0);
     this.onGround = r.grounded;
+    if (r.grounded) this.padT = 0;
     this.landed = !wasGround && r.grounded ? r.landedSpeed : 0;
     if (this.onGround) this.airTime = 0;
     else this.airTime += dt;
