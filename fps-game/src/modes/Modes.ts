@@ -4,7 +4,7 @@ import type { BotGoal } from '../entities/Bot';
 import type { Match } from '../game/Match';
 import { pick } from '../core/utils';
 
-export type ModeId = 'tdm' | 'ctf' | 'koth' | 'elim';
+export type ModeId = 'tdm' | 'ctf' | 'koth' | 'elim' | 'duck';
 
 export interface ModeInfo {
   id: ModeId;
@@ -21,9 +21,10 @@ export const MODE_INFO: Record<ModeId, ModeInfo> = {
   ctf: { id: 'ctf', name: 'Capture the Flag', short: 'CTF', desc: "Grab the enemy flag and bring it home. Your own flag must be at base to score.", icon: '🚩', baseScore: 3, time: 480 },
   koth: { id: 'koth', name: 'King of the Hill', short: 'KOTH', desc: 'Hold the glowing zone. Every second your team controls it scores a point.', icon: '👑', baseScore: 100, time: 420 },
   elim: { id: 'elim', name: 'Elimination', short: 'ELIM', desc: 'No respawns. Wipe out the other team to win the round. First to 4 rounds.', icon: '☠️', baseScore: 4, time: 900 },
+  duck: { id: 'duck', name: 'Duck Rush', short: 'DUCK', desc: 'Grab the golden rubber duck and hold on! Your team scores every second you carry it.', icon: '🦆', baseScore: 60, time: 420 },
 };
 
-export const MODE_ORDER: ModeId[] = ['tdm', 'ctf', 'koth', 'elim'];
+export const MODE_ORDER: ModeId[] = ['tdm', 'ctf', 'koth', 'duck', 'elim'];
 
 export interface Objective {
   /** Short line under the score (e.g. "Flag taken!"). */
@@ -32,6 +33,8 @@ export interface Objective {
   flags?: [string, string];
   /** For KOTH: zone owner -1/0/1 and contested flag. */
   zone?: { owner: number; contested: boolean; progress: number };
+  /** Duck Rush: carrier team (-1 = loose). */
+  duck?: { team: number; carrier: string | null };
   /** For elimination: alive counts. */
   alive?: [number, number];
   round?: number;
@@ -344,8 +347,111 @@ export class Elimination extends Mode {
   }
 }
 
+export class DuckMode extends Mode {
+  info = MODE_INFO.duck;
+  home = new THREE.Vector3();
+  pos = new THREE.Vector3();
+  carrier: Actor | null = null;
+  atHome = true;
+  private dropTimer = 0;
+  private acc = 0;
+
+  setup(m: Match) {
+    const z = m.world.level.zone.pos;
+    // the zone centre may be blocked (statues, plinths): use the nearest reachable spot
+    let c = m.world.nav.nearestWalkable(z[0], z[1], z[2], 8);
+    if (c >= 0 && m.world.nav.region[c] !== m.world.nav.mainRegion) {
+      let best = -1, bd = Infinity;
+      for (const i of m.world.nav.mainCells) {
+        const p = m.world.nav.cellCenter(i);
+        const d = (p.x - z[0]) ** 2 + (p.z - z[2]) ** 2 + (p.y - z[1]) ** 2 * 4;
+        if (d < bd) { bd = d; best = i; }
+      }
+      c = best;
+    }
+    if (c >= 0) m.world.nav.cellCenter(c, this.home);
+    else this.home.set(...z);
+    this.pos.copy(this.home);
+  }
+
+  update(m: Match, dt: number) {
+    const c = this.carrier;
+    if (c) {
+      if (!c.alive) {
+        this.drop(m, c);
+      } else {
+        this.pos.copy(c.pos);
+        this.acc += dt;
+        while (this.acc >= 1) {
+          this.acc -= 1;
+          c.stats.score += 10;
+          m.addScore(c.team, 1);
+        }
+        return;
+      }
+    }
+    if (!this.atHome) {
+      this.dropTimer -= dt;
+      if (this.dropTimer <= 0 || this.pos.y < m.killY + 2) {
+        this.pos.copy(this.home);
+        this.atHome = true;
+        m.emit({ type: 'duck', action: 'reset', actor: null });
+      }
+    }
+    for (const a of m.actors) {
+      if (!a.alive) continue;
+      if (Math.hypot(a.pos.x - this.pos.x, a.pos.z - this.pos.z) < 1.6 && Math.abs(a.pos.y - this.pos.y) < 2) {
+        this.carrier = a;
+        this.atHome = false;
+        this.acc = 0;
+        a.carrying = 2;
+        m.emit({ type: 'duck', action: 'taken', actor: a });
+        break;
+      }
+    }
+  }
+
+  drop(m: Match, c: Actor) {
+    c.carrying = -1;
+    this.carrier = null;
+    this.atHome = false;
+    this.dropTimer = 12;
+    this.pos.copy(c.pos);
+    const g = m.world.col.groundHeight(this.pos.x, this.pos.z, 0.3, this.pos.y + 1);
+    if (g > -Infinity) this.pos.y = g;
+    m.emit({ type: 'duck', action: 'dropped', actor: c });
+  }
+
+  goalFor(m: Match, a: Actor): BotGoal {
+    const c = this.carrier;
+    if (c === a) {
+      // run somewhere away from enemies, preferring own half
+      const spots = (m.world.level.hotspots ?? []).map((h) => new THREE.Vector3(...h));
+      spots.push(...m.world.level.spawns.filter((s) => s.team === a.team).map((s) => new THREE.Vector3(...s.pos)));
+      let best = spots[0] ?? this.home;
+      let bestScore = -Infinity;
+      for (const sp of spots) {
+        let minE = 99;
+        for (const e of m.actors) if (e.alive && e.team !== a.team) minE = Math.min(minE, e.pos.distanceTo(sp));
+        const sc = minE - sp.distanceTo(a.pos) * 0.3 + Math.random() * 6;
+        if (sc > bestScore) { bestScore = sc; best = sp; }
+      }
+      return { kind: 'return', pos: best.clone(), radius: 2, urgency: 0.85 };
+    }
+    if (c && c.team === a.team) return { kind: 'escort', pos: c.pos.clone(), radius: 5, urgency: 0.35, follow: c };
+    if (c) return { kind: 'chase', pos: c.pos.clone(), radius: 1.5, urgency: 0.75 };
+    return { kind: 'capture', pos: this.pos.clone(), radius: 0.5, urgency: 0.8 };
+  }
+
+  objective(_m: Match): Objective {
+    const c = this.carrier;
+    return { status: c ? `${c.name} has the duck!` : this.atHome ? 'The duck awaits!' : 'The duck is loose!', duck: { team: c ? c.team : -1, carrier: c ? c.name : null } };
+  }
+}
+
 export function createMode(id: ModeId): Mode {
   switch (id) {
+    case 'duck': return new DuckMode();
     case 'ctf': return new CTF();
     case 'koth': return new KOTH();
     case 'elim': return new Elimination();

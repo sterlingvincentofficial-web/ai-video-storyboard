@@ -78,7 +78,7 @@ button { font-family: inherit; }
 .phead { display: flex; align-items: center; gap: 14px; position: sticky; top: -18px; background: #fffdf5; padding: 6px 0; z-index: 2; }
 .cards { display: grid; gap: 12px; }
 .cards.worlds { grid-template-columns: repeat(5, 1fr); }
-.cards.modes { grid-template-columns: repeat(4, 1fr); }
+.cards.modes { grid-template-columns: repeat(5, 1fr); }
 .card { position: relative; border: 4px solid var(--ink); border-radius: 18px; background: #fff; overflow: hidden; cursor: pointer; box-shadow: 0 5px 0 var(--ink); transition: transform 0.1s; padding-bottom: 8px; }
 .card:hover { transform: translateY(-3px) rotate(-0.6deg); }
 .card.sel { background: #fff3b8; outline: 4px solid #ffb800; outline-offset: 2px; transform: translateY(-3px); }
@@ -341,7 +341,7 @@ body.touch-ui .crosshair { transform: scale(1.1); }
   .panel { padding: 12px 14px 16px; border-radius: 20px; }
   .panel h2 { font-size: 26px; }
   .cards.worlds { grid-template-columns: repeat(5, minmax(120px, 1fr)); overflow-x: auto; }
-  .cards.modes { grid-template-columns: repeat(4, minmax(120px, 1fr)); overflow-x: auto; }
+  .cards.modes { grid-template-columns: repeat(5, minmax(120px, 1fr)); overflow-x: auto; }
   .card .ctag { display: none; }
   .settings-grid, .help-grid, .res-grid { grid-template-columns: 1fr; }
   .logo { top: 6vh; }

@@ -2,7 +2,7 @@ import * as THREE from 'three';
 import type { Match, MatchEvent } from '../game/Match';
 import type { Actor } from '../entities/Actor';
 import { WEAPONS, WEAPON_ORDER } from '../entities/Weapons';
-import { CTF, KOTH, Elimination } from '../modes/Modes';
+import { CTF, KOTH, Elimination, DuckMode } from '../modes/Modes';
 import { formatTime, hexToCss } from '../core/utils';
 import { settings } from '../core/Settings';
 
@@ -274,6 +274,7 @@ export class Hud {
       this.objective.style.color = z.contested ? '#ffd23f' : z.owner < 0 ? '' : this.teamColors[z.owner];
     } else this.objective.style.color = '';
     if (obj.alive) objText = `Round ${obj.round} · Alive ${obj.alive[0]} v ${obj.alive[1]}`;
+    if (obj.duck) this.objective.style.color = obj.duck.team >= 0 ? this.teamColors[obj.duck.team] : '#ffd23f';
     this.set('obj', this.objective, objText);
     if (obj.flags) {
       this.flagInfo.style.display = '';
@@ -330,6 +331,7 @@ export class Hud {
       this.crosshair.classList.toggle('hidden', opts.aiming && def.id === 'zapper');
       this.scope.classList.toggle('show', opts.aiming && def.id === 'zapper' && alive);
       this.carry.classList.toggle('show', p.carrying >= 0 && alive);
+      if (p.carrying >= 0) this.set('carry', this.carry, m.mode instanceof DuckMode ? '🦆 YOU HAVE THE DUCK — STAY ALIVE!' : '🚩 YOU HAVE THE FLAG — RUN HOME!');
       // respawn overlay
       if (!p.alive && m.state !== 'ended') {
         const k = p.killer;
@@ -467,6 +469,16 @@ export class Hud {
         g.fill();
         g.fillRect(f.pos.x - 0.25, f.pos.z - 2.6, 0.5, 3);
       });
+    }
+    if (m.mode instanceof DuckMode) {
+      const d = m.mode;
+      g.fillStyle = '#ffd23f';
+      g.strokeStyle = '#111';
+      g.lineWidth = 0.6;
+      g.beginPath();
+      g.arc(d.pos.x, d.pos.z, 2.4, 0, Math.PI * 2);
+      g.fill();
+      g.stroke();
     }
     const me = m.player;
     for (const a of m.actors) {

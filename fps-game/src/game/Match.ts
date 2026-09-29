@@ -2,7 +2,7 @@ import * as THREE from 'three';
 import { Actor, BASE_PHYSICS, EYE, type Physics } from '../entities/Actor';
 import { BotBrain, DIFFICULTIES, type BotWorld, type PickupInfo } from '../entities/Bot';
 import { GRENADE, WEAPONS, type WeaponDef, type WeaponId } from '../entities/Weapons';
-import { createMode, CTF, KOTH, type Mode, type ModeId } from '../modes/Modes';
+import { createMode, CTF, DuckMode, KOTH, type Mode, type ModeId } from '../modes/Modes';
 import type { WorldScene } from '../world/WorldScene';
 import type { WorldId } from '../worlds/types';
 import type { PickupType } from '../world/Level';
@@ -31,6 +31,7 @@ export type MatchEvent =
   | { type: 'message'; text: string; big?: boolean; color?: string; forPlayer?: boolean }
   | { type: 'flag'; action: 'taken' | 'captured' | 'returned' | 'dropped'; team: number; actor: Actor | null }
   | { type: 'zone'; team: number }
+  | { type: 'duck'; action: 'taken' | 'dropped' | 'reset'; actor: Actor | null }
   | { type: 'round'; team: number }
   | { type: 'hit'; attacker: Actor; victim: Actor; dmg: number; head: boolean; kill: boolean; pos: THREE.Vector3 }
   | { type: 'damaged'; victim: Actor; attacker: Actor | null; dmg: number; from: THREE.Vector3 }
@@ -163,6 +164,7 @@ export class Match implements BotWorld {
     this.buildPads();
     if (this.mode instanceof CTF) this.buildFlags();
     if (this.mode instanceof KOTH) this.buildZone();
+    if (this.mode instanceof DuckMode) this.buildDuck();
     this.respawnAll();
   }
 
@@ -298,6 +300,7 @@ export class Match implements BotWorld {
     this.updatePads(dt);
     this.updateFlags(dt);
     this.updateZone(dt);
+    this.updateDuck(dt);
   }
 
   private updateActor(a: Actor, dt: number, active: boolean) {
@@ -312,7 +315,7 @@ export class Match implements BotWorld {
     a.spawnShield = Math.max(0, a.spawnShield - dt);
     a.overcharge = Math.max(0, a.overcharge - dt);
     // cartoon regen: heal up after a few seconds out of combat
-    if (a.health < a.maxHealth && this.time - a.lastDamageTime > 4.5) a.health = Math.min(a.maxHealth, a.health + 14 * dt);
+    if (a.health < a.maxHealth && a.carrying !== 2 && this.time - a.lastDamageTime > 4.5) a.health = Math.min(a.maxHealth, a.health + 14 * dt);
     a.fireCd -= dt;
     a.grenadeCd -= dt;
     if (a.switchT > 0) {
@@ -649,6 +652,7 @@ export class Match implements BotWorld {
     v.respawnTimer = this.mode.respawnTime;
     v.wantFire = false;
     if (v.carrying >= 0 && this.mode instanceof CTF) this.mode.drop(this, this.mode.flags[v.carrying]);
+    if (this.mode instanceof DuckMode && this.mode.carrier === v) this.mode.drop(this, v);
     // assist
     let assist: Actor | null = null;
     for (const [id, t] of v.damagers) {
@@ -987,6 +991,49 @@ export class Match implements BotWorld {
     const crown = this.zoneMesh.children[2];
     crown.rotation.y += dt;
     crown.position.y = 6 + Math.sin(this.time * 2) * 0.3;
+  }
+
+  // ---------------------------------------------------------------- Duck Rush
+  duckMesh: THREE.Group | null = null;
+  private buildDuck() {
+    const g = new THREE.Group();
+    const gold = this.world.mats.mat(0xffd21f, { emissive: 0x6a4a00, emissiveIntensity: 0.6 });
+    const body = new THREE.Mesh(new THREE.SphereGeometry(0.5, 16, 12), gold);
+    body.scale.set(1.25, 0.9, 1);
+    const head = new THREE.Mesh(new THREE.SphereGeometry(0.32, 14, 10), gold);
+    head.position.set(0.42, 0.55, 0);
+    const beak = new THREE.Mesh(new THREE.ConeGeometry(0.13, 0.3, 10), this.world.mats.mat(0xff7a1a));
+    beak.rotation.z = -Math.PI / 2;
+    beak.position.set(0.78, 0.5, 0);
+    const tail = new THREE.Mesh(new THREE.ConeGeometry(0.18, 0.35, 8), gold);
+    tail.rotation.z = Math.PI / 2 + 0.6;
+    tail.position.set(-0.6, 0.25, 0);
+    const eyeM = this.world.mats.mat(0x111111);
+    for (const z of [-0.18, 0.18]) {
+      const e = new THREE.Mesh(new THREE.SphereGeometry(0.06, 8, 6), eyeM);
+      e.position.set(0.6, 0.65, z);
+      g.add(e);
+    }
+    const halo = new THREE.Mesh(new THREE.TorusGeometry(0.9, 0.05, 6, 32), this.world.mats.glow(0xffe066, 1.6));
+    halo.rotation.x = Math.PI / 2;
+    halo.position.y = -0.3;
+    const beam = new THREE.Mesh(new THREE.CylinderGeometry(0.25, 0.6, 18, 16, 1, true), new THREE.MeshBasicMaterial({ color: 0xffe066, transparent: true, opacity: 0.18, depthWrite: false, side: THREE.DoubleSide, toneMapped: false }));
+    beam.position.y = 9;
+    g.add(body, head, beak, tail, halo, beam);
+    g.traverse((o) => { if ((o as THREE.Mesh).isMesh && o !== beam) o.castShadow = true; });
+    this.group.add(g);
+    this.duckMesh = g;
+  }
+
+  private updateDuck(dt: number) {
+    if (!(this.mode instanceof DuckMode) || !this.duckMesh) return;
+    const d = this.mode;
+    const g = this.duckMesh;
+    g.rotation.y += dt * 1.5;
+    const carried = !!d.carrier;
+    g.position.set(d.pos.x, d.pos.y + (carried ? 2.9 : 1.1) + Math.sin(this.time * 3) * 0.15, d.pos.z);
+    g.scale.setScalar(carried ? 0.6 : 1);
+    g.children[g.children.length - 1].visible = true;
   }
 
   dispose() {

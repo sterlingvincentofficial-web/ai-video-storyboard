@@ -231,7 +231,7 @@ export class Game {
         ? '🕹️ Left thumb: move · Right thumb: look · 🔥 fire (drag it to aim) · ⤒ jump twice to double-jump'
         : '⌨️ WASD move · SPACE jump (twice = double jump) · SHIFT sprint · LMB fire · RMB scope · R reload · G bomb · TAB scores', 10);
     } else {
-      const obj: Record<string, string> = { tdm: 'Splat the red team! First to the kill limit wins.', ctf: 'Grab the red flag and bring it to your base!', koth: 'Hold the glowing zone to score!', elim: 'No respawns — last team standing wins the round!' };
+      const obj: Record<string, string> = { tdm: 'Splat the red team! First to the kill limit wins.', ctf: 'Grab the red flag and bring it to your base!', koth: 'Hold the glowing zone to score!', elim: 'No respawns — last team standing wins the round!', duck: 'Grab the golden duck and keep it away from red!' };
       this.hud.hint(obj[cfg.mode] ?? '', 5);
     }
   }
@@ -534,6 +534,14 @@ export class Game {
           if (e.action === 'dropped') { hud.toastMsg(`${ours ? 'Your' : 'Enemy'} flag dropped!`); audio.play('flag_dropped'); }
           break;
         }
+        case 'duck':
+          if (playing) {
+            const mine = e.actor && p && e.actor.team === p.team;
+            if (e.action === 'taken') { hud.message(e.actor === p ? 'YOU GOT THE DUCK! 🦆' : mine ? `${e.actor!.name} GOT THE DUCK!` : `${e.actor!.name} STOLE THE DUCK!`, false, mine ? tc(p!.team) : tc(e.actor!.team)); audio.play('flag_taken'); }
+            if (e.action === 'dropped') { hud.toastMsg('The duck was dropped!'); audio.play('flag_dropped'); }
+            if (e.action === 'reset') { hud.toastMsg('The duck returned to the centre'); audio.play('flag_returned'); }
+          }
+          break;
         case 'zone':
           if (playing) {
             hud.message(e.team === (p?.team ?? 0) ? 'ZONE CAPTURED!' : 'ENEMY TOOK THE ZONE!', false, tc(e.team));
