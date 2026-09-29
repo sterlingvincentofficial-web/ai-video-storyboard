@@ -7,7 +7,7 @@ import { WORLDS } from '../worlds';
 import type { Quality, WorldId } from '../worlds/types';
 import { Match, type MatchConfig, type MatchEvent } from './Match';
 import { Input } from '../core/Input';
-import { settings } from '../core/Settings';
+import { settings, saveSettings } from '../core/Settings';
 import { Hud } from '../ui/Hud';
 import { TouchControls } from '../ui/Touch';
 import { audio, type SfxName } from '../core/Audio';
@@ -18,6 +18,7 @@ import { addXp, profile, saveProfile } from '../core/Profile';
 import { applyTally, CHALLENGE_XP } from '../core/Challenges';
 import { announcer } from '../core/Announcer';
 import type { Actor } from '../entities/Actor';
+import { CharacterModel, type CosmeticHat } from '../render/Character';
 
 export type GameState = 'menu' | 'playing' | 'paused' | 'ended';
 
@@ -53,6 +54,11 @@ export class Game {
   /** Gameplay time scale (hit-stop on kills, slow-mo finish). */
   private timeScale = 1;
   private frameNo = 0;
+  private autoQ = { t: 0, n: 0, sum: 0, done: false };
+  preview: CharacterModel | null = null;
+  private previewSpot = new THREE.Vector3();
+  private previewYaw = 0;
+  onQualityAuto: ((q: Quality) => void) | null = null;
   private slowT = 0;
   private time = 0;
   private shake = 0;
@@ -221,6 +227,8 @@ export class Game {
 
   /** Menu background: bots-only match with a cinematic camera. */
   startAttract(id: WorldId) {
+    const keepHat = this.preview ? this.previewHat : null;
+    if (keepHat) this.setPreview(false);
     this.loadWorld(id);
     this.disposeMatch();
     this.match = new Match(this.world!, { world: id, mode: 'tdm', difficulty: 2, scoreScale: 3, mutators: [], playerName: '', playerHat: 'default', spectate: true }, this.fx!);
@@ -236,6 +244,7 @@ export class Game {
     audio.startMusic('menu');
     audio.setMusicIntensity(0.3);
     this.specTarget = null;
+    if (keepHat) this.setPreview(true, keepHat);
   }
 
   startMatch(cfg: MatchConfig) {
@@ -339,6 +348,7 @@ export class Game {
       if (this.slowT <= 0) this.timeScale = 1;
     }
     const gdt = dt * this.timeScale;
+    if (this.state === 'menu') this.measureQuality(rawDt);
     if (this.state === 'playing' || this.state === 'ended') {
       if (this.input.pausePressed && this.state === 'playing') this.onPauseRequest?.();
       if (m.player && this.state === 'playing') this.controlPlayer(dt);
@@ -374,6 +384,53 @@ export class Game {
     this.input.consume();
     this.adaptResolution(rawDt);
     if (this.state === 'ended') this.updateEnd(Math.min(rawDt, 0.25), m);
+  }
+
+  /** First run only: sample menu frame times and step quality down on slow devices. */
+  private measureQuality(dt: number) {
+    const a = this.autoQ;
+    if (a.done) return;
+    if (navigator.webdriver) { a.done = true; return; }
+    let flag = false;
+    try { flag = !!localStorage.getItem('toonfire.autoq'); } catch { /* ignore */ }
+    if (flag) { a.done = true; return; }
+    a.t += dt;
+    if (a.t < 1.5) return; // let shaders compile
+    a.sum += dt;
+    a.n++;
+    if (a.t < 5) return;
+    a.done = true;
+    const avg = a.sum / Math.max(1, a.n);
+    try { localStorage.setItem('toonfire.autoq', String(Math.round(1 / avg))); } catch { /* ignore */ }
+    let q = settings.quality;
+    if (avg > 1 / 22) q = 'low';
+    else if (avg > 1 / 38 && (q === 'high' || q === 'ultra')) q = 'medium';
+    if (q !== settings.quality) {
+      settings.quality = q;
+      saveSettings();
+      this.applyQuality();
+      this.onQualityAuto?.(q);
+    }
+  }
+
+  /** Loadout screen: show the player's trooper with the chosen hat. */
+  private previewHat = 'default';
+  setPreview(on: boolean, hat: string = 'default') {
+    this.previewHat = hat;
+    if (this.preview) {
+      this.preview.root.parent?.remove(this.preview.root);
+      this.preview.dispose();
+      this.preview = null;
+    }
+    if (!on || !this.world) return;
+    const th = this.world.theme;
+    const model = new CharacterModel({ team: 0, palette: th.teams[0], style: th.character, mats: this.world.mats, name: settings.playerName || 'You', cosmetic: hat as CosmeticHat });
+    model.setWeapon('blaster', this.world.mats, th.teams[0].secondary);
+    const sp = this.world.level.spawns.find((s) => s.team === 0)!;
+    this.previewSpot.set(sp.pos[0], sp.pos[1], sp.pos[2]);
+    model.root.position.copy(this.previewSpot);
+    this.world.scene.add(model.root);
+    this.preview = model;
   }
 
   slowMo(scale: number, seconds: number) {
@@ -731,7 +788,18 @@ export class Game {
     let targetFov = settings.fov;
     this.shake = Math.max(0, this.shake - dt * 2.2);
     const shakeAmt = settings.screenShake ? this.shake * this.shake : 0;
-    if (this.state === 'menu' || (this.state === 'ended' && !p)) {
+    if (this.state === 'menu' && this.preview) {
+      const pv = this.preview;
+      this.previewYaw += dt * 0.6;
+      pv.root.rotation.y = this.previewYaw;
+      pv.update({ speed: 0, onGround: true, pitch: 0, vy: 0, dt, sprint: false });
+      const s = this.previewSpot;
+      // character sits on the right third of the screen
+      // looking toward +Z, screen-right is -X: shift the view so the trooper sits right of the panel
+      cam.position.set(s.x + 1.15, s.y + 1.45, s.z - 3.4);
+      cam.lookAt(s.x + 1.15, s.y + 1.05, s.z);
+      targetFov = 50;
+    } else if (this.state === 'menu' || (this.state === 'ended' && !p)) {
       this.spectatorCam(dt, m);
       targetFov = 70;
     } else if (this.state === 'ended') {

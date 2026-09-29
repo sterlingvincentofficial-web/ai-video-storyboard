@@ -82,6 +82,7 @@ export class Menu {
 
   show(s: Screen) {
     if (s !== 'settings') this.back = s === 'pause' ? 'pause' : this.current === 'pause' ? 'pause' : 'title';
+    if (this.game.state === 'menu') this.game.setPreview(s === 'loadout', hatUnlocked(settings.hat) ? settings.hat : 'default');
     this.current = s;
     this.screens.forEach((d, k) => d.classList.toggle('active', k === s));
     this.root.classList.toggle('hidden', s === 'none');
@@ -259,7 +260,7 @@ export class Menu {
         ${this.profileBadge()}
         <h3>Trooper name</h3>
         <input class="name-input" maxlength="14" value="${esc(settings.playerName)}" />
-        <h3>Hat <small>(earn XP to unlock more — shows in kill cams & victory dances)</small></h3>
+        <h3>Hat <small>(tap a locked hat to try it on · earn XP to unlock · shows in kill cams & victory dances)</small></h3>
         <div class="hats">${hats}</div>
         <h3>Career</h3>
         <div class="career">
@@ -279,12 +280,18 @@ export class Menu {
       settings.playerName = inp.value.replace(/[<>]/g, '').slice(0, 14) || 'You';
       saveSettings();
     });
+    inp.addEventListener('change', () => this.game.setPreview(true, hatUnlocked(settings.hat) ? settings.hat : 'default'));
     d.querySelectorAll<HTMLElement>('.hat').forEach((h) =>
       h.addEventListener('click', () => {
-        if (h.classList.contains('locked')) return;
+        if (h.classList.contains('locked')) {
+          // try it on without equipping
+          this.game.setPreview(true, h.dataset.h!);
+          return;
+        }
         settings.hat = h.dataset.h!;
         saveSettings();
         d.querySelectorAll('.hat').forEach((x) => x.classList.toggle('sel', x === h));
+        this.game.setPreview(true, settings.hat);
       }),
     );
   }
