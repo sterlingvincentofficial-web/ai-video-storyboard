@@ -23,9 +23,9 @@ export const TOUR: TourStop[] = [
 ];
 
 export const TOUR_TIERS = [
-  { name: 'Casual', base: 0, medal: '🥉', xp: 1000 },
-  { name: 'Standard', base: 1, medal: '🥈', xp: 2000 },
-  { name: 'Brutal', base: 2, medal: '🥇', xp: 3500 },
+  { name: 'Casual', base: 0, medal: '🥉', xp: 800 },
+  { name: 'Standard', base: 1, medal: '🥈', xp: 1500 },
+  { name: 'Brutal', base: 2, medal: '🥇', xp: 2500 },
 ];
 export const TOUR_HEARTS = 3;
 export const TOUR_STOP_XP = 300;
@@ -45,7 +45,7 @@ export interface TourState {
 
 export function tourState(): TourState {
   const p = profile as unknown as { tour?: TourState };
-  if (!p.tour) p.tour = { active: false, tier: 1, stop: 0, hearts: TOUR_HEARTS, stars: TOUR.map(() => 0), best: -1, completions: 0 };
+  if (!p.tour) p.tour = { active: false, tier: 0, stop: 0, hearts: TOUR_HEARTS, stars: TOUR.map(() => 0), best: -1, completions: 0 };
   const t = p.tour;
   while (t.stars.length < TOUR.length) t.stars.push(0);
   return t;
@@ -126,4 +126,20 @@ export function applyTourResult(stop: number, won: boolean, draw: boolean, mvp: 
   }
   saveProfile();
   return { stop, tier: t.tier, won, draw, stars, newBest, hearts: failed ? 0 : t.hearts, finished, failed, firstTrophy, xp };
+}
+
+/** Leaving (restart / quit) a tour stop after it started counts as a loss. */
+export function forfeitTourStop(): { failed: boolean; hearts: number } {
+  const t = tourState();
+  if (!t.active) return { failed: false, hearts: t.hearts };
+  t.hearts--;
+  let failed = false;
+  if (t.hearts <= 0) {
+    failed = true;
+    t.active = false;
+    t.stop = 0;
+    t.hearts = TOUR_HEARTS;
+  }
+  saveProfile();
+  return { failed, hearts: failed ? 0 : t.hearts };
 }

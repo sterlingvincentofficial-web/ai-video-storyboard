@@ -205,9 +205,13 @@ export class Match implements BotWorld {
     if (this.state === 'ended') return;
     this.state = 'ended';
     this.winner = winner;
+    // MVP: highest score, then kills, then fewest deaths; a full tie never goes to the human
+    const key = (a: Actor) => a.stats.score * 1e6 + a.stats.kills * 1e3 - a.stats.deaths;
     let best: Actor | null = null;
-    for (const a of this.actors) if (!best || a.stats.score > best.stats.score) best = a;
-    this.mvp = best;
+    for (const a of this.actors) {
+      if (!best || key(a) > key(best) || (key(a) === key(best) && best.isPlayer)) best = a;
+    }
+    this.mvp = best && best.stats.score > 0 ? best : null;
     for (const a of this.actors) { a.wantFire = false; a.wantAim = false; a.aiming = false; }
     this.emit({ type: 'end', winner });
     // winners chat

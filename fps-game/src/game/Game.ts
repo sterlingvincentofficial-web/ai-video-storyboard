@@ -168,6 +168,7 @@ export class Game {
     const changed = q !== this.quality;
     this.quality = q;
     this.renderer.shadowMap.enabled = q !== 'low';
+    this.shadowFresh = true;
     this.pipeline.setMSAA(this.msaaFor(q));
     this.pipeline.bloomEnabled = q !== 'low';
     if (this.world) this.pipeline.setStyle(this.world.theme.style);
@@ -219,6 +220,7 @@ export class Game {
     return this.worldId !== id || !this.world || this.forceReload;
   }
   private forceReload = false;
+  private shadowFresh = true;
 
   loadWorld(id: WorldId) {
     if (this.worldId === id && this.world && !this.forceReload) return;
@@ -249,6 +251,7 @@ export class Game {
     audio.startAmbience(id);
     // warm up shaders
     this.renderer.compile(this.world.scene, this.camera);
+    this.shadowFresh = true;
   }
 
   private disposeMatch() {
@@ -418,8 +421,10 @@ export class Game {
     this.frameNo++;
     if (this.quality === 'medium') {
       this.renderer.shadowMap.autoUpdate = false;
-      if (this.frameNo % 2 === 0) this.renderer.shadowMap.needsUpdate = true;
+      // a fresh world has no shadow maps yet: sampling them would skip draws (GL_INVALID_OPERATION)
+      if (this.frameNo % 2 === 0 || this.shadowFresh) this.renderer.shadowMap.needsUpdate = true;
     } else this.renderer.shadowMap.autoUpdate = true;
+    this.shadowFresh = false;
     this.pipeline.render(w.scene, this.camera, this.time);
     this.input.consume();
     this.adaptResolution(rawDt);
@@ -854,14 +859,16 @@ export class Game {
       for (const c of completed) xp.push({ label: `Challenge: ${c}`, value: CHALLENGE_XP });
       this.lastChallenges = completed;
       let tour: TourOutcome | null = null;
-      if (m.cfg.tourStop != null) {
-        tour = applyTourResult(m.cfg.tourStop, won, m.winner === -1, m.mvp === p, t);
-        xp.push(...tour.xp);
-      }
+      if (m.cfg.tourStop != null) tour = applyTourResult(m.cfg.tourStop, won, m.winner === -1, m.mvp === p, t);
       const diffBonus = [0.8, 1, 1.25, 1.5][m.cfg.difficulty] ?? 1;
       if (diffBonus !== 1) xp.push({ label: `Difficulty ×${diffBonus}`, value: 0 });
       let total = xp.reduce((a, b) => a + b.value, 0);
       total = Math.round(total * diffBonus);
+      // tour rewards are already scaled by tier, so they skip the difficulty multiplier
+      if (tour) {
+        xp.push(...tour.xp);
+        total += tour.xp.reduce((a, b) => a + b.value, 0);
+      }
       profile.matches++;
       if (won) { profile.wins++; profile.worldWins[m.cfg.world] = (profile.worldWins[m.cfg.world] ?? 0) + 1; }
       profile.kills += s.kills;

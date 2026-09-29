@@ -5,7 +5,7 @@ import { MODE_INFO, MODE_ORDER, MUTATORS, type ModeId } from '../modes/Modes';
 import { settings, saveSettings, resetSettings } from '../core/Settings';
 import { profile, xpForLevel, hatUnlocked } from '../core/Profile';
 import { dailyChallenges, CHALLENGE_XP } from '../core/Challenges';
-import { TOUR, TOUR_TIERS, TOUR_HEARTS, TOUR_SCORE_SCALE, tourState, tourDifficulty, startTour, abandonTour } from '../core/Tour';
+import { TOUR, TOUR_TIERS, TOUR_HEARTS, TOUR_SCORE_SCALE, tourState, tourDifficulty, startTour, abandonTour, forfeitTourStop } from '../core/Tour';
 import type { MatchConfig } from '../game/Match';
 import { HATS } from '../render/Character';
 import { DIFFICULTIES } from '../entities/Bot';
@@ -110,7 +110,7 @@ export class Menu {
 
   private renderTitle() {
     const d = this.screens.get('title')!;
-    const w = WORLDS[settings.lastWorld];
+    const w = WORLDS[this.game.worldId ?? settings.lastWorld];
     d.innerHTML = `
       ${this.profileBadge()}
       <div class="title-col">
@@ -227,7 +227,7 @@ export class Menu {
     const t = tourState();
     const stars = (n: number) => [0, 1, 2].map((i) => `<i class="${i < n ? 'on' : ''}">★</i>`).join('');
     const total = t.stars.reduce((a, b) => a + b, 0);
-    const tierSel = t.active ? t.tier : Math.max(0, Math.min(2, t.best + 1));
+    const tierSel = t.tier;
     const cards = TOUR.map((st, i) => {
       const th = WORLDS[st.world].theme;
       const cls = t.active ? (i < t.stop ? 'done' : i === t.stop ? 'next' : 'locked') : i === 0 ? 'next' : 'locked';
@@ -235,7 +235,7 @@ export class Menu {
       return `<div class="tstop ${cls}" style="--c1:${hexToCss(th.teams[0].primary)}">
         <div class="img" style="background-image:url('${th.image}')"><span class="num">${i + 1}</span>${cls === 'done' ? '<span class="tick">✔</span>' : ''}</div>
         <div class="tname">${esc(st.title)}</div>
-        <div class="tmeta">${esc(th.name)}<br/>${MODE_INFO[st.mode].icon} ${MODE_INFO[st.mode].name}</div>
+        <div class="tmeta"><span class="tworld">${esc(th.name)}</span><br/>${MODE_INFO[st.mode].icon} ${MODE_INFO[st.mode].name}</div>
         <div class="tdiff" data-i="${i}">${DIFFICULTIES[tourDifficulty(tierSel, i)].name}${muts.length ? ` · ${muts.map(esc).join(', ')}` : ''}</div>
         <div class="tstars">${stars(t.stars[i])}</div>
         <div class="tgoal">★ ${esc(st.star3.text)}</div>
@@ -288,6 +288,7 @@ export class Menu {
       if (!t.active) startTour(tier);
       this.startTourStop();
     });
+    requestAnimationFrame(() => d.querySelector('.tstop.next')?.scrollIntoView({ inline: 'center', block: 'nearest' }));
     const w = TOUR[t.active ? t.stop : 0].world;
     if (this.game.state === 'menu' && this.game.worldId !== w) this.game.withLoading(`Loading ${WORLDS[w].theme.name}…`, () => this.game.startAttract(w));
   }
@@ -529,21 +530,33 @@ export class Menu {
   private renderPause() {
     const d = this.screens.get('pause')!;
     const m = this.game.match;
+    // leaving a tour stop once the fight is underway costs a heart
+    const tourCost = !!m && m.cfg.tourStop != null && tourState().active && m.state !== 'ended' && m.time > 6;
     d.innerHTML = `
       <div class="panel narrow">
         <h2>Paused</h2>
         <div class="pause-info">${m ? `${esc(m.world.theme.name)} · ${m.mode.info.name}<br/><b style="color:var(--blue)">BLUE ${m.score[0]}</b> — <b style="color:var(--red)">${m.score[1]} RED</b>` : ''}</div>
+        ${tourCost ? `<div class="pause-tour">🏆 World Tour stop ${(m!.cfg.tourStop ?? 0) + 1}/${TOUR.length} · <span class="hearts">${Array.from({ length: TOUR_HEARTS }, (_, i) => `<i class="${i < tourState().hearts ? 'on' : ''}">♥</i>`).join('')}</span><br/><small>Restarting or quitting now counts as a loss (−1 ♥)</small></div>` : ''}
         <button class="btn big primary resume">▶ RESUME</button>
         <button class="btn settings">⚙ Settings</button>
-        <button class="btn restart">↻ Restart match</button>
+        <button class="btn restart">↻ Restart ${m?.cfg.tourStop != null ? 'stop' : 'match'}</button>
         <button class="btn quit">⏏ Quit to menu</button>
       </div>`;
     d.querySelector('.resume')!.addEventListener('click', () => this.resume());
     d.querySelector('.settings')!.addEventListener('click', () => this.show('settings'));
-    d.querySelector('.restart')!.addEventListener('click', () => (this.lastCfg ? this.launch(this.lastCfg) : this.startMatch()));
+    d.querySelector('.restart')!.addEventListener('click', () => {
+      if (tourCost && forfeitTourStop().failed) {
+        this.game.quitToMenu();
+        this.show('tour');
+        return;
+      }
+      if (this.lastCfg) this.launch(this.lastCfg);
+      else this.startMatch();
+    });
     d.querySelector('.quit')!.addEventListener('click', () => {
+      if (tourCost) forfeitTourStop();
       this.game.quitToMenu();
-      this.show('title');
+      this.show(m?.cfg.tourStop != null ? 'tour' : 'title');
     });
   }
 
@@ -615,7 +628,10 @@ export class Menu {
       </div>`;
     d.querySelector('.tnext')?.addEventListener('click', () => this.startTourStop());
     d.querySelector('.tmap')?.addEventListener('click', () => {
-      this.game.startAttract(this.game.worldId ?? settings.lastWorld);
+      const t = tourState();
+      const w = TOUR[t.active ? t.stop : 0].world;
+      if (this.game.needsLoad(w)) this.game.withLoading(`Loading ${WORLDS[w].theme.name}…`, () => this.game.startAttract(w));
+      else this.game.startAttract(w);
       this.show('tour');
     });
     d.querySelector('.again')?.addEventListener('click', () => this.startMatch());
