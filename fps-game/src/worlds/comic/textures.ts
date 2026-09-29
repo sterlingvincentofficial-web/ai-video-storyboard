@@ -727,16 +727,45 @@ export function asphaltTex() {
       g.fillStyle = r() > 0.55 ? 'rgba(25,20,35,0.5)' : 'rgba(220,220,230,0.35)';
       g.fillRect(r() * w, r() * h, 1 + r() * 2, 1 + r() * 2);
     }
+    // repaired patches
+    for (let i = 0; i < 4; i++) {
+      const x = r() * w, y = r() * h, pw = 40 + r() * 70, ph = 30 + r() * 60;
+      g.fillStyle = r() > 0.5 ? 'rgba(40,40,60,0.18)' : 'rgba(255,255,255,0.08)';
+      g.fillRect(x, y, pw, ph);
+      g.strokeStyle = INK;
+      g.globalAlpha = 0.45;
+      g.lineWidth = 2;
+      g.strokeRect(x, y, pw, ph);
+      g.globalAlpha = 1;
+    }
     // streaky ink hatching (like the concept's printed road)
     g.strokeStyle = INK;
-    for (let i = 0; i < 40; i++) {
-      const x = r() * w, y = r() * h, len = 20 + r() * 70;
-      g.globalAlpha = 0.18 + r() * 0.2;
-      g.lineWidth = 1 + r() * 1.5;
+    for (let i = 0; i < 70; i++) {
+      const x = r() * w, y = r() * h, len = 20 + r() * 80;
+      g.globalAlpha = 0.16 + r() * 0.22;
+      g.lineWidth = 1 + r() * 1.6;
       g.beginPath();
       g.moveTo(x, y);
       g.lineTo(x + (r() - 0.5) * 8, y + len);
       g.stroke();
+    }
+    // cross-hatched clusters
+    for (let i = 0; i < 10; i++) {
+      const x = r() * w, y = r() * h;
+      g.globalAlpha = 0.3;
+      g.lineWidth = 1.4;
+      for (let k = 0; k < 6; k++) {
+        g.beginPath();
+        g.moveTo(x + k * 5, y);
+        g.lineTo(x + k * 5 - 12, y + 18);
+        g.stroke();
+      }
+      for (let k = 0; k < 4; k++) {
+        g.beginPath();
+        g.moveTo(x + k * 6, y + 18);
+        g.lineTo(x + k * 6 + 12, y);
+        g.stroke();
+      }
     }
     g.globalAlpha = 1;
     // cracks

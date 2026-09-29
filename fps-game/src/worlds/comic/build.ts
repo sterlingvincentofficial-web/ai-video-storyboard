@@ -2,7 +2,7 @@ import * as THREE from 'three';
 import type { WorldBuildContext } from '../types';
 import type { BoxDef, RampDef } from '../../world/Level';
 import { Batcher, boxGeo } from '../../render/Batcher';
-import { skyDome, cloud, crateTexture, rampGeometry, stripeTexture } from '../common';
+import { skyDome, cloud, crateTexture, rampGeometry, stripeTexture, bunting } from '../common';
 import { canvasTexture } from '../../render/Materials';
 import { mulberry } from '../../core/utils';
 import * as TX from './textures';
@@ -59,25 +59,30 @@ export function buildComic(ctx: WorldBuildContext) {
   const hqM = mats.mat(0xffffff, { map: TX.hqAtlas(), side: THREE.DoubleSide });
   const teamM = [mats.mat(BLUE), mats.mat(RED)];
   const white = mats.mat(0xfaf6ec);
-  const paintWhite = mats.mat(0xf4f1e8);
+  const paintWhite = white;
   const paintYellow = mats.mat(0xffcc1a);
-  const awningTex = [
-    stripeTexture('#fff6e6', '#e8322b', 2), stripeTexture('#fff6e6', '#1d5cff', 2),
-    stripeTexture('#fff6e6', '#2f8a4f', 2), stripeTexture('#fff3c4', '#ff8a1f', 2),
-  ];
-  const awningM = awningTex.map((t) => mats.mat(0xffffff, { map: t, side: THREE.DoubleSide }));
+  // four striped awning fabrics in one atlas (rows), stripes repeat along U
+  const awningTex = canvasTexture(64, 256, (g) => {
+    const cols: [string, string][] = [['#fff6e6', '#e8322b'], ['#fff6e6', '#1d5cff'], ['#fff6e6', '#2f8a4f'], ['#fff3c4', '#ff8a1f']];
+    cols.forEach(([a, b], i) => {
+      g.fillStyle = a;
+      g.fillRect(0, i * 64, 32, 64);
+      g.fillStyle = b;
+      g.fillRect(32, i * 64, 32, 64);
+    });
+  }, { repeat: true });
+  const awningM = mats.mat(0xffffff, { map: awningTex, side: THREE.DoubleSide });
+  const awningV = (i: number): [number, number] => [1 - (i + 1) / 4 + 0.03, 1 - i / 4 - 0.03];
   const stripeBlue = stripeTexture('#ffffff', '#1d5cff', 8);
   const stripeRed = stripeTexture('#ffffff', '#e8222e', 8);
   const planks = mats.mat(0xffffff, { map: TX.planksTex() });
   const hazard = mats.mat(0xffffff, { map: TX.hazardTex() });
   const shutter = mats.mat(0xffffff, { map: TX.shutterTex() });
   const crateM = mats.mat(0xffffff, { map: crateTexture('#d09a55', '#8a5a2a', '#3b2412') });
-  const bronze = mats.mat(0x4f9c86);
+  const bronze = mats.mat(0x4f9c86, { side: THREE.DoubleSide });
   const gold = mats.mat(0xf2c230);
-  const capeM = mats.mat(0x478e79, { side: THREE.DoubleSide });
   const hedgeM = mats.mat(0x3e9a44);
   const skyGlass = mats.mat(0x9cc8f0);
-  const flowerM = [mats.mat(0xff4a5a), mats.mat(0xffd21f)];
   const dumpsterM = mats.mat(0x3a7d4c);
   const carM: Record<string, THREE.Material> = {
     taxi: mats.mat(0xffc814), teal: mats.mat(0x2aa3a0), cream: mats.mat(0xf0dfb8), purple: mats.mat(0x7a4db0),
@@ -110,7 +115,7 @@ export function buildComic(ctx: WorldBuildContext) {
   const posterGeo = (i: number, s: number) => TX.atlasPlane(s, s, TX.posterUV(i));
 
   // ------------------------------------------------------------------ helpers
-  const storefront = (f: Face, u0: number, u1: number, variant: number, sign: number, awning: THREE.Material | null, h = 3.4) => {
+  const storefront = (f: Face, u0: number, u1: number, variant: number, sign: number, awning: number | null, h = 3.4) => {
     P.at(f.x, 0, f.z, f.rot);
     const w = u1 - u0, uc = (u0 + u1) / 2;
     const g = new THREE.PlaneGeometry(w, h);
@@ -120,14 +125,15 @@ export function buildComic(ctx: WorldBuildContext) {
     const sw = Math.min(w * 0.72, 4.6);
     P.box(trimDark, uc, h + 0.42, 0.08, sw + 0.2, 0.84, 0.16);
     P.add(signGeo(sign, sw, sw / 8 * 1.0 > 0.7 ? 0.7 : sw / 4), signM, uc, h + 0.42, 0.17);
-    if (awning) {
+    if (awning !== null) {
+      const [av0, av1] = awningV(awning);
       // slopes from the sign down to h-0.55 at 1.3m out, 0.25 valance -> lowest edge h-0.8
       const aw = new THREE.PlaneGeometry(w * 0.92, Math.hypot(1.3, 0.6));
-      TX.uvRectGeo(aw, [0, 0, (w * 0.92) / 1.6, 1]);
-      P.add(aw, awning, uc, h - 0.25, 0.65, -Math.atan2(1.3, 0.6), 0, 0);
+      TX.uvRectGeo(aw, [0, av0, (w * 0.92) / 1.6, av1]);
+      P.add(aw, awningM, uc, h - 0.25, 0.65, -Math.atan2(1.3, 0.6), 0, 0);
       const val = new THREE.PlaneGeometry(w * 0.92, 0.25);
-      TX.uvRectGeo(val, [0, 0, (w * 0.92) / 1.6, 1]);
-      P.add(val, awning, uc, h - 0.675, 1.3);
+      TX.uvRectGeo(val, [0, av0, (w * 0.92) / 1.6, av1]);
+      P.add(val, awningM, uc, h - 0.675, 1.3);
     }
   };
   const poster = (f: Face, u: number, y: number, s: number, set: number, idx: number, d = 0.05) => {
@@ -197,7 +203,7 @@ export function buildComic(ctx: WorldBuildContext) {
         const rr = mulberry(seed);
         // ground floor: storefront or poster wall
         const lo = -f.w / 2 + 0.5, hi = f.w / 2 - 0.5;
-        if (rr() < 0.72) storefront(f, lo, hi, Math.floor(rr() * 2), Math.floor(rr() * 7), awningM[Math.floor(rr() * 4)]);
+        if (rr() < 0.72) storefront(f, lo, hi, Math.floor(rr() * 2), Math.floor(rr() * 7), Math.floor(rr() * 4));
         else {
           P.at(f.x, 0, f.z, f.rot);
           P.box(trimDark, 0, 0.5, 0.05, f.w - 0.6, 1.0, 0.1);
@@ -301,12 +307,12 @@ export function buildComic(ctx: WorldBuildContext) {
         const padU = along(fa, 9.4 * sgn, 21.5 * sgn);
         const lo = -fa.w / 2 + 0.4, hi = fa.w / 2 - 0.4;
         const a0 = Math.min(padU - 2.2, padU + 2.2), a1 = Math.max(padU - 2.2, padU + 2.2);
-        storefront(fa, lo, a0, 0, 0, awningM[0], 2.9);
-        storefront(fa, a1, hi, 1, 1, awningM[3], 2.9);
+        storefront(fa, lo, a0, 0, 0, 0, 2.9);
+        storefront(fa, a1, hi, 1, 1, 3, 2.9);
         P.at(fa.x, 0, fa.z, fa.rot);
         P.add(posterGeo(team === 0 ? 1 : 3, 2.4), posterM[team], padU, 1.5, 0.06);
-        storefront(fc, -fc.w / 2 + 0.4, fc.w / 2 - 0.4, 1, 5, awningM[team === 0 ? 1 : 0], 2.9);
-        storefront(fb, -fb.w / 2 + 0.4, fb.w / 2 - 0.4, 0, 6, awningM[2], 2.9);
+        storefront(fc, -fc.w / 2 + 0.4, fc.w / 2 - 0.4, 1, 5, team === 0 ? 1 : 0, 2.9);
+        storefront(fb, -fb.w / 2 + 0.4, fb.w / 2 - 0.4, 0, 6, 2, 2.9);
         // alley side: back door and a poster
         P.at(fl.x, 0, fl.z, fl.rot);
         P.box(trimDark, along(fl, 20 * sgn, 14.3 * sgn), 1.2, 0.05, 1.3, 2.4, 0.1);
@@ -369,8 +375,8 @@ export function buildComic(ctx: WorldBuildContext) {
         const fb = faceOf(b, 0, sgn);
         const fl = faceOf(b, -sgn, 0); // alley side
         const stoopU = along(fa, -10.45 * sgn, 20 * sgn);
-        storefront(fa, -fa.w / 2 + 0.4, Math.min(stoopU - 1.5, stoopU + 1.5), 0, 2, awningM[1], 3.2);
-        storefront(fa, Math.max(stoopU - 1.5, stoopU + 1.5), fa.w / 2 - 0.4, 1, 3, awningM[0], 3.2);
+        storefront(fa, -fa.w / 2 + 0.4, Math.min(stoopU - 1.5, stoopU + 1.5), 0, 2, 1, 3.2);
+        storefront(fa, Math.max(stoopU - 1.5, stoopU + 1.5), fa.w / 2 - 0.4, 1, 3, 0, 3.2);
         P.at(fa.x, 0, fa.z, fa.rot);
         P.box(trimDark, stoopU, 1.75, 0.05, 1.6, 2.7, 0.1);
         P.box(M.glass, stoopU, 2.3, 0.1, 1.1, 1.2, 0.04);
@@ -489,7 +495,7 @@ export function buildComic(ctx: WorldBuildContext) {
         if (d.mirrored) rot += Math.PI;
         P.at(cx, 0, cz, rot);
         if (b.kind === 'traffic') trafficVisual(P, M, sy);
-        else lampVisual(P, M, sy, !!d.globe);
+        else lampVisual(P, M, sy, !!d.globe, d.globe ? undefined : { geo: TX.atlasPlane(0.8, 1.6, [half * 0.25, 0, half * 0.25 + 0.25, 0.5]), mat: hqM });
         break;
       }
       case 'hydrant':
@@ -565,7 +571,7 @@ export function buildComic(ctx: WorldBuildContext) {
         batch.box(trim, cx, 0.62, cz, sx + 0.08, 0.06, sz + 0.08);
         batch.add(rbox(sx - 0.2, sy - 0.6, sz - 0.2, 0.22, 2), hedgeM, m4.makeTranslation(cx, 0.6 + (sy - 0.6) / 2, cz));
         const rr2 = mulberry(Math.round(cx * 11 + cz * 3 + 99));
-        for (let k = 0; k < 7; k++) batch.add(sph(0.09, 6, 4), flowerM[k % 2], m4.makeTranslation(cx + (rr2() - 0.5) * (sx - 0.4), sy + 0.02, cz + (rr2() - 0.5) * (sz - 0.4)));
+        for (let k = 0; k < 7; k++) batch.add(sph(0.09, 6, 4), k % 2 ? M.red : M.yellow, m4.makeTranslation(cx + (rr2() - 0.5) * (sx - 0.4), sy + 0.02, cz + (rr2() - 0.5) * (sz - 0.4)));
         break;
       }
       case 'island': {
@@ -588,7 +594,7 @@ export function buildComic(ctx: WorldBuildContext) {
           P.add(TX.atlasPlane(1.8, 0.68, [0.5, 0.3125, 1, 0.5]), hqM, 0, 1.55, (sz - 0.24) / 2 + 0.05);
         }
         P.at(0, sy, 0, Math.PI / 2 + 0.25);
-        statue(P, bronze, gold, capeM);
+        statue(P, bronze, gold, bronze);
         break;
       }
       default:
@@ -658,7 +664,7 @@ export function buildComic(ctx: WorldBuildContext) {
   scene.add(ground);
 
   const decal = (mat: THREE.Material, x: number, z: number, w: number, d: number, y = 0.025, rot = 0) => {
-    batch.box(mat, x, y - 0.012, z, w, 0.024, d, rot);
+    far.box(mat, x, y - 0.012, z, w, 0.024, d, rot);
   };
   for (const s of [1, -1]) {
     // zebra crossings across the avenue near the roundabout and near the base
@@ -687,13 +693,12 @@ export function buildComic(ctx: WorldBuildContext) {
   }, {}, true);
   const laneM = mats.mat(0xffffff, { map: laneTex, transparent: true });
   for (const s of [0, 1]) {
-    const g = TX.atlasPlane(3.4, 0.85, [0, s ? 0 : 0.5, 1, s ? 0.5 : 1]);
+    const g = TX.atlasPlane(5.2, 1.3, [0, s ? 0 : 0.5, 1, s ? 0.5 : 1]);
     g.rotateX(-Math.PI / 2);
     const mm = new THREE.Mesh(g, laneM);
     mm.position.set(s ? 5.9 : -5.9, 0.02, s ? -32 : 32);
     mm.rotation.y = s ? Math.PI : 0;
-    mm.renderOrder = 1;
-    scene.add(mm);
+    far.addMesh(mm);
   }
 
   // manholes and puddles
@@ -741,8 +746,7 @@ export function buildComic(ctx: WorldBuildContext) {
     const mm = new THREE.Mesh(new THREE.PlaneGeometry(s, s * sy), mat);
     mm.rotation.set(-Math.PI / 2, 0, rot);
     mm.position.set(x, y, z);
-    mm.renderOrder = 1;
-    scene.add(mm);
+    far.addMesh(mm);
   };
   for (const s of [1, -1]) {
     flat(manM, s * 3.2, s * 19.5, 1.0);
@@ -831,6 +835,46 @@ export function buildComic(ctx: WorldBuildContext) {
   });
 
   skyline(F, mats, facade, M, gold);
+
+  // team pennant strings across the avenue
+  for (const t of [0, 1] as const) {
+    const s = t === 0 ? 1 : -1;
+    const cols = [t === 0 ? BLUE : RED, 0xffffff, 0xffd21f];
+    for (const z of [12.6, 27.4]) {
+      bunting(scene, mats, new THREE.Vector3(-11.1 * s, 6.2, z * s), new THREE.Vector3(11.1 * s, 4.9, z * s), cols, 0.9, 18, batch);
+    }
+    bunting(scene, mats, new THREE.Vector3(-27.4 * s, 8.5, 40.5 * s), new THREE.Vector3(-10.2 * s, 9.0, 43.9 * s), cols, 1.2, 16, batch);
+    bunting(scene, mats, new THREE.Vector3(27.4 * s, 8.5, 40.5 * s), new THREE.Vector3(10.2 * s, 9.0, 43.9 * s), cols, 1.2, 16, batch);
+  }
+
+  // blimp circling the skyline
+  const blimpBatch = new Batcher(false, false);
+  const BP = new Placer(blimpBatch);
+  BP.at(0, 0, 0);
+  const hull = mats.mat(0xe6ebf2);
+  BP.add(sph(1, 24, 14), hull, 0, 0, 0, 0, 0, 0, 16, 4.6, 4.6);
+  BP.add(sph(1, 16, 10), teamM[1], 13.8, 0, 0, 0, 0, 0, 2.4, 2.6, 2.6);
+  BP.add(cyl(4.7, 4.7, 1.2, 24, true), teamM[0], 3, 0, 0, 0, 0, Math.PI / 2);
+  for (let k = 0; k < 4; k++) BP.box(teamM[k % 2], -13.2, 0, 0, 3.6, 0.3, 6.4, (k * Math.PI) / 2, 0, 0);
+  BP.add(rbox(4.2, 1.2, 1.6, 0.4), M.white, 1, -4.9, 0);
+  BP.box(M.glass, 1, -4.9, 0, 3.6, 0.5, 1.64);
+  for (const zs of [-1, 1]) {
+    const bg = TX.atlasPlane(13, 3.25, TX.billboardUV(3));
+    BP.add(bg, billM, -1, 0.3, zs * 4.75, 0, zs > 0 ? 0 : Math.PI, 0);
+  }
+  const blimp = new THREE.Group();
+  blimpBatch.flush(blimp, false);
+  const blimpPivot = new THREE.Group();
+  blimp.position.set(150, 78, 0);
+  blimp.rotation.y = Math.PI / 2;
+  blimpPivot.add(blimp);
+  blimpPivot.userData.dynamic = true;
+  blimp.userData.dynamic = true;
+  scene.add(blimpPivot);
+  ctx.animate((_dt, t) => {
+    blimpPivot.rotation.y = -t * 0.012 + 1.2;
+    blimp.position.y = 78 + Math.sin(t * 0.3) * 1.5;
+  });
 
   // second row of city blocks just behind the playable walls (sells the city)
   const br = mulberry(77);

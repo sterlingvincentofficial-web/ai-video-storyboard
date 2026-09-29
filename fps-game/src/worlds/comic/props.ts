@@ -138,8 +138,14 @@ export function vanVisual(P: Placer, M: PropMats, body: THREE.Material, stripe: 
 }
 
 /** Street lamp; the arm points along local +Z. */
-export function lampVisual(P: Placer, M: PropMats, h: number, globe = false) {
+export function lampVisual(P: Placer, M: PropMats, h: number, globe = false, banner?: { geo: THREE.BufferGeometry; mat: THREE.Material }) {
   P.add(cyl(0.22, 0.3, 0.7, 10), M.green, 0, 0.35, 0);
+  if (banner) {
+    // vertical street banner hanging toward the road (visible along the street)
+    P.box(M.green, 0, h - 1.35, 0.45, 0.05, 0.05, 0.9);
+    P.box(M.green, 0, h - 2.95, 0.45, 0.04, 0.04, 0.9);
+    P.add(banner.geo, banner.mat, 0, h - 2.15, 0.5, 0, Math.PI / 2, 0);
+  }
   P.add(cyl(0.07, 0.1, h, 8), M.green, 0, h / 2, 0);
   P.add(cyl(0.14, 0.14, 0.14, 10), M.green, 0, 1.3, 0);
   if (globe) {

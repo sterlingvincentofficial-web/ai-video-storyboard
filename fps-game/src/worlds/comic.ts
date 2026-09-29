@@ -15,7 +15,7 @@ export const comic: WorldDef = {
     ],
     style: {
       outlineColor: 0x120c18,
-      outlineWidth: 2.2,
+      outlineWidth: 2.4,
       outlineStrength: 1,
       outlineSensitivity: 1.15,
       neonEdges: 0,
@@ -23,7 +23,7 @@ export const comic: WorldDef = {
       contrast: 1.12,
       brightness: 0.0,
       tint: 0xfffaf0,
-      halftone: 0.8,
+      halftone: 0.85,
       halftoneScale: 5.5,
       paper: 0.1,
       grain: 0,
