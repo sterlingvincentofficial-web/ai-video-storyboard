@@ -127,13 +127,13 @@ class Builder:
         for key, (n, u, v, dn, du, dv) in faces.items():
             if key in skip:
                 continue
-            count = int(du * dv * density + rng.random())
+            count = int(du * dv * density * GREEBLE_SCALE + rng.random())
             for _ in range(count):
                 w = min(du * 0.7, grid * rng.choice((2, 2, 3, 3, 4, 5, 6)))
                 h = min(dv * 0.7, grid * rng.choice((2, 2, 3, 3, 4, 5)))
                 pu = round(rng.uniform(-(du - w) / 2 + 0.04, (du - w) / 2 - 0.04) / grid) * grid
                 pv = round(rng.uniform(-(dv - h) / 2 + 0.04, (dv - h) / 2 - 0.04) / grid) * grid
-                depth = rng.choice((0.03, 0.04, 0.05, 0.06))
+                depth = rng.choice((0.02, 0.03, 0.03, 0.04))
                 c = n * (dn / 2 + depth / 2 - 0.012) + u * pu + v * pv
                 rot = Matrix((u, v, n)).transposed().to_4x4()
                 self.box(M @ T(*c) @ rot, (w, h, depth), rng.choice(palette), bone)
@@ -165,6 +165,7 @@ B = Builder()
 # HEAD (head-local: origin = cranium centre, face toward -Y)
 # ----------------------------------------------------------------------------
 JAW_OPEN = 26.0
+GREEBLE_SCALE = 0.4   # panel detail amount (lower = cleaner)
 DZ = -0.3          # body height above the legs
 OFF = T(0, 0, DZ)
 
@@ -231,8 +232,7 @@ def build_head(Mh, hb, jb, tuft_big):
     B.flame_chain(tb, (0, 0.12 if tuft_big else 0.5, 1), 6 if tuft_big else 4, 0.42, hb, start=1)
     for s in (-1, 1):
         B.flame_chain(tb @ T(s * 0.32, 0.1, 0), (s * 0.28, 0.45, 1), 4 if tuft_big else 3, 0.36, hb, start=1)
-        B.flame_chain(tb @ T(s * 0.3, 0.5, -0.1), (s * 0.4, 0.9, 0.7), 3, 0.32, hb, start=1)
-    B.flame_chain(tb @ T(0, 0.55, -0.1), (0, 0.9, 0.7), 4, 0.36, hb, start=1)
+    B.flame_chain(tb @ T(0, 0.5, -0.1), (0, 0.9, 0.7), 3, 0.34, hb, start=1)
     return Mj
 
 
@@ -241,15 +241,15 @@ def build_head(Mh, hb, jb, tuft_big):
 # ----------------------------------------------------------------------------
 B.offset = OFF
 B.vbox(T(0, -1.6, 2.95), (2.6, 1.6, 2.2), 'chest', density=2.0)                 # chest
-B.vbox(T(0, -0.2, 2.97), (2.4, 1.6, 1.86), 'chest', density=2.0)                 # mid torso
-B.vbox(T(0, 1.35, 3.0), (2.5, 1.7, 1.9), 'hips', density=2.0)                    # hips
-B.vbox(T(0, 2.25, 3.05), (2.1, 0.5, 1.5), 'hips', density=2.0)                   # rump
+B.vbox(T(0, -0.05, 2.97), (2.4, 2.0, 1.86), 'chest', density=2.0)                 # mid torso
+B.vbox(T(0, 1.6, 3.0), (2.5, 1.8, 1.9), 'hips', density=2.0)                    # hips
+B.vbox(T(0, 2.6, 3.05), (2.1, 0.5, 1.5), 'hips', density=2.0)                   # rump
 B.box(T(0, -2.43, 2.45), (1.4, 0.12, 1.15), RED, 'chest')                        # red chest plate
 B.box(T(0, -1.8, 1.86), (1.5, 1.0, 0.12), RED_DARK, 'chest')                     # belly red
 for s in (-1, 1):
     B.vbox(T(s * 1.28, -1.55, 2.8), (0.6, 1.3, 1.35), 'chest', density=2.6)      # shoulders
-    B.vbox(T(s * 1.28, 1.4, 2.9), (0.62, 1.6, 1.6), 'hips', density=2.6)         # haunches
-    B.box(T(s * 1.6, 1.4, 2.95), (0.1, 0.9, 0.9), PURPLE[5], 'hips')
+    B.vbox(T(s * 1.28, 1.7, 2.9), (0.62, 1.6, 1.6), 'hips', density=2.6)         # haunches
+    B.box(T(s * 1.6, 1.7, 2.95), (0.1, 0.9, 0.9), PURPLE[5], 'hips')
 
 # ----------------------------------------------------------------------------
 # LEGS  (front legs bend back at the elbow, back legs forward at the knee)
@@ -258,7 +258,7 @@ B.offset = Matrix()
 LEGS = {}
 for s, side in ((1, 'L'), (-1, 'R')):
     for front in (True, False):
-        x, y = s * 0.95, (-1.6 if front else 1.45)
+        x, y = s * 0.95, (-1.6 if front else 1.8)
         up, lo, ft = (('upper_arm', 'forearm', 'paw') if front else ('thigh', 'shin', 'foot'))
         up, lo, ft = (f'{up}.{side}', f'{lo}.{side}', f'{ft}.{side}')
         bend = 0.06 if front else -0.06
@@ -276,9 +276,9 @@ for s, side in ((1, 'L'), (-1, 'R')):
 # ----------------------------------------------------------------------------
 HEAD_SCALE = 0.96
 HEADS = {
-    'C': dict(M=OFF @ T(0, -3.0, 4.3) @ R(-3, 0, 0) @ Matrix.Scale(HEAD_SCALE, 4), tuft=True),
-    'L': dict(M=OFF @ T(2.25, -2.6, 3.38) @ R(0, 0, 44) @ R(-6, 0, 0) @ Matrix.Scale(HEAD_SCALE, 4), tuft=False),
-    'R': dict(M=OFF @ T(-2.25, -2.6, 3.38) @ R(0, 0, -44) @ R(-6, 0, 0) @ Matrix.Scale(HEAD_SCALE, 4), tuft=False),
+    'C': dict(M=OFF @ T(0, -3.4, 4.3) @ R(-3, 0, 0) @ Matrix.Scale(HEAD_SCALE, 4), tuft=True),
+    'L': dict(M=OFF @ T(2.6, -2.75, 3.0) @ R(0, 0, 42) @ R(-6, 0, 0) @ Matrix.Scale(HEAD_SCALE, 4), tuft=False),
+    'R': dict(M=OFF @ T(-2.6, -2.75, 3.0) @ R(0, 0, -42) @ R(-6, 0, 0) @ Matrix.Scale(HEAD_SCALE, 4), tuft=False),
 }
 NECK_BASE = {'C': Vector((0, -1.95, 3.7 + DZ)), 'L': Vector((1.05, -1.9, 3.4 + DZ)), 'R': Vector((-1.05, -1.9, 3.4 + DZ))}
 for k, h in HEADS.items():
@@ -287,30 +287,35 @@ for k, h in HEADS.items():
     base = NECK_BASE[k]
     d = joint - base
     Mn = Matrix.Translation((base + joint) / 2) @ aim(d, (0, 1, 0))
-    B.vbox(Mn, (1.3, d.length + 0.7, 1.25), f'neck.{k}', density=2.2, skip=())
+    B.vbox(Mn, (1.1, d.length + 0.5, 1.1), f'neck.{k}', density=2.2, skip=())
     h['joint'], h['base'] = joint, base
 
 # ----------------------------------------------------------------------------
 # FLAME MANE along the spine
 # ----------------------------------------------------------------------------
 B.offset = OFF
-FANS = [(-1.7, 1.0), (-0.85, 1.15), (0.0, 1.2), (0.85, 1.15), (1.7, 0.95)]
+# continuous red crest along the spine
+yy = -1.95
+while yy < 2.5:
+    B.tile_cube(T(0, yy, 3.98) @ R(0, 0, rng.uniform(-6, 6)), 0.42, FLAME[0], FLAME[2],
+                'chest' if yy < 0.0 else 'hips')
+    yy += 0.5
+# finger chains sweeping back toward the tail, evenly spaced with clear gaps
+FANS = [(-1.7, 1.0), (-0.75, 1.15), (0.2, 1.15), (1.15, 1.05), (2.05, 0.85)]
 for y, k in FANS:
     bone = 'chest' if y < 0.0 else 'hips'
-    base = T(0, y, 3.9)
-    for x in (-0.3, 0.3):
-        B.tile_cube(base @ T(x, 0, 0.12) @ R(0, 0, rng.uniform(-8, 8)), 0.5, FLAME[0], FLAME[2], bone)
-    for ang, n, s0 in ((0, 6, 0.46), (-38, 5, 0.42), (38, 5, 0.42), (-72, 4, 0.38), (72, 4, 0.38)):
-        a = math.radians(ang + rng.uniform(-5, 5))
-        d = Vector((math.sin(a) * 1.1, 0.85, math.cos(a)))
+    base = T(0, y, 3.95)
+    for ang, n, s0 in ((0, 5, 0.4), (-42, 4, 0.36), (42, 4, 0.36)):
+        a = math.radians(ang + rng.uniform(-4, 4))
+        d = Vector((math.sin(a) * 1.1, 1.0, math.cos(a)))
         nn = max(2, round(n * k))
-        B.flame_chain(base @ T(math.sin(a) * 0.3, 0, 0.3), d, nn, s0 * (0.9 + 0.15 * k), bone, start=1)
+        B.flame_chain(base @ T(math.sin(a) * 0.25, 0, 0.18), d, nn, s0 * (0.9 + 0.15 * k), bone, start=1)
 
 # ----------------------------------------------------------------------------
 # TAIL (3 segments curling up, flame fan at the tip)
 # ----------------------------------------------------------------------------
 TAIL = []
-p = Vector((0, 2.3, 3.45 + DZ))
+p = Vector((0, 2.65, 3.45 + DZ))
 B.offset = Matrix()
 for i, (ang, ln, th) in enumerate(((22, 1.15, 0.95), (34, 1.05, 0.8), (46, 0.95, 0.66))):
     d = Vector((0, math.cos(math.radians(ang)), math.sin(math.radians(ang))))
@@ -402,10 +407,13 @@ me.materials.append(make_mat('Cerberus_Body', 0.0))
 me.materials.append(make_mat('Cerberus_Flame', 0.18))
 
 bev = obj.modifiers.new('Bevel', 'BEVEL')
-bev.width = 0.018
-bev.segments = 2
+bev.offset_type = 'PERCENT'   # softness scales with each block, small details stay crisp
+bev.width_pct = 12
+bev.segments = 3
+bev.use_clamp_overlap = False
+me.polygons.foreach_set('use_smooth', [True] * len(me.polygons))
 bev.limit_method = 'ANGLE'
-bev.harden_normals = False
+bev.harden_normals = True
 
 # ----------------------------------------------------------------------------
 # Armature
@@ -433,7 +441,7 @@ def bone(name, head, tail, parent=None, connect=False, deform=True, roll_to=None
 
 
 bone('root', (0, 0, 0), (0, 1.6, 0), deform=False)
-bone('hips', (0, 1.4, 3.0 + DZ), (0, 0.0, 3.0 + DZ), 'root', roll_to=(0, 0, 1))
+bone('hips', (0, 1.7, 3.0 + DZ), (0, 0.0, 3.0 + DZ), 'root', roll_to=(0, 0, 1))
 bone('chest', (0, 0.0, 3.0 + DZ), (0, -1.7, 3.2 + DZ), 'hips', connect=True, roll_to=(0, 0, 1))
 for k, h in HEADS.items():
     Mh = h['M']
