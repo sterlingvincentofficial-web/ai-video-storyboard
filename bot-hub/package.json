@@ -1,0 +1,12 @@
+{
+  "name": "bot-hub",
+  "version": "1.0.0",
+  "description": "Local multi-bot chat: Claude Code + Codex (signed-in, no API keys) with memory and group chats.",
+  "type": "module",
+  "private": true,
+  "engines": { "node": ">=18.17" },
+  "scripts": {
+    "start": "node server.js --open",
+    "dev": "node --watch server.js"
+  }
+}

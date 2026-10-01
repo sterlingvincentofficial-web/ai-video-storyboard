@@ -1,0 +1,50 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Bot Hub</title>
+  <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>🤖</text></svg>" />
+  <link rel="stylesheet" href="/styles.css" />
+</head>
+<body>
+  <div id="app">
+    <aside id="sidebar">
+      <div class="brand"><span class="logo">●●</span> Bot Hub</div>
+
+      <div class="section">
+        <div class="section-head"><span>Groups</span><button class="icon-btn" id="new-group" title="New group">＋</button></div>
+        <div id="group-list" class="list"></div>
+      </div>
+
+      <div class="section">
+        <div class="section-head"><span>Bots</span><button class="icon-btn" id="new-bot" title="New bot">＋</button></div>
+        <div id="bot-list" class="list"></div>
+      </div>
+
+      <button id="open-settings" class="settings-btn">
+        <span class="conn" id="conn-claude" title="Claude"></span>
+        <span class="conn" id="conn-codex" title="Codex"></span>
+        <span>Accounts &amp; settings</span>
+      </button>
+    </aside>
+
+    <main id="main">
+      <header id="chat-header"></header>
+      <div id="messages"></div>
+      <footer id="composer-wrap">
+        <div id="mention-bar"></div>
+        <form id="composer">
+          <textarea id="input" rows="1" placeholder="Message…" autocomplete="off"></textarea>
+          <button type="submit" id="send" class="primary">Send</button>
+        </form>
+        <div class="hint" id="composer-hint"></div>
+      </footer>
+    </main>
+  </div>
+
+  <div id="modal-root"></div>
+  <div id="toast"></div>
+  <script type="module" src="/app.js"></script>
+</body>
+</html>
