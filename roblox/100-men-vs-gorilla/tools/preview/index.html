@@ -1,0 +1,36 @@
+<!doctype html><html><body style="margin:0;background:#9cc8f0">
+<script type="importmap">{"imports":{"three":"./node_modules/three/build/three.module.js"}}</script>
+<script type="module">
+import * as THREE from 'three';
+const scene = await (await fetch('scene.json')).json();
+const params = new URLSearchParams(location.search);
+const W = 1280, H = 800;
+const renderer = new THREE.WebGLRenderer({antialias:true, preserveDrawingBuffer:true});
+renderer.setSize(W,H); renderer.shadowMap.enabled = true; renderer.shadowMap.type = THREE.PCFSoftShadowMap;
+renderer.outputColorSpace = THREE.SRGBColorSpace; renderer.toneMapping = THREE.ACESFilmicToneMapping; renderer.toneMappingExposure = 1.1;
+document.body.appendChild(renderer.domElement);
+const s = new THREE.Scene(); s.background = new THREE.Color(0x9cc8f0); s.fog = new THREE.Fog(0x9cc8f0, 90, 220);
+s.add(new THREE.HemisphereLight(0xdfefff, 0x6a5a40, 1.4));
+const sun = new THREE.DirectionalLight(0xfff3dd, 2.6); sun.position.set(30,60,40); sun.castShadow = true;
+sun.shadow.mapSize.set(4096,4096); Object.assign(sun.shadow.camera,{left:-40,right:40,top:40,bottom:-40,near:1,far:200}); sun.shadow.bias=-0.0005;
+s.add(sun);
+for (const model of scene) for (const p of model.parts) {
+  const [sx,sy,sz] = p.size; let geo;
+  if (p.shape === 'Ball') geo = new THREE.SphereGeometry(sx/2, 32, 20);
+  else if (p.shape === 'Cylinder') { const r=Math.min(sy,sz)/2; geo = new THREE.CylinderGeometry(r,r,sx,32); geo.rotateZ(-Math.PI/2); }
+  else geo = new THREE.BoxGeometry(sx,sy,sz);
+  const col = new THREE.Color().setRGB(...p.color, THREE.SRGBColorSpace);
+  const rough = {SmoothPlastic:0.55, Metal:0.3, Neon:1, Wood:0.9, WoodPlanks:0.9, Grass:1, Ground:1, Sand:1, Slate:0.95, Fabric:1}[p.material] ?? 0.7;
+  const mat = new THREE.MeshStandardMaterial({color:col, roughness:rough, metalness:p.material==='Metal'?0.6:0,
+    emissive: p.material==='Neon'?col:0x000000, emissiveIntensity: p.material==='Neon'?1.5:0});
+  const m = new THREE.Mesh(geo, mat); m.castShadow = p.cast_shadow; m.receiveShadow = true;
+  const r = p.rot, q = p.pos;
+  m.matrixAutoUpdate = false;
+  m.matrix.set(r[0][0],r[0][1],r[0][2],q[0], r[1][0],r[1][1],r[1][2],q[1], r[2][0],r[2][1],r[2][2],q[2], 0,0,0,1);
+  s.add(m);
+}
+const cam = new THREE.PerspectiveCamera(+(params.get('fov')||50), W/H, 0.1, 500);
+const [cx,cy,cz,tx,ty,tz] = (params.get('cam')||'0,40,55,0,0,0').split(',').map(Number);
+cam.position.set(cx,cy,cz); cam.lookAt(tx,ty,tz);
+renderer.render(s, cam); window.DONE = true;
+</script></body></html>

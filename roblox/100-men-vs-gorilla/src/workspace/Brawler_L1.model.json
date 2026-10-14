@@ -1,0 +1,1415 @@
+{
+ "className": "Model",
+ "children": [
+  {
+   "name": "LeftLeg",
+   "className": "Part",
+   "properties": {
+    "Anchored": true,
+    "Size": [
+     0.95,
+     2.1,
+     0.95
+    ],
+    "CFrame": {
+     "CFrame": {
+      "position": [
+       3.969846310392954,
+       1.45,
+       6.171010071662835
+      ],
+      "orientation": [
+       [
+        -0.9396926207859083,
+        0.0,
+        0.3420201433256689
+       ],
+       [
+        0.0,
+        1.0,
+        0.0
+       ],
+       [
+        -0.3420201433256689,
+        0.0,
+        -0.9396926207859083
+       ]
+      ]
+     }
+    },
+    "Color": [
+     0.2,
+     0.36,
+     0.62
+    ],
+    "Material": "SmoothPlastic",
+    "TopSurface": "Smooth",
+    "BottomSurface": "Smooth",
+    "CastShadow": true
+   }
+  },
+  {
+   "name": "RightLeg",
+   "className": "Part",
+   "properties": {
+    "Anchored": true,
+    "Size": [
+     0.95,
+     2.1,
+     0.95
+    ],
+    "CFrame": {
+     "CFrame": {
+      "position": [
+       3.030153689607046,
+       1.45,
+       5.828989928337165
+      ],
+      "orientation": [
+       [
+        -0.9396926207859083,
+        0.0,
+        0.3420201433256689
+       ],
+       [
+        0.0,
+        1.0,
+        0.0
+       ],
+       [
+        -0.3420201433256689,
+        0.0,
+        -0.9396926207859083
+       ]
+      ]
+     }
+    },
+    "Color": [
+     0.2,
+     0.36,
+     0.62
+    ],
+    "Material": "SmoothPlastic",
+    "TopSurface": "Smooth",
+    "BottomSurface": "Smooth",
+    "CastShadow": true
+   }
+  },
+  {
+   "name": "LeftShoe",
+   "className": "Part",
+   "properties": {
+    "Anchored": true,
+    "Size": [
+     1.0,
+     0.45,
+     1.3
+    ],
+    "CFrame": {
+     "CFrame": {
+      "position": [
+       3.928803893193874,
+       0.22,
+       6.283773186157143
+      ],
+      "orientation": [
+       [
+        -0.9396926207859083,
+        0.0,
+        0.3420201433256689
+       ],
+       [
+        0.0,
+        1.0,
+        0.0
+       ],
+       [
+        -0.3420201433256689,
+        0.0,
+        -0.9396926207859083
+       ]
+      ]
+     }
+    },
+    "Color": [
+     0.18,
+     0.16,
+     0.16
+    ],
+    "Material": "SmoothPlastic",
+    "TopSurface": "Smooth",
+    "BottomSurface": "Smooth",
+    "CastShadow": true
+   }
+  },
+  {
+   "name": "RightShoe",
+   "className": "Part",
+   "properties": {
+    "Anchored": true,
+    "Size": [
+     1.0,
+     0.45,
+     1.3
+    ],
+    "CFrame": {
+     "CFrame": {
+      "position": [
+       2.989111272407966,
+       0.22,
+       5.941753042831475
+      ],
+      "orientation": [
+       [
+        -0.9396926207859083,
+        0.0,
+        0.3420201433256689
+       ],
+       [
+        0.0,
+        1.0,
+        0.0
+       ],
+       [
+        -0.3420201433256689,
+        0.0,
+        -0.9396926207859083
+       ]
+      ]
+     }
+    },
+    "Color": [
+     0.18,
+     0.16,
+     0.16
+    ],
+    "Material": "SmoothPlastic",
+    "TopSurface": "Smooth",
+    "BottomSurface": "Smooth",
+    "CastShadow": true
+   }
+  },
+  {
+   "name": "Torso",
+   "className": "Part",
+   "properties": {
+    "Anchored": true,
+    "Size": [
+     2.1,
+     2.1,
+     1.1
+    ],
+    "CFrame": {
+     "CFrame": {
+      "position": [
+       3.5,
+       3.55,
+       6.0
+      ],
+      "orientation": [
+       [
+        -0.9396926207859083,
+        0.0,
+        0.3420201433256689
+       ],
+       [
+        0.0,
+        1.0,
+        0.0
+       ],
+       [
+        -0.3420201433256689,
+        0.0,
+        -0.9396926207859083
+       ]
+      ]
+     }
+    },
+    "Color": [
+     0.95,
+     0.95,
+     0.92
+    ],
+    "Material": "SmoothPlastic",
+    "TopSurface": "Smooth",
+    "BottomSurface": "Smooth",
+    "CastShadow": true
+   }
+  },
+  {
+   "name": "Belt",
+   "className": "Part",
+   "properties": {
+    "Anchored": true,
+    "Size": [
+     2.15,
+     0.3,
+     1.15
+    ],
+    "CFrame": {
+     "CFrame": {
+      "position": [
+       3.5,
+       2.55,
+       6.0
+      ],
+      "orientation": [
+       [
+        -0.9396926207859083,
+        0.0,
+        0.3420201433256689
+       ],
+       [
+        0.0,
+        1.0,
+        0.0
+       ],
+       [
+        -0.3420201433256689,
+        0.0,
+        -0.9396926207859083
+       ]
+      ]
+     }
+    },
+    "Color": [
+     0.33,
+     0.2,
+     0.11
+    ],
+    "Material": "SmoothPlastic",
+    "TopSurface": "Smooth",
+    "BottomSurface": "Smooth",
+    "CastShadow": true
+   }
+  },
+  {
+   "name": "Buckle",
+   "className": "Part",
+   "properties": {
+    "Anchored": true,
+    "Size": [
+     0.4,
+     0.3,
+     0.1
+    ],
+    "CFrame": {
+     "CFrame": {
+      "position": [
+       3.2947879140045986,
+       2.55,
+       6.563815572471545
+      ],
+      "orientation": [
+       [
+        -0.9396926207859083,
+        0.0,
+        0.3420201433256689
+       ],
+       [
+        0.0,
+        1.0,
+        0.0
+       ],
+       [
+        -0.3420201433256689,
+        0.0,
+        -0.9396926207859083
+       ]
+      ]
+     }
+    },
+    "Color": [
+     0.85,
+     0.75,
+     0.3
+    ],
+    "Material": "Metal",
+    "TopSurface": "Smooth",
+    "BottomSurface": "Smooth",
+    "CastShadow": true
+   }
+  },
+  {
+   "name": "LeftShoulder",
+   "className": "Part",
+   "properties": {
+    "Anchored": true,
+    "Size": [
+     0.85,
+     0.5,
+     0.95
+    ],
+    "CFrame": {
+     "CFrame": {
+      "position": [
+       4.345723358707318,
+       4.4,
+       6.307818128993102
+      ],
+      "orientation": [
+       [
+        -0.9396926207859083,
+        0.0,
+        0.3420201433256689
+       ],
+       [
+        0.0,
+        1.0,
+        0.0
+       ],
+       [
+        -0.3420201433256689,
+        0.0,
+        -0.9396926207859083
+       ]
+      ]
+     }
+    },
+    "Color": [
+     0.96,
+     0.78,
+     0.62
+    ],
+    "Material": "SmoothPlastic",
+    "TopSurface": "Smooth",
+    "BottomSurface": "Smooth",
+    "CastShadow": true
+   }
+  },
+  {
+   "name": "RightShoulder",
+   "className": "Part",
+   "properties": {
+    "Anchored": true,
+    "Size": [
+     0.85,
+     0.5,
+     0.95
+    ],
+    "CFrame": {
+     "CFrame": {
+      "position": [
+       2.6542766412926824,
+       4.4,
+       5.692181871006898
+      ],
+      "orientation": [
+       [
+        -0.9396926207859083,
+        0.0,
+        0.3420201433256689
+       ],
+       [
+        0.0,
+        1.0,
+        0.0
+       ],
+       [
+        -0.3420201433256689,
+        0.0,
+        -0.9396926207859083
+       ]
+      ]
+     }
+    },
+    "Color": [
+     0.96,
+     0.78,
+     0.62
+    ],
+    "Material": "SmoothPlastic",
+    "TopSurface": "Smooth",
+    "BottomSurface": "Smooth",
+    "CastShadow": true
+   }
+  },
+  {
+   "name": "Collar",
+   "className": "Part",
+   "properties": {
+    "Anchored": true,
+    "Size": [
+     0.9,
+     0.35,
+     0.05
+    ],
+    "CFrame": {
+     "CFrame": {
+      "position": [
+       3.3084687197376255,
+       4.45,
+       6.526227867640109
+      ],
+      "orientation": [
+       [
+        -0.9396926207859083,
+        0.0,
+        0.3420201433256689
+       ],
+       [
+        0.0,
+        1.0,
+        0.0
+       ],
+       [
+        -0.3420201433256689,
+        0.0,
+        -0.9396926207859083
+       ]
+      ]
+     }
+    },
+    "Color": [
+     0.96,
+     0.78,
+     0.62
+    ],
+    "Material": "SmoothPlastic",
+    "TopSurface": "Smooth",
+    "BottomSurface": "Smooth",
+    "CastShadow": true
+   }
+  },
+  {
+   "name": "LeftUpperArm",
+   "className": "Part",
+   "properties": {
+    "Anchored": true,
+    "Size": [
+     0.8,
+     1.35,
+     0.8
+    ],
+    "CFrame": {
+     "CFrame": {
+      "position": [
+       4.742847249975583,
+       3.85,
+       6.824821625097288
+      ],
+      "orientation": [
+       [
+        -0.9565553011789806,
+        0.11119048347071293,
+        0.26951555089073936
+       ],
+       [
+        -0.08236955311289616,
+        0.7836939482475385,
+        -0.6156614753256583
+       ],
+       [
+        -0.27967340328742635,
+        -0.6111141234382769,
+        -0.7404878902641792
+       ]
+      ]
+     }
+    },
+    "Color": [
+     0.96,
+     0.78,
+     0.62
+    ],
+    "Material": "SmoothPlastic",
+    "TopSurface": "Smooth",
+    "BottomSurface": "Smooth",
+    "CastShadow": true
+   }
+  },
+  {
+   "name": "RightUpperArm",
+   "className": "Part",
+   "properties": {
+    "Anchored": true,
+    "Size": [
+     0.8,
+     1.35,
+     0.8
+    ],
+    "CFrame": {
+     "CFrame": {
+      "position": [
+       2.017738649696449,
+       3.85,
+       5.832963209452848
+      ],
+      "orientation": [
+       [
+        -0.9125344713961826,
+        0.3076397346601226,
+        0.26951555089073936
+       ],
+       [
+        0.08236955311289616,
+        0.7836939482475385,
+        -0.6156614753256583
+       ],
+       [
+        -0.4006196391013191,
+        -0.5396124434614473,
+        -0.7404878902641792
+       ]
+      ]
+     }
+    },
+    "Color": [
+     0.96,
+     0.78,
+     0.62
+    ],
+    "Material": "SmoothPlastic",
+    "TopSurface": "Smooth",
+    "BottomSurface": "Smooth",
+    "CastShadow": true
+   }
+  },
+  {
+   "name": "LeftForearm",
+   "className": "Part",
+   "properties": {
+    "Anchored": true,
+    "Size": [
+     0.72,
+     1.2,
+     0.72
+    ],
+    "CFrame": {
+     "CFrame": {
+      "position": [
+       4.3795802636960115,
+       3.8,
+       7.384318807109278
+      ],
+      "orientation": [
+       [
+        -0.955063411190016,
+        -0.04365914747210084,
+        0.2931684830402132
+       ],
+       [
+        0.11929463128028185,
+        0.8488254074547057,
+        0.5150380749100542
+       ],
+       [
+        -0.27133498033573195,
+        0.5268674468036171,
+        -0.8054737872487507
+       ]
+      ]
+     }
+    },
+    "Color": [
+     0.96,
+     0.78,
+     0.62
+    ],
+    "Material": "SmoothPlastic",
+    "TopSurface": "Smooth",
+    "BottomSurface": "Smooth",
+    "CastShadow": true
+   }
+  },
+  {
+   "name": "RightForearm",
+   "className": "Part",
+   "properties": {
+    "Anchored": true,
+    "Size": [
+     0.72,
+     1.2,
+     0.72
+    ],
+    "CFrame": {
+     "CFrame": {
+      "position": [
+       1.9363794496526503,
+       3.8,
+       6.495066434462538
+      ],
+      "orientation": [
+       [
+        -0.9060317824027164,
+        -0.3052190194402322,
+        0.2931684830402132
+       ],
+       [
+        -0.11929463128028185,
+        0.8488254074547057,
+        0.5150380749100542
+       ],
+       [
+        -0.40604827326791854,
+        0.4316674389287384,
+        -0.8054737872487507
+       ]
+      ]
+     }
+    },
+    "Color": [
+     0.96,
+     0.78,
+     0.62
+    ],
+    "Material": "SmoothPlastic",
+    "TopSurface": "Smooth",
+    "BottomSurface": "Smooth",
+    "CastShadow": true
+   }
+  },
+  {
+   "name": "LeftFistWrap",
+   "className": "Part",
+   "properties": {
+    "Anchored": true,
+    "Size": [
+     0.9,
+     0.85,
+     0.9
+    ],
+    "CFrame": {
+     "CFrame": {
+      "position": [
+       4.101818313247858,
+       4.4,
+       7.708892833924791
+      ],
+      "orientation": [
+       [
+        -0.9305475967963662,
+        0.1307799359840657,
+        0.3420201433256689
+       ],
+       [
+        0.13917310096006544,
+        0.9902680687415704,
+        0.0
+       ],
+       [
+        -0.33869162680182524,
+        0.047600003937439364,
+        -0.9396926207859083
+       ]
+      ]
+     }
+    },
+    "Color": [
+     0.92,
+     0.9,
+     0.84
+    ],
+    "Material": "SmoothPlastic",
+    "TopSurface": "Smooth",
+    "BottomSurface": "Smooth",
+    "CastShadow": true
+   }
+  },
+  {
+   "name": "RightFistWrap",
+   "className": "Part",
+   "properties": {
+    "Anchored": true,
+    "Size": [
+     0.9,
+     0.85,
+     0.9
+    ],
+    "CFrame": {
+     "CFrame": {
+      "position": [
+       1.9405252854402693,
+       4.4,
+       6.922246504275752
+      ],
+      "orientation": [
+       [
+        -0.9305475967963662,
+        -0.1307799359840657,
+        0.3420201433256689
+       ],
+       [
+        -0.13917310096006544,
+        0.9902680687415704,
+        0.0
+       ],
+       [
+        -0.33869162680182524,
+        -0.047600003937439364,
+        -0.9396926207859083
+       ]
+      ]
+     }
+    },
+    "Color": [
+     0.92,
+     0.9,
+     0.84
+    ],
+    "Material": "SmoothPlastic",
+    "TopSurface": "Smooth",
+    "BottomSurface": "Smooth",
+    "CastShadow": true
+   }
+  },
+  {
+   "name": "Neck",
+   "className": "Part",
+   "properties": {
+    "Anchored": true,
+    "Size": [
+     0.6,
+     0.35,
+     0.6
+    ],
+    "CFrame": {
+     "CFrame": {
+      "position": [
+       3.5,
+       4.75,
+       6.0
+      ],
+      "orientation": [
+       [
+        -0.9396926207859083,
+        0.0,
+        0.3420201433256689
+       ],
+       [
+        0.0,
+        1.0,
+        0.0
+       ],
+       [
+        -0.3420201433256689,
+        0.0,
+        -0.9396926207859083
+       ]
+      ]
+     }
+    },
+    "Color": [
+     0.96,
+     0.78,
+     0.62
+    ],
+    "Material": "SmoothPlastic",
+    "TopSurface": "Smooth",
+    "BottomSurface": "Smooth",
+    "CastShadow": true
+   }
+  },
+  {
+   "name": "Head",
+   "className": "Part",
+   "properties": {
+    "Anchored": true,
+    "Size": [
+     1.45,
+     1.4,
+     1.35
+    ],
+    "CFrame": {
+     "CFrame": {
+      "position": [
+       3.5,
+       5.55,
+       6.0
+      ],
+      "orientation": [
+       [
+        -0.9396926207859083,
+        0.0,
+        0.3420201433256689
+       ],
+       [
+        0.0,
+        1.0,
+        0.0
+       ],
+       [
+        -0.3420201433256689,
+        0.0,
+        -0.9396926207859083
+       ]
+      ]
+     }
+    },
+    "Color": [
+     0.96,
+     0.78,
+     0.62
+    ],
+    "Material": "SmoothPlastic",
+    "TopSurface": "Smooth",
+    "BottomSurface": "Smooth",
+    "CastShadow": true
+   }
+  },
+  {
+   "name": "Hair",
+   "className": "Part",
+   "properties": {
+    "Anchored": true,
+    "Size": [
+     1.5,
+     0.35,
+     1.4
+    ],
+    "CFrame": {
+     "CFrame": {
+      "position": [
+       3.51026060429977,
+       6.35,
+       5.9718092213764224
+      ],
+      "orientation": [
+       [
+        -0.9396926207859083,
+        0.0,
+        0.3420201433256689
+       ],
+       [
+        0.0,
+        1.0,
+        0.0
+       ],
+       [
+        -0.3420201433256689,
+        0.0,
+        -0.9396926207859083
+       ]
+      ]
+     }
+    },
+    "Color": [
+     0.22,
+     0.14,
+     0.09
+    ],
+    "Material": "SmoothPlastic",
+    "TopSurface": "Smooth",
+    "BottomSurface": "Smooth",
+    "CastShadow": true
+   }
+  },
+  {
+   "name": "HairBack",
+   "className": "Part",
+   "properties": {
+    "Anchored": true,
+    "Size": [
+     1.5,
+     0.8,
+     0.25
+    ],
+    "CFrame": {
+     "CFrame": {
+      "position": [
+       3.7052120859954014,
+       5.95,
+       5.436184427528455
+      ],
+      "orientation": [
+       [
+        -0.9396926207859083,
+        0.0,
+        0.3420201433256689
+       ],
+       [
+        0.0,
+        1.0,
+        0.0
+       ],
+       [
+        -0.3420201433256689,
+        0.0,
+        -0.9396926207859083
+       ]
+      ]
+     }
+    },
+    "Color": [
+     0.22,
+     0.14,
+     0.09
+    ],
+    "Material": "SmoothPlastic",
+    "TopSurface": "Smooth",
+    "BottomSurface": "Smooth",
+    "CastShadow": true
+   }
+  },
+  {
+   "name": "Bandana",
+   "className": "Part",
+   "properties": {
+    "Anchored": true,
+    "Size": [
+     1.52,
+     0.3,
+     1.42
+    ],
+    "CFrame": {
+     "CFrame": {
+      "position": [
+       3.5,
+       6.05,
+       6.0
+      ],
+      "orientation": [
+       [
+        -0.9396926207859083,
+        0.0,
+        0.3420201433256689
+       ],
+       [
+        0.0,
+        1.0,
+        0.0
+       ],
+       [
+        -0.3420201433256689,
+        0.0,
+        -0.9396926207859083
+       ]
+      ]
+     }
+    },
+    "Color": [
+     0.86,
+     0.16,
+     0.16
+    ],
+    "Material": "SmoothPlastic",
+    "TopSurface": "Smooth",
+    "BottomSurface": "Smooth",
+    "CastShadow": true
+   }
+  },
+  {
+   "name": "BandanaKnot",
+   "className": "Part",
+   "properties": {
+    "Anchored": true,
+    "Size": [
+     0.35,
+     0.35,
+     0.3
+    ],
+    "CFrame": {
+     "CFrame": {
+      "position": [
+       3.7565151074942515,
+       6.05,
+       5.295230534410569
+      ],
+      "orientation": [
+       [
+        -0.9396926207859083,
+        0.0,
+        0.3420201433256689
+       ],
+       [
+        0.0,
+        1.0,
+        0.0
+       ],
+       [
+        -0.3420201433256689,
+        0.0,
+        -0.9396926207859083
+       ]
+      ]
+     }
+    },
+    "Color": [
+     0.86,
+     0.16,
+     0.16
+    ],
+    "Material": "SmoothPlastic",
+    "TopSurface": "Smooth",
+    "BottomSurface": "Smooth",
+    "CastShadow": true
+   }
+  },
+  {
+   "name": "LeftBandanaTail",
+   "className": "Part",
+   "properties": {
+    "Anchored": true,
+    "Size": [
+     0.18,
+     0.5,
+     0.08
+    ],
+    "CFrame": {
+     "CFrame": {
+      "position": [
+       3.8932196320213572,
+       5.75,
+       5.270494468154635
+      ],
+      "orientation": [
+       [
+        -0.9230449382914513,
+        -0.18584287738849897,
+        0.3368240888334653
+       ],
+       [
+        -0.25488700224417876,
+        0.9512512425641977,
+        -0.17364817766693033
+       ],
+       [
+        -0.28813305603749595,
+        -0.24613715372538364,
+        -0.9254165783983233
+       ]
+      ]
+     }
+    },
+    "Color": [
+     0.86,
+     0.16,
+     0.16
+    ],
+    "Material": "SmoothPlastic",
+    "TopSurface": "Smooth",
+    "BottomSurface": "Smooth",
+    "CastShadow": true
+   }
+  },
+  {
+   "name": "RightBandanaTail",
+   "className": "Part",
+   "properties": {
+    "Anchored": true,
+    "Size": [
+     0.18,
+     0.5,
+     0.08
+    ],
+    "CFrame": {
+     "CFrame": {
+      "position": [
+       3.6676934030327395,
+       5.75,
+       5.188409633756475
+      ],
+      "orientation": [
+       [
+        -0.8923018040892859,
+        0.3005778162148889,
+        0.3368240888334653
+       ],
+       [
+        0.25488700224417876,
+        0.9512512425641977,
+        -0.17364817766693033
+       ],
+       [
+        -0.37259912306120857,
+        -0.06909449992262984,
+        -0.9254165783983233
+       ]
+      ]
+     }
+    },
+    "Color": [
+     0.86,
+     0.16,
+     0.16
+    ],
+    "Material": "SmoothPlastic",
+    "TopSurface": "Smooth",
+    "BottomSurface": "Smooth",
+    "CastShadow": true
+   }
+  },
+  {
+   "name": "LeftEye",
+   "className": "Part",
+   "properties": {
+    "Anchored": true,
+    "Size": [
+     0.18,
+     0.24,
+     0.05
+    ],
+    "CFrame": {
+     "CFrame": {
+      "position": [
+       3.545913887341061,
+       5.6,
+       6.750993951339978
+      ],
+      "orientation": [
+       [
+        -0.9396926207859083,
+        0.0,
+        0.3420201433256689
+       ],
+       [
+        0.0,
+        1.0,
+        0.0
+       ],
+       [
+        -0.3420201433256689,
+        0.0,
+        -0.9396926207859083
+       ]
+      ]
+     }
+    },
+    "Color": [
+     0.08,
+     0.06,
+     0.06
+    ],
+    "Material": "SmoothPlastic",
+    "TopSurface": "Smooth",
+    "BottomSurface": "Smooth",
+    "CastShadow": true
+   }
+  },
+  {
+   "name": "RightEye",
+   "className": "Part",
+   "properties": {
+    "Anchored": true,
+    "Size": [
+     0.18,
+     0.24,
+     0.05
+    ],
+    "CFrame": {
+     "CFrame": {
+      "position": [
+       2.982098314869516,
+       5.6,
+       6.545781865344576
+      ],
+      "orientation": [
+       [
+        -0.9396926207859083,
+        0.0,
+        0.3420201433256689
+       ],
+       [
+        0.0,
+        1.0,
+        0.0
+       ],
+       [
+        -0.3420201433256689,
+        0.0,
+        -0.9396926207859083
+       ]
+      ]
+     }
+    },
+    "Color": [
+     0.08,
+     0.06,
+     0.06
+    ],
+    "Material": "SmoothPlastic",
+    "TopSurface": "Smooth",
+    "BottomSurface": "Smooth",
+    "CastShadow": true
+   }
+  },
+  {
+   "name": "LeftBrow",
+   "className": "Part",
+   "properties": {
+    "Anchored": true,
+    "Size": [
+     0.38,
+     0.1,
+     0.05
+    ],
+    "CFrame": {
+     "CFrame": {
+      "position": [
+       3.545913887341061,
+       5.82,
+       6.750993951339978
+      ],
+      "orientation": [
+       [
+        -0.9117797339616575,
+        -0.22733222010154666,
+        0.3420201433256689
+       ],
+       [
+        -0.24192189559966773,
+        0.9702957262759965,
+        0.0
+       ],
+       [
+        -0.33186068336920027,
+        -0.08274216140661586,
+        -0.9396926207859083
+       ]
+      ]
+     }
+    },
+    "Color": [
+     0.22,
+     0.14,
+     0.09
+    ],
+    "Material": "SmoothPlastic",
+    "TopSurface": "Smooth",
+    "BottomSurface": "Smooth",
+    "CastShadow": true
+   }
+  },
+  {
+   "name": "RightBrow",
+   "className": "Part",
+   "properties": {
+    "Anchored": true,
+    "Size": [
+     0.38,
+     0.1,
+     0.05
+    ],
+    "CFrame": {
+     "CFrame": {
+      "position": [
+       2.982098314869516,
+       5.82,
+       6.545781865344576
+      ],
+      "orientation": [
+       [
+        -0.9117797339616575,
+        0.22733222010154666,
+        0.3420201433256689
+       ],
+       [
+        0.24192189559966773,
+        0.9702957262759965,
+        0.0
+       ],
+       [
+        -0.33186068336920027,
+        0.08274216140661586,
+        -0.9396926207859083
+       ]
+      ]
+     }
+    },
+    "Color": [
+     0.22,
+     0.14,
+     0.09
+    ],
+    "Material": "SmoothPlastic",
+    "TopSurface": "Smooth",
+    "BottomSurface": "Smooth",
+    "CastShadow": true
+   }
+  },
+  {
+   "name": "Mouth",
+   "className": "Part",
+   "properties": {
+    "Anchored": true,
+    "Size": [
+     0.45,
+     0.08,
+     0.05
+    ],
+    "CFrame": {
+     "CFrame": {
+      "position": [
+       3.2640061011052883,
+       5.2,
+       6.6483879083422766
+      ],
+      "orientation": [
+       [
+        -0.9396926207859083,
+        0.0,
+        0.3420201433256689
+       ],
+       [
+        0.0,
+        1.0,
+        0.0
+       ],
+       [
+        -0.3420201433256689,
+        0.0,
+        -0.9396926207859083
+       ]
+      ]
+     }
+    },
+    "Color": [
+     0.35,
+     0.12,
+     0.1
+    ],
+    "Material": "SmoothPlastic",
+    "TopSurface": "Smooth",
+    "BottomSurface": "Smooth",
+    "CastShadow": true
+   }
+  },
+  {
+   "name": "Nose",
+   "className": "Part",
+   "properties": {
+    "Anchored": true,
+    "Size": [
+     0.2,
+     0.25,
+     0.15
+    ],
+    "CFrame": {
+     "CFrame": {
+      "position": [
+       3.2537454968055184,
+       5.42,
+       6.676578686965854
+      ],
+      "orientation": [
+       [
+        -0.9396926207859083,
+        0.0,
+        0.3420201433256689
+       ],
+       [
+        0.0,
+        1.0,
+        0.0
+       ],
+       [
+        -0.3420201433256689,
+        0.0,
+        -0.9396926207859083
+       ]
+      ]
+     }
+    },
+    "Color": [
+     0.9,
+     0.7,
+     0.55
+    ],
+    "Material": "SmoothPlastic",
+    "TopSurface": "Smooth",
+    "BottomSurface": "Smooth",
+    "CastShadow": true
+   }
+  }
+ ]
+}
