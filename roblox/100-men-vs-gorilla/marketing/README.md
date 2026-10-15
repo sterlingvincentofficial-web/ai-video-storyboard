@@ -1,6 +1,13 @@
 # Marketing art
 
-`refs/` holds renders of the real game (army, monkeys, bosses, map, gameplay) that the
-icon/thumbnail generations use as references, so the art shows what's actually in the game.
-Generated art lives in the Higgsfield library (see the session notes for the job list); upload
-the picks on the Creator Dashboard (icon 512x512, thumbnails 1920x1080).
+Upload these on the Creator Dashboard (your experience → Places/Experience → Basic Info / Thumbnails).
+
+| File | Use |
+|---|---|
+| `final/icon.jpg` | Game icon (512x512). `icon_alt.jpg`, `icon_alt2.jpg` are alternates. |
+| `final/thumb_1_temple.jpg` … `thumb_7_stomp.jpg` | Thumbnails (1920x1080). Suggested order: 1 temple, 2 charge, 3 bananas, 4 waves, 5 upgrade, 6 squad, 7 stomp. |
+| `final/logo.png` | Transparent logo (brick letters). Upload it as a Decal, then paste its image id into `src/shared/Config/Brand.luau` (`Logo`) and the intro's title card and the loading screen use it. `logo_alt.png` is the flat-type version. |
+
+`refs/` holds renders of the real game (army, monkeys, bosses, map, gameplay) that the art used as
+references, so it shows what's actually in the game. The art was generated with Higgsfield
+(GPT Image 2.5, high quality, 2K); the full-size originals are in the Higgsfield library.
