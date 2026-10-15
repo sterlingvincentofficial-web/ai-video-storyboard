@@ -312,6 +312,7 @@ def build_north():
     rows = [(CLIFF_FRONT, CLIFF_FRONT - 4, 6), (CLIFF_FRONT - 4, CLIFF_FRONT - 8, 11), (CLIFF_FRONT - 8, CLIFF_FRONT - 12, 16),
             (CLIFF_FRONT - 12, CLIFF_FRONT - 16, 22), (CLIFF_FRONT - 16, -ISLAND_Z, 29)]
     top_row = len(rows) - 1
+    look_cols = (11, 12, 13)          # the lookout ledge: one flat 12-stud block on the east cliff top
     tops, blocks = {}, []
     obj("T:cliff")
     cols = [ix for ix in range(-ISLAND_X // 4, ISLAND_X // 4) if not -PLATEAU_X <= ix * 4 < PLATEAU_X]
@@ -321,11 +322,17 @@ def build_north():
             x0 = ix * 4
             n = 1.3 * math.sin(x0 * 0.11 + r * 1.7) + 0.8 * math.sin(x0 * 0.29 + r * 0.6)
             heights[ix] = base + 2 * round(n) + (2 if abs(x0) > 80 and r == top_row else 0)
+            if r == top_row and ix in look_cols:
+                heights[ix] = base
         k = 0
         while k < len(cols):
             j = k
-            while j + 1 < len(cols) and cols[j + 1] == cols[j] + 1 and heights[cols[j + 1]] == heights[cols[k]] and j - k < 2:
-                j += 1
+            if r == top_row and cols[k] == look_cols[0]:
+                j = k + len(look_cols) - 1
+            else:
+                while (j + 1 < len(cols) and cols[j + 1] == cols[j] + 1 and heights[cols[j + 1]] == heights[cols[k]] and j - k < 2
+                       and not (r == top_row and cols[j + 1] == look_cols[0])):
+                    j += 1
             ix0, ix1, h = cols[k], cols[j], heights[cols[k]]
             box(g, f"Cliff_{ix0}_{r}", ix0 * 4, ix1 * 4 + 4, 0, h, zb, zf, R.choice(["rock", "rock_light", "rock_dark"]))
             grass = r < top_row and R.random() < 0.45
@@ -405,25 +412,50 @@ def build_north():
         box(g, f"Moss{i + 1}", x0, x1, 24, 24.4, z0, z1, "moss")
 
     # palms and bushes on the cliff top / terraces
-    # the reference's cliff-top lookout: a shack and a satellite dish on the widest top block (east side)
-    r, ix0, ix1, h = max((bl for bl in blocks if bl[0] == top_row and bl[1] * 4 > PLATEAU_X), key=lambda bl: (bl[2] - bl[1], -bl[1]))
-    lx = ix0 * 4 + 3.2
-    lz = (rows[top_row][0] + rows[top_row][1]) / 2
+    # the reference's cliff-top lookout: a plank cabin on a sand ledge at the cliff edge, a dish on
+    # its roof, a lit window and a lantern post, facing the beach
+    ix0, ix1 = look_cols[0], look_cols[-1]
+    h = tops[(ix0, top_row)]
+    zf, zb = rows[top_row][0], rows[top_row][1]
     obj("Lookout")
-    box(g, "LookoutFloor", lx - 2.6, lx + 2.6, h, h + 0.4, lz - 2.4, lz + 2.4, "wood")
-    for sx in (-1, 1):
-        box(g, f"LookoutWall{sx}", *sorted((lx + sx * 2.6, lx + sx * 2.1)), h + 0.4, h + 3.4, lz - 2.4, lz + 2.4, "wood_dark")
-    box(g, "LookoutBack", lx - 2.1, lx + 2.1, h + 0.4, h + 3.4, lz - 2.4, lz - 1.9, "wood")
-    for sx in (-1, 1):
-        box(g, f"LookoutFront{sx}", *sorted((lx + sx * 2.1, lx + sx * 0.8)), h + 0.4, h + 3.4, lz + 1.9, lz + 2.4, "wood")
-    box(g, "LookoutRoof", lx - 3.1, lx + 3.1, h + 3.4, h + 4.0, lz - 2.9, lz + 2.9, "trunk_ring")
-    if (ix1 - ix0 + 1) * 4 >= 9.6:
-        dx = lx + 5.4
-        obj("Dish")
-        box(g, "DishPost", dx - 0.3, dx + 0.3, h, h + 3.2, lz - 0.3, lz + 0.3, "metal")
-        smooth(g, "Dish", (0.35, 3.8, 3.8), (dx, h + 4.2, lz + 0.4), "white", shape="Cylinder", rot=(0, 90, 35))
-        smooth(g, "DishFeed", (0.3, 0.3, 0.3), (dx - 0.9, h + 5.0, lz + 1.2), "metal")
-    take("ground", lx, lz, 3)
+    box(g, "LookoutLedge", ix0 * 4, ix1 * 4 + 4, h, h + 0.6, zb, zf, "sand")
+    lx, f = ix0 * 4 + 6.6, h + 0.6
+    cz0, cz1 = zb + 0.6, zb + 5.6                     # cabin depth 5, its front 0.4 back from the edge
+    box(g, "LookoutFloor", lx - 4.5, lx + 4.5, f, f + 0.4, cz0, cz1, "wood")
+    f += 0.4
+    planks = ("wood_dark", "wood")
+    for k in range(4):                                # plank courses on the back and side walls
+        y0, y1 = f + k * 1.1, f + (k + 1) * 1.1
+        box(g, f"LookoutBack{k}", lx - 4.5, lx + 4.5, y0, y1, cz0, cz0 + 0.5, planks[k % 2])
+        for sx, side in ((-1, "L"), (1, "R")):
+            xa, xb = sorted((lx + sx * 4.5, lx + sx * 4.0))
+            box(g, f"LookoutSide{side}{k}", xa, xb, y0, y1, cz0 + 0.5, cz1 - 0.5, planks[k % 2])
+    top = f + 4.4
+    fz0, fz1 = cz1 - 0.5, cz1
+    box(g, "LookoutFrontL", lx - 4.5, lx - 3, f, top, fz0, fz1, "wood_dark")
+    box(g, "LookoutDoorTop", lx - 3, lx - 1, f + 3.2, top, fz0, fz1, "wood_dark")
+    box(g, "LookoutFrontM", lx - 1, lx + 1.2, f, top, fz0, fz1, "wood_dark")
+    box(g, "LookoutSill", lx + 1.2, lx + 3, f, f + 1.6, fz0, fz1, "wood_dark")
+    box(g, "LookoutWinTop", lx + 1.2, lx + 3, f + 3, top, fz0, fz1, "wood_dark")
+    box(g, "LookoutFrontR", lx + 3, lx + 4.5, f, top, fz0, fz1, "wood_dark")
+    box(g, "LookoutTrim", lx - 4.5, lx + 4.5, top, top + 0.3, fz0 - 0.1, fz1 + 0.1, "wood")
+    smooth(g, "LookoutLamp", (0.7, 0.7, 0.7), (lx + 2.1, f + 2.3, fz0 - 0.6), "lantern", neon=True)
+    box(g, "LookoutRoof", lx - 5.2, lx + 5.2, top + 0.3, top + 0.9, cz0 - 0.5, cz1 + 0.9, "trunk_ring")
+    box(g, "LookoutRoofTop", lx - 4.2, lx + 4.2, top + 0.9, top + 1.4, cz0, cz1 + 0.2, "wood_dark")
+    obj("Dish")
+    dx, dz, ry = lx + 2.4, cz0 + 2.2, top + 1.4
+    box(g, "DishPost", dx - 0.3, dx + 0.3, ry, ry + 2.4, dz - 0.3, dz + 0.3, "metal")
+    # tipped up toward the sky and the beach (its axis is a), a lighter bowl, a feed arm on its axis
+    a, at = (0.3, 0.78, 0.55), (lambda c, k: (c[0] + a[0] * k, c[1] + a[1] * k, c[2] + a[2] * k))
+    c = at((dx, ry + 2.4, dz), 0.6)
+    smooth(g, "Dish", (0.35, 3.8, 3.8), c, "white", shape="Cylinder", rot=(25, -30, 70))
+    smooth(g, "DishBowl", (0.1, 2.6, 2.6), at(c, 0.245), (0.8, 0.8, 0.78), shape="Cylinder", rot=(25, -30, 70))
+    rope(g, "DishArm", at(c, 0.32), at(c, 1.5), 0.18, "metal")
+    smooth(g, "DishFeed", (0.4, 0.4, 0.4), at(c, 1.72), "metal")
+    obj("LookoutLantern")
+    px = ix1 * 4 + 3.6
+    box(g, "LanternPost", px - 0.25, px + 0.25, h + 0.6, h + 3.6, zf - 0.6, zf - 0.1, "wood_dark")
+    smooth(g, "LanternLight", (0.8, 0.8, 0.8), (px, h + 4.0, zf - 0.35), "lantern", neon=True)
 
     for i, x in enumerate((-100, -84, -60, -44, 44, 58, 80, 100)):
         ix = math.floor(x / 4)
