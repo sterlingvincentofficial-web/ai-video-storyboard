@@ -20,7 +20,9 @@ const sg = sky.getContext('2d'), grad = sg.createLinearGradient(0,0,0,256);
 grad.addColorStop(0,'#2f8fd0'); grad.addColorStop(0.55,'#6cc9c0'); grad.addColorStop(1,'#a6e8c4');
 sg.fillStyle = grad; sg.fillRect(0,0,4,256);
 s.background = new THREE.CanvasTexture(sky); s.background.colorSpace = THREE.SRGBColorSpace;
+if (params.get('bg')) { s.background = new THREE.Color('#'+params.get('bg')); s.fog = null; }
 s.fog = new THREE.Fog(0x9fe6c8, 160, 320);
+if (params.get('bg')) s.fog = null;
 
 s.add(new THREE.HemisphereLight(0xe8fff4, 0x8a7a50, 1.5));
 const sun = new THREE.DirectionalLight(0xfff6e0, 2.4); sun.position.set(25,60,35); sun.castShadow = true;
@@ -47,7 +49,7 @@ headPts.push(new THREE.Vector2(0,Hh));
 const headGeo = new THREE.LatheGeometry(headPts, 40);
 
 const rough = {SmoothPlastic:0.5, Plastic:0.75, Metal:0.35, Neon:1};
-for (const model of scene) for (const p of model.parts) {
+for (const model of (params.get('nomap') ? [] : scene)) for (const p of model.parts) {
   const [sx,sy,sz] = p.size; let geo, mats;
   const col = new THREE.Color().setRGB(...p.color, THREE.SRGBColorSpace);
   const base = {color:col, roughness:rough[p.material] ?? 0.7, metalness:p.material==='Metal'?0.5:0,
@@ -74,10 +76,10 @@ for (const model of scene) for (const p of model.parts) {
 // extra imported meshes: ?models=file.glb@x,y,z,yawDeg;...  (glTF is +Y up, model faces +Z after Blender export)
 const models = [];
 for (const spec of (params.get('models')||'').split(';').filter(Boolean)) {
-  const [file, at] = spec.split('@'); const [x,y,z,yaw] = at.split(',').map(Number);
+  const [file, at] = spec.split('@'); const [x,y,z,yaw,roll=0,pitch=0] = at.split(',').map(Number);
   const gltf = await new GLTFLoader().loadAsync(file);
   gltf.scene.traverse(o => { if (o.isMesh) { o.castShadow = o.receiveShadow = true; } });
-  gltf.scene.position.set(x,y,z); gltf.scene.rotation.y = yaw*Math.PI/180; s.add(gltf.scene);
+  gltf.scene.position.set(x,y,z); gltf.scene.rotation.set(pitch*Math.PI/180, yaw*Math.PI/180, roll*Math.PI/180, 'YXZ'); s.add(gltf.scene);
   // ?pose=Part:rx,ry,rz|Part:...  (degrees, about each part's joint) applied to the n-th model
   const poses = (params.get('pose')||'').split(';')[models.length] || '';
   for (const p of poses.split('|').filter(Boolean)) {

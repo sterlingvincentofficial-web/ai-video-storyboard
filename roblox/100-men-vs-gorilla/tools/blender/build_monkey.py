@@ -1,7 +1,6 @@
-"""Builds the Monkey enemy mesh with Blender (bpy), matching the reference monkeys:
-a classic R6 body (2x2x1 torso, 1x2x1 limbs, sharp boxes) in wood-grain brown, pale yellow
-hand/foot caps, classic rounded Roblox head with a printed monkey face, pale side ears and a
-long smooth tail that hooks over.
+"""Builds the Monkey enemy mesh with Blender (bpy), cloned from the brown monkey concept art:
+chunky toy-plastic blocks with soft rounded edges, big rounded-box head with a printed face,
+cream disc ears facing forward, printed cream belly, cream hand and foot caps. No tail.
 
 Run (texture first, it needs Pillow):
   python3 tools/blender/monkey_texture.py
@@ -13,7 +12,6 @@ Out:
 Modelled in studs, Blender Z-up, facing -Y.
 """
 
-import math
 import os
 
 import bpy
@@ -26,16 +24,24 @@ ATLAS = os.path.join(OUT, "MonkeyAtlas.png")
 
 # Atlas tiles (u0, v0, u1, v1), see monkey_texture.py
 TILES = {
-    "fur": (0.0, 0.0, 0.5, 1.0),
-    "face": (0.5, 0.5, 1.0, 1.0),
-    "tip": (0.5, 0.25, 0.75, 0.5),
-    "ear": (0.75, 0.25, 1.0, 0.5),
+    "brown": (0.0, 0.0, 0.25, 0.25),
+    "cream": (0.25, 0.0, 0.5, 0.25),
+    "face": (0.0, 0.5, 0.5, 1.0),
+    "belly": (0.5, 0.5, 1.0, 1.0),
 }
-PAD = 0.008
+PAD = 0.004
 
-# head (must match monkey_texture.py so the face lands right)
-HEAD_HALF_W = 0.62
-HEAD_BOTTOM, HEAD_TOP = 4.0, 5.25
+# Proportions (studs). Head front and torso front must match monkey_texture.py.
+LEG = (1.0, 1.0, 2.0)      # x, y(depth), z(height)
+TORSO = (2.0, 1.25, 2.0)
+ARM = (0.95, 0.95, 1.9)
+HEAD = (2.3, 1.9, 1.9)      # width, depth, height
+HAND_CAP = 0.62
+FOOT_CAP = 0.5
+EAR_R, EAR_DEPTH = 0.43, 0.2
+
+LEG_TOP = LEG[2]
+TORSO_TOP = LEG_TOP + TORSO[2]
 
 # ---------------------------------------------------------------- helpers
 
@@ -55,7 +61,6 @@ def bake(o):
 
 
 def fresh_uv(me):
-    """Drops any default UVs a primitive came with, so ours is the only (active) map."""
     while me.uv_layers:
         me.uv_layers.remove(me.uv_layers[0])
     return me.uv_layers.new(name="UVMap")
@@ -68,157 +73,57 @@ def tile_uv(u, v, tile):
     return (u0 + PAD + u * (u1 - u0 - 2 * PAD), v0 + PAD + v * (v1 - v0 - 2 * PAD))
 
 
-def box_project(o, tile_for_face):
-    """Box-projects every face into a tile, normalised over the object's bounds, with v along Z
-    on the side faces so the fur grain runs down the limbs."""
-    me = o.data
-    uv = fresh_uv(me)
-    xs = [v.co.x for v in me.vertices]
-    ys = [v.co.y for v in me.vertices]
-    zs = [v.co.z for v in me.vertices]
-    mn, mx = Vector((min(xs), min(ys), min(zs))), Vector((max(xs), max(ys), max(zs)))
-    span = Vector([max(mx[i] - mn[i], 1e-6) for i in range(3)])
-    for poly in me.polygons:
-        n = poly.normal
-        tile = tile_for_face(poly)
-        for li in poly.loop_indices:
-            co = me.vertices[me.loops[li].vertex_index].co
-            rel = Vector([(co[i] - mn[i]) / span[i] for i in range(3)])
-            if abs(n.z) > max(abs(n.x), abs(n.y)):
-                a, b = rel.x, rel.y
-            elif abs(n.x) > abs(n.y):
-                a, b = rel.y, rel.z
-            else:
-                a, b = rel.x, rel.z
-            uv.data[li].uv = tile_uv(a, b, tile)
-
-
-def rbox(name, size, center, bevel=0.035):
-    """A Roblox-style box: sharp, with a hairline bevel to catch light."""
+def soft_box(name, size, center, radius, front_tile=None, tile="brown"):
+    """Box with soft rounded edges. Faces looking forward (-Y) get `front_tile`, projected flat
+    over the box's front so a print (face/belly) lands where it was painted."""
     bpy.ops.mesh.primitive_cube_add(size=1, location=center)
     o = bpy.context.active_object
     o.name = name
     o.scale = size
     bake(o)
     m = o.modifiers.new("Bevel", "BEVEL")
-    m.width, m.segments = bevel, 2
+    m.width, m.segments, m.limit_method = radius, 5, "NONE"
     bake(o)
-    return o
-
-
-def limb(name, center, cap_height=0.32):
-    """1x2x1 fur limb with a pale yellow cap on its bottom end (hands/feet)."""
+    me = o.data
+    uv = fresh_uv(me)
     cx, cy, cz = center
-    fur = rbox(name + "Fur", (1, 1, 2 - cap_height), (cx, cy, cz + cap_height / 2))
-    box_project(fur, lambda p: "fur")
-    cap = rbox(name + "Cap", (1.0, 1.0, cap_height), (cx, cy, cz - 1 + cap_height / 2))
-    box_project(cap, lambda p: "tip")
-    return [fur, cap]
-
-
-def classic_head(name, center):
-    """Roblox's classic head: a cylinder with rounded top/bottom edges."""
-    cx, cy, cz = center
-    r, h, k = HEAD_HALF_W, HEAD_TOP - HEAD_BOTTOM, 0.24
-    prof = [(0.0, -h / 2)]
-    for i in range(9):
-        a = -math.pi / 2 + i / 8 * math.pi / 2
-        prof.append((r - k + math.cos(a) * k, -h / 2 + k + math.sin(a) * k))
-    for i in range(9):
-        a = i / 8 * math.pi / 2
-        prof.append((r - k + math.cos(a) * k, h / 2 - k + math.sin(a) * k))
-    prof.append((0.0, h / 2))
-    segs = 48
-    verts, faces = [], []
-    for s in range(segs):
-        t = s / segs * math.tau
-        for (pr, pz) in prof:
-            verts.append((cx + math.cos(t) * pr, cy + math.sin(t) * pr, cz + pz))
-    n = len(prof)
-    for s in range(segs):
-        s2 = (s + 1) % segs
-        for i in range(n - 1):
-            faces.append((s * n + i, s2 * n + i, s2 * n + i + 1, s * n + i + 1))
-    me = bpy.data.meshes.new(name)
-    me.from_pydata(verts, [], faces)
-    me.update()
-    bpy.ops.object.select_all(action="DESELECT")
-    o = bpy.data.objects.new(name, me)
-    bpy.context.collection.objects.link(o)
-    select_only(o)
-    bpy.ops.object.mode_set(mode="EDIT")
-    bpy.ops.mesh.remove_doubles(threshold=1e-5)
-    bpy.ops.mesh.normals_make_consistent(inside=False)
-    bpy.ops.object.mode_set(mode="OBJECT")
-    for p in o.data.polygons:
-        p.use_smooth = True
-    # UVs: the front (-Y) half shows the printed face, everything else is fur
-    uv = fresh_uv(o.data)
-    for poly in o.data.polygons:
-        front = poly.normal.y < -0.1 or (poly.center.y - cy) < -0.25
+    w, _, h = size
+    for poly in me.polygons:
+        use_front = front_tile and poly.normal.y < -0.55
         for li in poly.loop_indices:
-            co = o.data.vertices[o.data.loops[li].vertex_index].co
-            a = (co.x - cx + HEAD_HALF_W) / (2 * HEAD_HALF_W)
-            b = (co.z - HEAD_BOTTOM) / (HEAD_TOP - HEAD_BOTTOM)
-            if front:
-                uv.data[li].uv = tile_uv(a, b, "face")
+            co = me.vertices[me.loops[li].vertex_index].co
+            if use_front:
+                uv.data[li].uv = tile_uv((co.x - cx) / w + 0.5, (co.z - cz) / h + 0.5, front_tile)
             else:
-                ang = (math.atan2(co.y - cy, co.x - cx) / math.tau) % 1.0
-                uv.data[li].uv = tile_uv(ang, b, "fur")
+                uv.data[li].uv = tile_uv(0.5, 0.5, tile)
+        poly.use_smooth = True
     return o
 
 
-def ear(name, center, side):
-    """Flat round ear on the side of the head (pale disc with a brown rim)."""
-    bpy.ops.mesh.primitive_cylinder_add(vertices=32, radius=0.28, depth=0.14, location=center,
-                                        rotation=(0, math.radians(90), 0))
+def capped_limb(name, size, center, cap):
+    """Brown limb with a cream cap on its bottom end (hand / foot)."""
+    w, d, h = size
+    cx, cy, cz = center
+    fur = soft_box(name + "Fur", (w, d, h - cap + 0.05), (cx, cy, cz + cap / 2 + 0.025), 0.12)
+    tip = soft_box(name + "Cap", (w, d, cap), (cx, cy, cz - h / 2 + cap / 2), 0.12, tile="cream")
+    return [fur, tip]
+
+
+def ear(name, center):
+    """Cream disc facing forward, set on the side of the head."""
+    bpy.ops.mesh.primitive_cylinder_add(vertices=40, radius=EAR_R, depth=EAR_DEPTH, location=center,
+                                        rotation=(1.5708, 0, 0))
     o = bpy.context.active_object
     o.name = name
     bake(o)
     m = o.modifiers.new("Bevel", "BEVEL")
-    m.width, m.segments = 0.04, 2
+    m.width, m.segments, m.limit_method = 0.07, 4, "NONE"
     bake(o)
     uv = fresh_uv(o.data)
     for poly in o.data.polygons:
-        flat = abs(poly.normal.x) > 0.9
         for li in poly.loop_indices:
-            co = o.data.vertices[o.data.loops[li].vertex_index].co
-            a = (co.y - center[1]) / 0.6 + 0.5
-            b = (co.z - center[2]) / 0.6 + 0.5
-            uv.data[li].uv = tile_uv(a, b, "ear" if flat else "fur")
-        poly.use_smooth = not flat
-    return o
-
-
-def tail(name, points, radius):
-    cu = bpy.data.curves.new(name, "CURVE")
-    cu.dimensions = "3D"
-    cu.bevel_depth = radius
-    cu.bevel_resolution = 5
-    cu.use_fill_caps = True
-    sp = cu.splines.new("BEZIER")
-    sp.bezier_points.add(len(points) - 1)
-    for bp, p in zip(sp.bezier_points, points):
-        bp.co = p
-        bp.handle_left_type = bp.handle_right_type = "AUTO"
-    sp.bezier_points[-1].radius = 0.7
-    sp.resolution_u = 14
-    o = bpy.data.objects.new(name, cu)
-    bpy.context.collection.objects.link(o)
-    select_only(o)
-    bpy.ops.object.convert(target="MESH")
-    o = bpy.context.active_object
-    for p in o.data.polygons:
-        p.use_smooth = True
-    # fur grain along the tail: spread loops by height
-    uv = fresh_uv(o.data)
-    zs = [v.co.z for v in o.data.vertices]
-    ys = [v.co.y for v in o.data.vertices]
-    for poly in o.data.polygons:
-        for li in poly.loop_indices:
-            co = o.data.vertices[o.data.loops[li].vertex_index].co
-            uv.data[li].uv = tile_uv((co.y - min(ys)) / (max(ys) - min(ys)), (co.z - min(zs)) / (max(zs) - min(zs)),
-                                     "fur")
+            uv.data[li].uv = tile_uv(0.5, 0.5, "cream")
+        poly.use_smooth = True
     return o
 
 
@@ -235,31 +140,39 @@ def join(name, objs, pivot):
     o.select_set(False)
     return o
 
-# ---------------------------------------------------------------- the monkey (R6 layout)
+# ---------------------------------------------------------------- the monkey
 
 
 def build():
     parts, pivots = {}, {}
     for side, x in (("Left", -0.5), ("Right", 0.5)):
-        pivots[side + "Leg"] = (x, 0, 2.0)
-        parts[side + "Leg"] = join(side + "Leg", limb(side + "Leg", (x, 0, 1.0)), pivots[side + "Leg"])
-    torso = rbox("TorsoFur", (2, 1, 2), (0, 0, 3.0))
-    box_project(torso, lambda p: "fur")
-    pivots["Torso"] = (0, 0, 3.0)
+        pivots[side + "Leg"] = (x, 0, LEG_TOP)
+        parts[side + "Leg"] = join(side + "Leg", capped_limb(side + "Leg", LEG, (x, 0, LEG[2] / 2), FOOT_CAP),
+                                   pivots[side + "Leg"])
+
+    torso = soft_box("TorsoMesh", TORSO, (0, 0, LEG_TOP + TORSO[2] / 2), 0.14, front_tile="belly")
+    pivots["Torso"] = (0, 0, LEG_TOP + TORSO[2] / 2)
     parts["Torso"] = join("Torso", [torso], pivots["Torso"])
-    for side, x in (("Left", -1.5), ("Right", 1.5)):
-        pivots[side + "Arm"] = (x, 0, 3.5)
-        parts[side + "Arm"] = join(side + "Arm", limb(side + "Arm", (x, 0, 3.0)), pivots[side + "Arm"])
-    head = classic_head("HeadMesh", (0, 0, (HEAD_BOTTOM + HEAD_TOP) / 2))
-    ears = [ear("EarL", (-0.66, 0.02, 4.78), -1), ear("EarR", (0.66, 0.02, 4.78), 1)]
-    pivots["Head"] = (0, 0, 4.0)
+
+    ax = TORSO[0] / 2 + ARM[0] / 2
+    for side, x in (("Left", -ax), ("Right", ax)):
+        pivots[side + "Arm"] = (x, 0, TORSO_TOP - 0.45)
+        parts[side + "Arm"] = join(side + "Arm", capped_limb(side + "Arm", ARM, (x, 0, TORSO_TOP - ARM[2] / 2),
+                                                              HAND_CAP), pivots[side + "Arm"])
+
+    hz = TORSO_TOP + HEAD[2] / 2
+    head = soft_box("HeadMesh", HEAD, (0, 0, hz), 0.24, front_tile="face")
+    ex = HEAD[0] / 2 + EAR_R * 0.45
+    ears = [ear("EarL", (-ex, 0.2, hz + 0.18)), ear("EarR", (ex, 0.2, hz + 0.18))]
+    pivots["Head"] = (0, 0, TORSO_TOP)
     parts["Head"] = join("Head", [head] + ears, pivots["Head"])
-    # tail: out of the lower back, back and up in a big arc, hooking over at the end (+Y = back)
-    pts = [(0, 0.45, 2.35), (0, 1.05, 2.1), (0, 1.75, 2.45), (0, 2.15, 3.3), (0, 2.1, 4.3), (0, 1.7, 5.0),
-           (0, 1.15, 5.15), (0, 0.85, 4.75)]
-    pivots["Tail"] = (0, 0.45, 2.35)
-    parts["Tail"] = join("Tail", [tail("TailMesh", pts, 0.14)], pivots["Tail"])
-    return parts, pivots
+
+    # Tiny marker in front of the feet: lets the game tell which way the importer turned the mesh.
+    bpy.ops.mesh.primitive_cube_add(size=0.05, location=(0, -1.0, 0.05))
+    marker = bpy.context.active_object
+    marker.name = marker.data.name = "FrontMarker"
+    fresh_uv(marker.data)
+    return parts, pivots, marker
 
 
 def material():
@@ -269,9 +182,8 @@ def material():
     bsdf = nt.nodes.get("Principled BSDF")
     tex = nt.nodes.new("ShaderNodeTexImage")
     tex.image = bpy.data.images.load(ATLAS)
-    tex.interpolation = "Linear"
     nt.links.new(tex.outputs["Color"], bsdf.inputs["Base Color"])
-    bsdf.inputs["Roughness"].default_value = 0.85
+    bsdf.inputs["Roughness"].default_value = 0.55
     return mat
 
 
@@ -305,9 +217,9 @@ def write_rig_data(parts, pivots):
 def main():
     bpy.ops.wm.read_factory_settings(use_empty=True)
     os.makedirs(RIG_OUT, exist_ok=True)
-    parts, pivots = build()
+    parts, pivots, marker = build()
     mat = material()
-    for o in parts.values():
+    for o in list(parts.values()) + [marker]:
         o.data.materials.clear()
         o.data.materials.append(mat)
     write_rig_data(parts, pivots)

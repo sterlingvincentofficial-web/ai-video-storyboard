@@ -20,16 +20,15 @@ local JOINTS = {
 	RightArm = { "Torso", "Right Shoulder" },
 	LeftLeg = { "Torso", "Left Hip" },
 	RightLeg = { "Torso", "Right Hip" },
-	Tail = { "Torso", "Tail" },
 }
 
 local ROOT_HEIGHT = RigData.Parts.Torso.Pivot.Y
 
--- Finds the imported mesh model: anything named "Monkey" with a Tail MeshPart inside.
+-- Finds the imported mesh model: anything with the Monkey's Torso and FrontMarker inside.
 function MonkeyRig.findImported(...: Instance): Model?
 	for _, container in { ... } do
 		for _, d in container:GetDescendants() do
-			if d:IsA("Model") and d:FindFirstChild("Tail", true) and d:FindFirstChild("Torso", true) then
+			if d:IsA("Model") and d:FindFirstChild("FrontMarker", true) and d:FindFirstChild("Torso", true) then
 				return d
 			end
 		end
@@ -37,12 +36,12 @@ function MonkeyRig.findImported(...: Instance): Model?
 	return nil
 end
 
--- The importer may bring the mesh in facing +Z instead of Roblox's -Z. Our tail sits behind the
--- torso, so if it comes in on the -Z side every part needs a half turn.
+-- The importer may bring the mesh in facing +Z instead of Roblox's -Z. FrontMarker is a tiny
+-- part modelled in front of the feet, so if it lands behind the torso every part needs a half turn.
 function MonkeyRig.needsFlip(meshModel: Model): boolean
-	local tail = meshModel:FindFirstChild("Tail", true) :: BasePart
+	local marker = meshModel:FindFirstChild("FrontMarker", true) :: BasePart
 	local torso = meshModel:FindFirstChild("Torso", true) :: BasePart
-	return (tail.Position.Z - torso.Position.Z) < -0.05
+	return (marker.Position.Z - torso.Position.Z) > 0.05
 end
 
 function MonkeyRig.build(meshModel: Model, textureId: string?): Model
@@ -80,6 +79,9 @@ function MonkeyRig.build(meshModel: Model, textureId: string?): Model
 	end
 
 	for name, joint in JOINTS do
+		if not parts[name] then
+			continue
+		end
 		local part0, part1 = parts[joint[1]], parts[name]
 		local pivot = CFrame.new(RigData.Parts[name].Pivot)
 		local motor = Instance.new("Motor6D")

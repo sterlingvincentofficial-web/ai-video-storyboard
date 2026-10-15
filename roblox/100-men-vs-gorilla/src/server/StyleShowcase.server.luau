@@ -30,7 +30,7 @@ local function collect(name: string, marker: string): Instance?
 	return nil
 end
 
-local monkeyMesh = collect("Monkey", "Tail") :: Model?
+local monkeyMesh = collect("Monkey", "FrontMarker") :: Model?
 local menGear = collect("MenGear", "Headband")
 
 local stage = Instance.new("Folder")

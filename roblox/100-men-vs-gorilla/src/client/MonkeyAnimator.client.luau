@@ -1,6 +1,5 @@
 --!strict
--- Procedural monkey animation (no uploaded animation assets needed): waddle walk, idle breathing,
--- swaying tail. Runs on each client against every model tagged "Monkey".
+-- Procedural monkey animation (no uploaded animation assets needed): waddle walk, idle breathing. Runs on each client against every model tagged "Monkey".
 
 local CollectionService = game:GetService("CollectionService")
 local RunService = game:GetService("RunService")
