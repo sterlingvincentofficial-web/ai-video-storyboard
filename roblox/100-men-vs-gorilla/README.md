@@ -19,8 +19,13 @@ Before the imports, the game still runs with block stand-ins for the monkeys and
 avatars for the men.
 
 **Optional:**
-- Sounds: upload `assets/sfx/*.wav` (Asset Manager → Bulk Import) and paste the IDs into
-  `src/shared/Sounds.luau`. Until then, built-in Roblox sounds stand in.
+- Sounds and music: upload `assets/sfx/*.wav` (Asset Manager → Bulk Import) and paste the IDs into
+  `src/shared/Sounds.luau`. Until then, built-in Roblox sounds stand in for the effects and there
+  is no music. The `music_*` files are the soundtrack: a calm loop between waves, a battle loop,
+  a boss loop, and victory / game-over stingers (a MUSIC button and the M key toggle it).
+- Logo: upload `marketing/final/logo.png` as a Decal and paste its id into
+  `src/shared/Config/Brand.luau`; the intro's title card then uses it.
+- Game page: the icon and thumbnails are in `marketing/final/` (see `marketing/README.md`).
 - Jump to a later wave for testing: set the `StartWave` attribute on `ReplicatedStorage.GameState`
   while the game is running in Studio, before the first wave starts (the attribute is created when you press Play).
 
@@ -77,6 +82,8 @@ by `tools/preview/studio.html` for preview videos.
 | `tools/blender/build_gear.py` | Builds `MenGear.fbx` (projectiles, and the avatar fallback's gear) + `RigData/Gear.luau`. |
 | `tools/clothing/make_templates.py` | Optional Shirt/Pants templates. |
 | `tools/sfx/make_sfx.py` | Synthesizes the sound pack. |
+| `tools/sfx/make_music.py` | Synthesizes the soundtrack (seamless loops + stingers). |
+| `marketing/` | Game icon, thumbnails and logo (`final/`) and the game renders they were made from (`refs/`). |
 | `tools/cutscene/intro.json` | The intro timeline; `build_intro.py` turns it into `Config/Intro.luau`, `mix_audio.py` mixes a preview soundtrack. |
 | `tools/preview/` | three.js previews without Studio: `index.html` (the map), `studio.html` (combat scenes, the intro, army lineups, gameplay stills with `hud.js` mirroring the HUD), `grade.js` (the Lighting colour grade). |
 | `src/shared/Config/` | Enemy stats, unit levels, wave recipes. |
@@ -90,6 +97,6 @@ python3 tools/cutscene/build_intro.py
 python3 tools/blender/enemy_textures.py
 python3 tools/blender/men_textures.py
 python tools/blender/build_enemies.py && python tools/blender/build_men.py && python tools/blender/build_gear.py   # venv with bpy
-python3 tools/sfx/make_sfx.py
+python3 tools/sfx/make_sfx.py && python3 tools/sfx/make_music.py
 rojo build -o 100MenVsGorilla.rbxlx
 ```

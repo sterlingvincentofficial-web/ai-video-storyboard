@@ -41,6 +41,12 @@ local Sounds: { [string]: SoundDef } = {
 	Whoosh = { Id = nil, Fallback = "rbxasset://sounds/Rocket whoosh 01.wav", Volume = 0.6 }, -- whoosh.wav
 	Drum = { Id = nil, Fallback = "rbxasset://sounds/collide.wav", Volume = 0.9 }, -- drum.wav
 	Title = { Id = nil, Fallback = "rbxasset://sounds/victory.wav", Volume = 0.9 }, -- title.wav
+	-- music (tools/sfx/make_music.py); silent until uploaded, there's no built-in stand-in
+	MusicCalm = { Id = nil, Fallback = "", Volume = 0.35 }, -- music_calm.wav (loop, between waves)
+	MusicBattle = { Id = nil, Fallback = "", Volume = 0.3 }, -- music_battle.wav (loop, waves)
+	MusicBoss = { Id = nil, Fallback = "", Volume = 0.34 }, -- music_boss.wav (loop, boss waves)
+	MusicVictory = { Id = nil, Fallback = "", Volume = 0.5 }, -- music_victory.wav
+	MusicGameOver = { Id = nil, Fallback = "", Volume = 0.45 }, -- music_gameover.wav
 }
 
 return Sounds

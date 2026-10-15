@@ -12,6 +12,7 @@ local Fx = require(Modules.Fx)
 local Hud = require(Modules.Hud)
 local Juice = require(Modules.Juice)
 local KillFx = require(Modules.KillFx)
+local Music = require(Modules.Music)
 local UnitView = require(Modules.UnitView)
 
 Net.event("Hits").OnClientEvent:Connect(function(hits)
@@ -40,6 +41,7 @@ Net.event("EnemyActs").OnClientEvent:Connect(function(list)
 	end
 end)
 Net.event("GameEvent").OnClientEvent:Connect(Hud.gameEvent)
+Net.event("GameEvent").OnClientEvent:Connect(Music.gameEvent)
 
 -- the intro plays once per join; the server holds wave 1 until everyone has watched or skipped it
 task.spawn(Cutscene.play)

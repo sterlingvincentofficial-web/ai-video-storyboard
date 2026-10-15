@@ -16,6 +16,7 @@ local PathUtil = require(Shared.PathUtil)
 local Units = require(Shared.Config.Units)
 local Fx = require(script.Parent.Fx)
 local Juice = require(script.Parent.Juice)
+local Music = require(script.Parent.Music)
 
 local Hud = {}
 
@@ -192,6 +193,21 @@ local function showToast(text: string, color: Color3?)
 	end)
 end
 Hud.toast = showToast
+
+-- music on/off (bottom right, clear of the player list; M on a keyboard). Only shown once the
+-- music has been uploaded.
+local musicButton = make("TextButton", { Size = UDim2.fromOffset(118, 34), Position = UDim2.new(1, -16, 1, -16),
+	AnchorPoint = Vector2.new(1, 1), BackgroundColor3 = MINT, Text = "MUSIC ON", Font = FONT, TextSize = 18,
+	TextColor3 = INK, Visible = Music.hasMusic(), Parent = root })
+rim(musicButton)
+local function toggleMusic()
+	Music.setEnabled(not Music.enabled)
+	musicButton.Text = if Music.enabled then "MUSIC ON" else "MUSIC OFF"
+	musicButton.BackgroundColor3 = if Music.enabled then MINT else INK
+	musicButton.TextColor3 = if Music.enabled then INK else MINT
+	Juice.sound("Ui")
+end
+musicButton.Activated:Connect(toggleMusic)
 
 -- hotbar: one card per unit, like the reference's item cards (index badge, portrait, price, name strip)
 local order = {}
@@ -498,6 +514,8 @@ UserInputService.InputBegan:Connect(function(input, processed)
 		elseif input.KeyCode == Enum.KeyCode.Q or input.KeyCode == Enum.KeyCode.Escape then
 			setSelected(nil)
 			Hud.closePanel()
+		elseif input.KeyCode == Enum.KeyCode.M and musicButton.Visible then
+			toggleMusic()
 		end
 		return
 	end

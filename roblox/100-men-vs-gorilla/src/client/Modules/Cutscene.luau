@@ -12,6 +12,7 @@ local TweenService = game:GetService("TweenService")
 local UserInputService = game:GetService("UserInputService")
 
 local Shared = ReplicatedStorage:WaitForChild("Shared")
+local Brand = require(Shared.Config.Brand)
 local EnemyDefs = require(Shared.Config.Enemies)
 local Intro = require(Shared.Config.Intro)
 local Net = require(Shared.Net)
@@ -436,6 +437,14 @@ local function buildUi()
 		ZIndex = 8, Rotation = -4, Parent = gui })
 	ui.titleStroke = make("UIStroke", { Thickness = 6, Parent = ui.title })
 	ui.titleScale = make("UIScale", { Parent = ui.title })
+	-- the uploaded logo (Config/Brand), slammed in place of the text title when there is one
+	if Brand.Logo then
+		ui.logo = make("ImageLabel", { Size = UDim2.fromScale(0.62, 0.62), Position = UDim2.fromScale(0.5, 0.44),
+			AnchorPoint = Vector2.new(0.5, 0.5), BackgroundTransparency = 1, Image = `rbxassetid://{Brand.Logo}`,
+			ScaleType = Enum.ScaleType.Fit, Visible = false, ZIndex = 8, Rotation = -3, Parent = gui })
+		make("UIAspectRatioConstraint", { AspectRatio = Brand.LogoAspect, Parent = ui.logo })
+		ui.logoScale = make("UIScale", { Parent = ui.logo })
+	end
 	ui.skip = make("TextButton", { Size = UDim2.fromOffset(150, 40), Position = UDim2.new(1, -20, 1, -16), AnchorPoint = Vector2.new(1, 1),
 		BackgroundColor3 = GREEN, BorderSizePixel = 0, Text = "SKIP >>", Font = FONT, TextScaled = true,
 		TextColor3 = Color3.fromRGB(5, 20, 13), ZIndex = 10, Parent = gui })
@@ -811,14 +820,24 @@ function Cutscene.play()
 		end
 	end
 	handlers.title = function(ev)
+		Juice.sound("Title")
+		Juice.shake(0.45)
+		if ui.logo then
+			ui.logo.Visible = true
+			ui.logo.ImageTransparency = 0
+			ui.logoScale.Scale = 3
+			TweenService:Create(ui.logoScale, TweenInfo.new(0.3, Enum.EasingStyle.Back), { Scale = 1 }):Play()
+			task.delay(ev.dur or 1.8, function()
+				TweenService:Create(ui.logo, TweenInfo.new(0.35), { ImageTransparency = 1 }):Play()
+			end)
+			return
+		end
 		ui.title.Text = ev.text
 		ui.title.Visible = true
 		ui.title.TextTransparency = 0
 		ui.titleStroke.Transparency = 0
 		ui.titleScale.Scale = 3
 		TweenService:Create(ui.titleScale, TweenInfo.new(0.3, Enum.EasingStyle.Back), { Scale = 1 }):Play()
-		Juice.sound("Title")
-		Juice.shake(0.45)
 		task.delay(ev.dur or 1.8, function()
 			TweenService:Create(ui.title, TweenInfo.new(0.35), { TextTransparency = 1 }):Play()
 			TweenService:Create(ui.titleStroke, TweenInfo.new(0.35), { Transparency = 1 }):Play()
