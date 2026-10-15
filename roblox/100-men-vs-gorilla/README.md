@@ -37,6 +37,7 @@ Live sync instead: install [Rojo](https://rojo.space), run `rojo serve` here, cl
 ## Rebuild
 ```
 python3 tools/build_models.py
+python3 tools/blender/monkey_texture.py
 python tools/blender/build_monkey.py && python tools/blender/build_gear.py   # Blender venv with bpy
 python3 tools/clothing/make_templates.py
 rojo build -o 100MenVsGorilla_StyleTest.rbxlx

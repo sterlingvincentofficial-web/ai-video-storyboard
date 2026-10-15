@@ -72,11 +72,19 @@ for (const model of scene) for (const p of model.parts) {
   s.add(m);
 }
 // extra imported meshes: ?models=file.glb@x,y,z,yawDeg;...  (glTF is +Y up, model faces +Z after Blender export)
+const models = [];
 for (const spec of (params.get('models')||'').split(';').filter(Boolean)) {
   const [file, at] = spec.split('@'); const [x,y,z,yaw] = at.split(',').map(Number);
   const gltf = await new GLTFLoader().loadAsync(file);
   gltf.scene.traverse(o => { if (o.isMesh) { o.castShadow = o.receiveShadow = true; } });
   gltf.scene.position.set(x,y,z); gltf.scene.rotation.y = yaw*Math.PI/180; s.add(gltf.scene);
+  // ?pose=Part:rx,ry,rz|Part:...  (degrees, about each part's joint) applied to the n-th model
+  const poses = (params.get('pose')||'').split(';')[models.length] || '';
+  for (const p of poses.split('|').filter(Boolean)) {
+    const [part, r] = p.split(':'); const [rx,ry,rz] = r.split(',').map(v=>+v*Math.PI/180);
+    const node = gltf.scene.getObjectByName(part); if (node) node.rotation.set(rx,ry,rz);
+  }
+  models.push(gltf.scene);
 }
 const cam = new THREE.PerspectiveCamera(+(params.get('fov')||50), W/H, 0.1, 600);
 const [cx,cy,cz,tx,ty,tz] = (params.get('cam')||'0,40,55,0,0,0').split(',').map(Number);
