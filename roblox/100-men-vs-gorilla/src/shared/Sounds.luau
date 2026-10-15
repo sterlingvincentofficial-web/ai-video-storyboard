@@ -32,6 +32,15 @@ local Sounds: { [string]: SoundDef } = {
 	Ui = { Id = nil, Fallback = "rbxasset://sounds/button.wav", Volume = 0.5 }, -- ui.wav
 	Deny = { Id = nil, Fallback = "rbxasset://sounds/clickfast.wav", Volume = 0.5 }, -- deny.wav
 	BossDown = { Id = nil, Fallback = "rbxasset://sounds/victory.wav", Volume = 1 }, -- bossdown.wav
+	-- intro cutscene
+	Rotor = { Id = nil, Fallback = "rbxasset://sounds/action_swim.mp3", Volume = 0.55 }, -- rotor.wav (looped)
+	Radio = { Id = nil, Fallback = "rbxasset://sounds/electronicpingshort.wav", Volume = 0.45 }, -- radio.wav
+	Splat = { Id = nil, Fallback = "rbxasset://sounds/collide.wav", Volume = 0.9 }, -- splat.wav
+	Alarm = { Id = nil, Fallback = "rbxasset://sounds/electronicpingshort.wav", Volume = 0.35 }, -- alarm.wav (looped)
+	Crash = { Id = nil, Fallback = "rbxasset://sounds/collide.wav", Volume = 1 }, -- crash.wav
+	Whoosh = { Id = nil, Fallback = "rbxasset://sounds/Rocket whoosh 01.wav", Volume = 0.6 }, -- whoosh.wav
+	Drum = { Id = nil, Fallback = "rbxasset://sounds/collide.wav", Volume = 0.9 }, -- drum.wav
+	Title = { Id = nil, Fallback = "rbxasset://sounds/victory.wav", Volume = 0.9 }, -- title.wav
 }
 
 return Sounds

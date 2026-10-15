@@ -138,6 +138,42 @@ def main():
     # ui / deny
     save("ui", np.sin(2 * np.pi * 1200 * t(0.04)) * env(int(SR * 0.04), 0.001, 0.02), 0.5)
     save("deny", sweep(300, 180, 0.18, "square") * env(int(SR * 0.18), 0.002, 0.15), 0.5)
+    # ---- intro cutscene
+    # rotor: one loopable second of blade chop (8.8 thumps/s) over a turbine whine
+    tt = t(1.0)
+    chop = np.zeros(len(tt))
+    for k in range(9):
+        i0 = int(k / 8.8 * SR)
+        n = int(SR * 0.09)
+        seg = lowpass(noise(0.09), 30) * env(n, 0.004, 0.05, 3) + sweep(90, 55, 0.09) * env(n, 0.002, 0.05) * 0.8
+        chop[i0:i0 + n] += seg[: len(chop) - i0]
+    whine = np.sin(2 * np.pi * 1180 * tt) * 0.05 + np.sin(2 * np.pi * 590 * tt) * 0.05
+    save("rotor", chop + whine, 0.8)
+    # radio: squelch click, a burst of static, a beep
+    save("radio", np.concatenate([noise(0.02) * 0.9, lowpass(noise(0.22), 3) * 0.35,
+                                  np.sin(2 * np.pi * 1400 * t(0.07)) * env(int(SR * 0.07), 0.002, 0.08, 1) * 0.5]), 0.6)
+    # splat: wet slap + squelch glide
+    tt = t(0.4)
+    save("splat", mix(lowpass(noise(0.4), 8) * env(len(tt), 0.001, 0.08, 5),
+                      sweep(260, 90, 0.3) * env(int(SR * 0.3), 0.002, 0.15) * 0.6,
+                      sweep(900, 400, 0.12, "tri") * env(int(SR * 0.12), 0.001, 0.05) * 0.3))
+    # alarm: two-tone cockpit warning (loops at 0.6 s)
+    save("alarm", np.concatenate([sweep(880, 880, 0.3, "square") * 0.5, sweep(660, 660, 0.3, "square") * 0.5]), 0.5)
+    # crash: metal crunch, scrapes and a low hit
+    tt = t(1.4)
+    crunch = lowpass(noise(1.4), 6) * env(len(tt), 0.002, 0.5, 3)
+    clangs = sum(np.sin(2 * np.pi * f * tt) * env(len(tt), 0.001, 0.25 + 0.1 * i, 4) * 0.25
+                 for i, f in enumerate((310, 523, 742, 1187)))
+    save("crash", mix(crunch, clangs, sweep(90, 30, 1.0) * env(int(SR * 1.0), 0.001, 0.4, 3)))
+    # whoosh: filtered noise swelling past
+    tt = t(0.7)
+    save("whoosh", lowpass(noise(0.7), 18) * np.sin(np.pi * tt / 0.7) ** 2, 0.7)
+    # drum: big low taiko hit
+    save("drum", mix(sweep(95, 45, 0.9) * env(int(SR * 0.9), 0.002, 0.35, 3), lowpass(noise(0.08), 10) * env(int(SR * 0.08), 0.001, 0.03)))
+    # title: boom + bright shimmer chord for the title slam
+    tt = t(1.6)
+    shimmer = sum(np.sin(2 * np.pi * f * tt) for f in (523, 659, 784, 1047)) * env(len(tt), 0.01, 0.8, 2) * 0.12
+    save("title", mix(sweep(120, 35, 1.2) * env(int(SR * 1.2), 0.001, 0.5, 3) * 1.2, lowpass(noise(0.3), 20) * env(int(SR * 0.3), 0.001, 0.1), shimmer))
     print("wrote", len(os.listdir(OUT)), "sounds to", OUT)
 
 

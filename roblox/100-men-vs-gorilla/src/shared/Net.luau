@@ -13,6 +13,7 @@ local EVENTS = {
 	"EnemyActs", -- server -> all: ability visuals { id, act, data }
 	"GameEvent", -- server -> all: wave start/clear, boss, base hit, game over
 	"UnitFx", -- server -> all: unit-side visuals (stun, rally, heal)
+	"IntroDone", -- client -> server: finished or skipped the intro cutscene
 }
 local FUNCTIONS = { "PlaceUnit", "UpgradeUnit", "SellUnit" }
 

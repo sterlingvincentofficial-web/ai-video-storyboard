@@ -50,4 +50,27 @@ else
 	warn("[100 Men] MenGear.fbx not imported yet - the army has no hats or weapons. File > Import 3D -> assets/men/MenGear.fbx")
 end
 
+-- The intro's squad (Players:CreateHumanoidModelFromDescription only works on the server): the
+-- pilot plus a level-1 Brawler, Slingshot Kid and Lumberjack. Clients clone these for the cutscene.
+local Units = require(Shared.Config.Units)
+local squad = Instance.new("Folder")
+squad.Name = "CutsceneSquad"
+local PILOT = {
+	Skin = Color3.fromRGB(245, 205, 48),
+	Shirt = Color3.fromRGB(13, 105, 172),
+	Pants = Color3.fromRGB(164, 189, 71),
+	Hat = "ArmyHelmet",
+	HatColor = Color3.fromRGB(88, 102, 56),
+}
+local ok, err = pcall(function()
+	MenFactory.buildLook("Pilot", PILOT).Parent = squad
+	for _, unitId in { "Brawler", "Slingshot", "Lumberjack" } do
+		MenFactory.buildLook(unitId, Units[unitId].Levels[1].Look).Parent = squad
+	end
+end)
+if not ok then
+	warn("[100 Men] couldn't build the intro squad:", err)
+end
+squad.Parent = assets
+
 GameService.start()

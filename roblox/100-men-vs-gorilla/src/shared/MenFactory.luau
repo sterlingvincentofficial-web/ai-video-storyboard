@@ -171,14 +171,8 @@ local function dress(model: Model, look: Units.Look)
 	end
 end
 
--- Builds a unit model at a level. Not parented; caller places it.
-function MenFactory.build(unitId: string, level: number): Model
-	local unit = Units[unitId]
-	assert(unit, `Unknown unit "{unitId}"`)
-	local def = unit.Levels[level]
-	assert(def, `{unitId} has no level {level}`)
-	local look = def.Look
-
+-- Builds an avatar wearing a Look (no unit behaviour attached). Not parented.
+function MenFactory.buildLook(name: string, look: Units.Look): Model
 	local desc = Instance.new("HumanoidDescription")
 	desc.HeadColor = look.Skin
 	desc.LeftArmColor = look.Skin
@@ -187,14 +181,24 @@ function MenFactory.build(unitId: string, level: number): Model
 	desc.LeftLegColor = if look.PantsTemplate then look.Skin else look.Pants
 	desc.RightLegColor = desc.LeftLegColor
 	local model = Players:CreateHumanoidModelFromDescription(desc, Enum.HumanoidRigType.R15)
-	model.Name = `{unitId}_L{level}`
+	model.Name = name
 	dress(model, look)
-
 	local humanoid = model:FindFirstChildOfClass("Humanoid") :: Humanoid
 	humanoid.DisplayDistanceType = Enum.HumanoidDisplayDistanceType.None
 	humanoid.HealthDisplayType = Enum.HumanoidHealthDisplayType.AlwaysOff
 	humanoid.BreakJointsOnDeath = false
 	humanoid:SetStateEnabled(Enum.HumanoidStateType.Dead, false)
+	return model
+end
+
+-- Builds a unit model at a level. Not parented; caller places it.
+function MenFactory.build(unitId: string, level: number): Model
+	local unit = Units[unitId]
+	assert(unit, `Unknown unit "{unitId}"`)
+	local def = unit.Levels[level]
+	assert(def, `{unitId} has no level {level}`)
+	local model = MenFactory.buildLook(`{unitId}_L{level}`, def.Look)
+
 	for _, p in model:GetDescendants() do
 		if p:IsA("BasePart") then
 			p.CanCollide = false

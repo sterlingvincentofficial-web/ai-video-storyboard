@@ -78,6 +78,7 @@ function Juice.shake(amount: number, at: Vector3?)
 end
 
 local fovKick = 0
+Juice.baseFov = 70 -- the intro cutscene drives this; the kick is added on top
 function Juice.punch(amount: number)
 	fovKick = math.max(fovKick, amount)
 end
@@ -93,10 +94,10 @@ RunService:BindToRenderStep("JuiceCamera", Enum.RenderPriority.Camera.Value + 1,
 		trauma = math.max(0, trauma - dt * 1.6)
 	end
 	if fovKick > 0.01 then
-		camera.FieldOfView = 70 + fovKick
+		camera.FieldOfView = Juice.baseFov + fovKick
 		fovKick *= math.exp(-dt * 9)
-	elseif camera.FieldOfView ~= 70 then
-		camera.FieldOfView = 70
+	elseif camera.FieldOfView ~= Juice.baseFov then
+		camera.FieldOfView = Juice.baseFov
 	end
 end)
 

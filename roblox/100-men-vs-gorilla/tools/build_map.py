@@ -27,6 +27,8 @@ ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 OUT_DIR = os.path.join(ROOT, "src", "workspace")
 SHARED_DIR = os.path.join(ROOT, "src", "shared")
 PREVIEW_DIR = os.path.join(ROOT, "tools", "preview")
+ASSET_DIR = os.path.join(ROOT, "src", "assets")
+CUTSCENE_DIR = os.path.join(ROOT, "tools", "cutscene")
 
 PALETTE.update({
     "path": rgb(212, 172, 96),
@@ -709,29 +711,47 @@ def tent(g, name, x, z, yaw):
     take("ground", x, z, 4.7)
 
 
-def helicopter_wreck(g, x, z):
-    """The chopper from the intro: slid in nose-first, ploughed a trench, spilled the squad's cargo."""
-    yaw, S = 100, 1.35
-    f = Frame((x, 0, z), yaw=yaw, pitch=-8, roll=10)
+HELI_S = 1.35
+WRECK = {"x": 26, "z": 58, "yaw": 100, "pitch": -8, "roll": 10}
+
+
+def heli_parts(wrecked):
+    """The chopper in its own frame (nose toward -Z), as (name, size, pos, color, rot, studs, kw).
+    The cabin is hollow (floor, walls, roof, glass front, open right-hand door) so the squad can
+    ride inside it in the intro. The wreck has snapped rotor stubs, a missing strut, the banana
+    splat and engine flames; the flying one has a full rotor and a hidden splat."""
+    S = HELI_S
     parts = []
 
     def P(name, size, lpos, color, lrot=(0, 0, 0), studs=True, **kw):
         parts.append((name, [v * S for v in size], [v * S for v in lpos], color, lrot, studs, kw))
 
     P("HeliBelly", (4.6, 1.0, 7.6), (0, 1.0, 0), "olive_dark")
-    P("HeliCabin", (5, 3.0, 8), (0, 3.0, 0), "olive")
-    P("HeliHousing", (3.4, 1.2, 4.4), (0, 5.1, 0.8), "olive_dark")
+    P("HeliRoof", (5, 0.4, 8), (0, 5.2, 0), "olive")
+    P("HeliWallL", (0.25, 3.5, 8), (-2.375, 3.25, 0), "olive")
+    P("HeliWallRF", (0.25, 3.5, 3.7), (2.375, 3.25, -2.15), "olive")
+    P("HeliWallRB", (0.25, 3.5, 1.7), (2.375, 3.25, 3.15), "olive")
+    P("HeliWallBack", (4.5, 3.5, 0.25), (0, 3.25, 3.875), "olive")
+    P("HeliConsole", (4.5, 1.2, 0.25), (0, 2.1, -3.875), "olive_dark")
+    P("HeliPillar", (0.3, 2.3, 0.25), (0, 3.85, -3.875), "metal_dark")
     for sx in (-1, 1):
-        P(f"HeliExhaust{sx}", (1.6, 0.7, 0.7), (sx * 1.0, 5.1, 3.8), "metal_dark", lrot=(0, 90, 0), studs=False,
+        P(f"HeliPane{sx}", (2.1, 2.3, 0.15), (sx * 1.2, 3.85, -3.9), "glass", studs=False, transparency=0.35)
+    P("HeliWindowL", (0.12, 1.2, 1.8), (-2.56, 3.8, -2.0), "glass", studs=False, transparency=0.3)
+    P("HeliWindowR", (0.12, 1.2, 1.8), (2.56, 3.8, -2.2), "glass", studs=False, transparency=0.3)
+    P("HeliStripe", (0.12, 0.5, 8), (-2.56, 2.2, 0), "white", studs=False)
+    P("HeliNose", (4.2, 1.6, 2.4), (0, 1.5, -5.2), "olive")
+    P("HeliBananaSplat", (1.2, 0.5, 0.12), (-1.2, 4.0, -4.035), "banana", lrot=(0, 0, 25), studs=False)
+    # inside: pilot + co-pilot seats up front, a bench along the left wall
+    for sx, side in ((-1, "L"), (1, "R")):
+        P(f"HeliSeat{side}", (1.4, 0.9, 1.2), (sx * 1.1, 1.95, -2.6), "metal_dark")
+        P(f"HeliSeatBack{side}", (1.4, 0.8, 0.25), (sx * 1.1, 2.8, -1.875), "metal")
+    P("HeliBench", (1.0, 0.9, 4.0), (-1.75, 1.95, 1.6), "metal_dark")
+    P("HeliHousing", (3.4, 1.2, 4.4), (0, 6.0, 0.8), "olive_dark")
+    for sx in (-1, 1):
+        P(f"HeliExhaust{sx}", (1.6, 0.7, 0.7), (sx * 1.0, 6.0, 3.8), "metal_dark", lrot=(0, 90, 0), studs=False,
           shape="Cylinder")
-    P("HeliNose", (4.2, 2.6, 2.4), (0, 2.3, -5.2), "olive")
-    for sx in (-1, 1):
-        P(f"HeliPane{sx}", (1.8, 1.8, 0.2), (sx * 1.05, 2.7, -6.5), "glass", studs=False, transparency=0.3)
-        P(f"HeliWindow{sx}", (0.15, 1.2, 1.8), (sx * 2.575, 3.4, -2.4), "glass", studs=False, transparency=0.3)
-    P("HeliPaneFrame", (0.3, 2.0, 0.25), (0, 2.7, -6.525), "metal_dark")
-    P("HeliBananaSplat", (1.0, 0.45, 0.12), (-1.0, 2.9, -6.66), "banana", lrot=(0, 0, 25), studs=False)
-    P("HeliDoorway", (0.15, 2.4, 2.6), (2.575, 2.8, 1.0), (0.08, 0.08, 0.07), studs=False)
-    P("HeliStripe", (0.12, 0.5, 8), (-2.56, 2.0, 0), "white", studs=False)
+    P("HeliMast", (0.8, 0.6, 0.8), (0, 6.9, -0.6), "metal")
+    P("HeliHub", (0.4, 1.2, 1.2), (0, 7.4, -0.6), "metal_dark", lrot=(0, 0, 90), studs=False, shape="Cylinder")
     P("HeliBoom1", (1.6, 1.6, 6), (0, 3.4, 7), "olive")
     P("HeliBoom2", (1.1, 1.1, 5.5), (0, 3.6, 12.75), "olive")
     P("HeliFin", (0.4, 3.2, 2.0), (0, 5.75, 14.5), "olive_dark")
@@ -740,16 +760,25 @@ def helicopter_wreck(g, x, z):
         P(f"HeliStab{sx}", (1.6, 0.25, 1.0), (sx * 1.35, 3.6, 12.5), "olive_dark")
         P(f"HeliSkid{sx}", (0.4, 0.4, 8.4), (sx * 2.0, -0.6, 0), "metal")
         for sz in (-1, 1):
-            if (sx, sz) != (-1, -1):  # front-left strut snapped off in the crash
+            if not (wrecked and (sx, sz) == (-1, -1)):  # front-left strut snapped off in the crash
                 P(f"HeliStrut{sx}{sz}", (0.3, 0.9, 0.3), (sx * 2.0, 0.05, sz * 2.6), "metal")
-    P("HeliMast", (0.8, 0.6, 0.8), (0, 6.0, -0.6), "metal")
-    for i, (a, length) in enumerate(((30, 3.0), (160, 2.0))):
-        r = 0.4 + length / 2
+    blades = ((30, 3.0, -8), (160, 2.0, -8)) if wrecked else ((0, 6.5, 0), (90, 6.5, 0), (180, 6.5, 0), (270, 6.5, 0))
+    for i, (a, length, droop) in enumerate(blades):
+        r = 0.6 + length / 2
         ca, sa = math.cos(math.radians(a)), math.sin(math.radians(a))
-        P(f"HeliStub{i}", (length, 0.2, 0.8), (ca * r, 6.4, -0.6 - sa * r), "metal_dark", lrot=(0, a, -8))
-    flames = [((-0.7, 6.4, 1.3), 1.2), ((0.8, 6.2, 2.2), 1.0)]
-    for i, (lp, s) in enumerate(flames):
-        P(f"HeliFlame{i}", (s, 1.4 if i == 0 else 1.0, s), lp, "torch_fire", studs=False, neon=True)
+        P(f"{'HeliStub' if wrecked else 'HeliRotor'}{i}", (length, 0.2, 0.9 if not wrecked else 0.8),
+          (ca * r, 7.4, -0.6 - sa * r), "metal_dark", lrot=(0, a, droop))
+    if wrecked:
+        P("HeliFlame0", (1.2, 1.4, 1.2), (-0.7, 7.3, 1.3), "torch_fire", studs=False, neon=True)
+        P("HeliFlame1", (1.0, 1.0, 1.0), (0.8, 7.1, 2.2), "torch_fire", studs=False, neon=True)
+    return parts
+
+
+def helicopter_wreck(g, x, z):
+    """The chopper from the intro: slid in nose-first, ploughed a trench, spilled the squad's cargo."""
+    yaw, S = WRECK["yaw"], HELI_S
+    f = Frame((x, 0, z), yaw=yaw, pitch=WRECK["pitch"], roll=WRECK["roll"])
+    parts = heli_parts(True)
     low = 1e9
     for name, size, lpos, color, lrot, *_ in parts:
         Rl = matmul(f.R, rot_matrix(*lrot))
@@ -759,6 +788,7 @@ def helicopter_wreck(g, x, z):
                     c = matvec(Rl, [cx * size[0] / 2, cy * size[1] / 2, cz * size[2] / 2])
                     low = min(low, matvec(f.R, lpos)[1] + c[1])
     f.o[1] = -low - 0.5
+    WRECK["y"] = f.o[1]
     obj("Helicopter")
     for name, size, lpos, color, lrot, studs, kw in parts:
         f.add(g, name, size, lpos, color, lrot=lrot, studs=studs, **kw)
@@ -768,6 +798,7 @@ def helicopter_wreck(g, x, z):
         elif name == "HeliHousing":
             M.group(g).parts[-1]["extra"] = [{"name": "Smoke", "className": "Smoke", "properties": {
                 "Color": [0.3, 0.3, 0.31], "Opacity": 0.3, "RiseVelocity": 5, "Size": 2.5}}]
+
 
     # the trench it ploughed: dark floor narrowing behind it, sand berms along both sides, a pile at the nose
     d = (math.sin(math.radians(yaw)), math.cos(math.radians(yaw)))          # tail direction (x, z)
@@ -826,6 +857,13 @@ def helicopter_wreck(g, x, z):
         take("ground", *at(tt), 4.5)
     take("ground", *place(4.6, 0), 5)
     take("canopy", *at(8), 10)
+    # keep the intro clear: the chopper's last descent (rotor radius ~10) and the crash cameras
+    for px, pz in ((52, 54), (58, 55.5), (64, 57), (70, 58), (76, 59), (82, 60)):
+        take("canopy", px, pz, 11)
+        take("ground", px, pz, 3)
+    for px, pz in ((50, 34), (44, 36), (38, 38), (36, 40)):
+        take("canopy", px, pz, 4)
+        take("ground", px, pz, 2)
 
 
 def build_base():
@@ -903,7 +941,7 @@ def build_base():
         smooth(g, f"PadLight{i}", (0.6, 0.3, 0.6), (px, 0.55, pz), "lantern", neon=True)
     take("ground", -30, 66, 11.5)
     take("canopy", -30, 66, 8)
-    helicopter_wreck(g, 26, 58)
+    helicopter_wreck("Map_Wreck", WRECK["x"], WRECK["z"])
     # beach palms behind the base
     for i, (x, z) in enumerate([(-48, 80), (-22, 82), (16, 82), (44, 78), (64, 84), (-68, 84), (-6, 84)]):
         if free(x, z, 0.9, 5.4):
@@ -1039,6 +1077,31 @@ def write_map_data():
         f.write("\n".join(lines))
 
 
+def write_heli_assets():
+    """The intact chopper for the intro (ReplicatedStorage.Assets.HeliFlying) plus the data the
+    intro needs to land it exactly on the wreck (tools/cutscene/heli.json)."""
+    b = Builder("HeliFlying")
+    b.add("HeliRoot", (0.4, 0.4, 0.4), (0, 0, 0), (1, 1, 1), transparency=1)
+    for name, size, lpos, color, lrot, studs, kw in heli_parts(False):
+        b.add(name, size, lpos, color, look=STUDS if studs else "smooth", rot=lrot, **kw)
+    parts = b.placed()
+    os.makedirs(ASSET_DIR, exist_ok=True)
+    with open(os.path.join(ASSET_DIR, "HeliFlying.model.json"), "w") as f:
+        json.dump(to_rojo(parts), f)
+    S = HELI_S
+    data = {
+        "scale": S,
+        "hub": [0, 7.4 * S, -0.6 * S],
+        "tailHub": [0.375 * S, 5.6 * S, 15.0 * S],
+        "wreck": {"pos": [WRECK["x"], round(WRECK["y"], 4), WRECK["z"]], "yaw": WRECK["yaw"],
+                  "pitch": WRECK["pitch"], "roll": WRECK["roll"]},
+        "parts": parts,
+    }
+    os.makedirs(CUTSCENE_DIR, exist_ok=True)
+    with open(os.path.join(CUTSCENE_DIR, "heli.json"), "w") as f:
+        json.dump(data, f)
+
+
 def main():
     build_ground()
     build_paths()
@@ -1069,6 +1132,7 @@ def main():
     with open(os.path.join(PREVIEW_DIR, "scene.json"), "w") as f:
         json.dump(preview, f)
     write_map_data()
+    write_heli_assets()
     if bad or fights:
         sys.exit(1)
 

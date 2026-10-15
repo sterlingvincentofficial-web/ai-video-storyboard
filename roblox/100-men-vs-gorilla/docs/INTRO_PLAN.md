@@ -1,5 +1,7 @@
 # Intro cutscene: the remix
 
+**Status: built.** `tools/cutscene/intro.json` + `src/client/Modules/Cutscene.luau`; see the README.
+
 Our take on the reference intro (helicopter approach → banana hit → crash → first wave), shot on our own map.
 About **32 seconds**, plays on a player's first join, **Skip** button from the first second, replay from the menu.
 

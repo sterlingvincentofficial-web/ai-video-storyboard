@@ -7,6 +7,7 @@
 <script type="module">
 import * as THREE from 'three';
 import { GLTFLoader } from './node_modules/three/examples/jsm/loaders/GLTFLoader.js';
+import { mergeGeometries } from './node_modules/three/examples/jsm/utils/BufferGeometryUtils.js';
 
 const W = 960, H = 540, DT = 1 / 60;
 const font = new FontFace('LG', 'url(LuckiestGuy.woff2)'); await font.load(); document.fonts.add(font);
@@ -125,7 +126,7 @@ function spring(s, dt, k, d) { s.v += (-k * s.x - d * s.v) * dt; s.x += s.v * dt
 // Roblox joint angles (CFrame.Angles) applied inside the +Z-facing inner frame: X and Z flip sign.
 function setJoint(m, part, rx, ry, rz, ty = 0) { const o = m.parts[part]; if (!o) return; o.rotation.set(-rx, ry, -rz, 'XYZ'); if (ty) o.position.y = m.rest[part].y + ty; }
 function animMonkey(m, dt) {
-  if (!m.alive) return;
+  if (!m.alive || m.manual) return;
   if (m.speed > 0) { m.outer.position.addScaledVector(m.dir, m.speed * dt); m.phase += dt * m.speed * 0.9 * (m.variant === 'Speedy' ? 1.6 : 1) / m.def.scale; }
   if (m.stopX !== undefined && m.outer.position.x <= m.stopX && m.speed > 0) { m.speed = 0; m.attacking = m.attackOnStop; }
   const moving = m.speed > 0.1, swing = Math.sin(m.phase);
@@ -151,6 +152,7 @@ function monkeyHead(m) { const v = new THREE.Vector3(); m.parts.Head.getWorldPos
 // ---------------------------------------------------------------- men (R15 avatar + MenGear.glb)
 const WOOD = '#8c5c36', STEEL = '#aab0ba', GOLD = '#fac428', DARK = '#34363c';
 const LOOKS = {
+  Pilot: { skin: '#f5cd30', shirt: '#0d69ac', pants: '#a4bd47', hat: 'ArmyHelmet', hatColor: '#586638' },
   Brawler: { skin: '#eab892', shirt: '#f0f0ea', pants: '#2e4e84', hat: 'Headband', hatColor: '#d22424', wraps: '#ebe8dc',
     l2: { wraps: STEEL }, l3: { wraps: GOLD, hatColor: GOLD } },
   Slingshot: { skin: '#fad6b4', shirt: '#ff9628', pants: '#bea06e', hat: 'Cap', hatColor: '#286edc', left: ['Slingshot'], leftColors: [WOOD],
@@ -275,6 +277,7 @@ function play(man, kind) {
   man.animKind = kind;
 }
 function animMan(man, dt) {
+  if (man.manual) return;
   const kind = man.animKind || man.kind;
   const target = simT < man.engagedUntil ? 1 : 0;
   man.w += (target - man.w) * Math.min(1, dt * 10);
@@ -643,5 +646,301 @@ window.setupScene = name => {
 window.advance = n => { for (let i = 0; i < n; i++) stepOnce(); render(); return simT; };
 window.portraitUnit = portraitUnit;
 window.portraitMonkey = portraitMonkey;
+// ---------------------------------------------------------------- intro cutscene (mirrors Cutscene.luau)
+// Plays tools/cutscene/intro.json on the real map (scene.json) with the real chopper (heli.json).
+const IROUGH = { SmoothPlastic: 0.5, Plastic: 0.75, Metal: 0.35, Neon: 1, Fabric: 0.9 };
+const IEASE = { linear: a => a, out: a => 1 - Math.pow(1 - a, 3), in: a => a * a * a, inout: a => a < 0.5 ? 4 * a * a * a : 1 - Math.pow(-2 * a + 2, 3) / 2 };
+const D2R = Math.PI / 180;
+const clamp01 = a => Math.min(1, Math.max(0, a));
+function partGeo(p) {
+  const [sx, sy, sz] = p.size; let geo;
+  if (p.shape === 'Ball') geo = new THREE.SphereGeometry(sx / 2, 16, 12);
+  else if (p.shape === 'Cylinder') { const r = Math.min(sy, sz) / 2; geo = new THREE.CylinderGeometry(r, r, sx, 20); geo.rotateZ(-Math.PI / 2); }
+  else {
+    geo = new THREE.BoxGeometry(sx, sy, sz);
+    if (p.look === 'studs') { const uv = geo.attributes.uv, dims = [[sz, sy], [sz, sy], [sx, sz], [sx, sz], [sx, sy], [sx, sy]];
+      for (let f = 0; f < 6; f++) for (let k = 0; k < 4; k++) { const i = f * 4 + k; uv.setXY(i, uv.getX(i) * dims[f][0], uv.getY(i) * dims[f][1]); } }
+  }
+  return geo;
+}
+function partMatrix(p) { const r = p.rot, q = p.pos; return new THREE.Matrix4().set(r[0][0], r[0][1], r[0][2], q[0], r[1][0], r[1][1], r[1][2], q[1], r[2][0], r[2][1], r[2][2], q[2], 0, 0, 0, 1); }
+const partColor = p => new THREE.Color().setRGB(...p.color, THREE.SRGBColorSpace);
+const STUD_R = (() => { const t = STUD.clone(); t.repeat.set(1, 1); t.needsUpdate = true; return t; })();
+function partMaterial(p) {
+  const col = partColor(p), tr = p.transparency || 0;
+  if (p.material === 'Neon') return new THREE.MeshBasicMaterial({ color: col, transparent: tr > 0, opacity: 1 - tr });
+  return new THREE.MeshStandardMaterial({ color: col, roughness: p.reflectance ? 0.25 : (IROUGH[p.material] ?? 0.7), metalness: p.material === 'Metal' ? 0.5 : 0,
+    map: p.look === 'studs' && p.shape === 'Block' ? STUD_R : null, transparent: tr > 0, opacity: 1 - tr });
+}
+function partMesh(p, matrix) {
+  const m = new THREE.Mesh(partGeo(p), partMaterial(p)); m.castShadow = p.name !== 'Water' && !(p.transparency > 0); m.receiveShadow = true;
+  m.matrixAutoUpdate = false; m.matrix.copy(matrix || partMatrix(p)); m.name = p.name; return m;
+}
+const TOGGLED = n => n === 'IdolEyeL' || n === 'IdolEyeR' || n === 'Brazier' || n === 'BrazierFire' || n.startsWith('StashTop');
+function buildMap(sceneJ) {
+  const buckets = { studs: [], smooth: [], neon: [] }, named = {}, wreck = [];
+  for (const g of sceneJ) for (const p of g.parts) {
+    if (g.name === 'Map_Wreck') { const m = partMesh(p); scene.add(m); wreck.push(m); continue; }
+    if (p.transparency > 0 || p.name === 'Water' || TOGGLED(p.name)) { const m = partMesh(p); scene.add(m); named[p.name] = m; continue; }
+    const geo = partGeo(p); geo.applyMatrix4(partMatrix(p));
+    const c = partColor(p), n = geo.attributes.position.count, arr = new Float32Array(n * 3);
+    for (let i = 0; i < n; i++) { arr[i * 3] = c.r; arr[i * 3 + 1] = c.g; arr[i * 3 + 2] = c.b; }
+    geo.setAttribute('color', new THREE.BufferAttribute(arr, 3));
+    (p.material === 'Neon' ? buckets.neon : p.look === 'studs' && p.shape === 'Block' ? buckets.studs : buckets.smooth).push(geo);
+  }
+  const mats = { studs: new THREE.MeshStandardMaterial({ vertexColors: true, map: STUD_R, roughness: 0.75 }),
+    smooth: new THREE.MeshStandardMaterial({ vertexColors: true, roughness: 0.5 }), neon: new THREE.MeshBasicMaterial({ vertexColors: true }) };
+  for (const k in buckets) { if (!buckets[k].length) continue; const m = new THREE.Mesh(mergeGeometries(buckets[k]), mats[k]); m.castShadow = k !== 'neon'; m.receiveShadow = true; scene.add(m); }
+  return { named, wreck };
+}
+function newIntroWorld() {
+  scene = new THREE.Scene(); scene.background = skyTexture(); scene.fog = new THREE.Fog(0x9fe6c8, 170, 340);
+  scene.add(new THREE.HemisphereLight(0xe8fff4, 0x8a7a50, 1.5));
+  const sun = new THREE.DirectionalLight(0xfff6e0, 2.4); sun.position.set(60, 140, 80); sun.castShadow = true;
+  sun.shadow.mapSize.set(4096, 4096); Object.assign(sun.shadow.camera, { left: -150, right: 150, top: 150, bottom: -150, near: 1, far: 420 }); sun.shadow.bias = -0.0004;
+  scene.add(sun);
+  fxList = []; flyers = []; events = []; updaters = []; simT = 0; MEN = [];
+}
+const quatYPR = (yaw, pitch, roll) => new THREE.Quaternion().setFromEuler(new THREE.Euler(pitch * D2R, yaw * D2R, roll * D2R, 'YXZ'));
+
+// ---- overlay (letterbox, subtitles, title, alarm, flash, skip) - a pure function of t
+let OV = null;
+function overlay() {
+  if (OV) { OV.root.remove(); }
+  const root = document.createElement('div'); root.style.cssText = `position:absolute;left:0;top:0;width:${W}px;height:${H}px;pointer-events:none;overflow:hidden;font-family:LG`;
+  const el = (css, html = '') => { const d = document.createElement('div'); d.style.cssText = 'position:absolute;' + css; d.innerHTML = html; root.appendChild(d); return d; };
+  const stroke = w => `-webkit-text-stroke:${w}px #000;paint-order:stroke fill`;
+  OV = { root,
+    alarm: el('left:0;top:0;width:100%;height:100%;background:#ff1414;opacity:0'),
+    top: el(`left:0;width:100%;height:${H * 0.11}px;background:#000`), bottom: el(`left:0;width:100%;height:${H * 0.11}px;background:#000`),
+    who: el(`left:10%;width:80%;top:${H * 0.72}px;text-align:center;font-size:${H * 0.035}px;color:#78f096;${stroke(4)}`),
+    line: el(`left:5%;width:90%;top:${H * 0.765}px;text-align:center;font-family:Arial Black,Arial,sans-serif;font-weight:900;font-size:${H * 0.04}px;color:#fff;${stroke(4)}`),
+    shout: el(`left:0;width:100%;top:${H * 0.24}px;text-align:center;font-size:${H * 0.12}px;color:#ff3c28;${stroke(8)}`),
+    title: el(`left:0;width:100%;top:${H * 0.32}px;text-align:center;font-size:${H * 0.14}px;color:#ffd628;${stroke(10)};transform-origin:50% 50%`),
+    flash: el('left:0;top:0;width:100%;height:100%;background:#fff;opacity:0'),
+    skip: el(`right:20px;bottom:16px;width:150px;height:40px;line-height:44px;text-align:center;background:#78f096;border:3px solid #10120f;border-radius:6px;font-size:28px;color:#10120f`, 'SKIP &gt;&gt;'),
+  };
+  document.body.style.position = 'relative'; document.body.appendChild(root);
+}
+function overlayAt(t, S) {
+  const bars = t < 0.5 ? IEASE.out(t / 0.5) : t < S.barsOff ? 1 : 1 - clamp01((t - S.barsOff) / 0.5);
+  OV.top.style.top = `${-H * 0.11 * (1 - bars)}px`; OV.bottom.style.top = `${H - H * 0.11 * bars}px`; OV.skip.style.opacity = t < S.barsOff ? 1 : 1 - clamp01((t - S.barsOff) / 0.3);
+  let say = null; for (const e of S.says) if (t >= e.t && t < e.t + (e.dur || 2)) say = e;
+  OV.who.textContent = say ? say.who : ''; OV.line.textContent = say ? say.text : '';
+  let shout = null; for (const e of S.says) if (e.shout && t >= e.t && t < e.t + 1.4) shout = e;
+  OV.shout.textContent = shout ? shout.shout : ''; if (shout) { const k = clamp01((t - shout.t) / 0.25); OV.shout.style.transform = `rotate(-4deg) scale(${2.4 - 1.4 * IEASE.out(k)})`;
+    OV.shout.style.opacity = t > shout.t + 1.1 ? 1 - (t - shout.t - 1.1) / 0.3 : 1; }
+  const ti = S.title; if (ti && t >= ti.t && t < ti.t + (ti.dur || 1.8) + 0.4) { const k = clamp01((t - ti.t) / 0.3), back = 1 + 2.70158 * Math.pow(k - 1, 3) + 1.70158 * Math.pow(k - 1, 2);
+    OV.title.textContent = ti.text; OV.title.style.transform = `rotate(-4deg) scale(${3 - 2 * back})`; OV.title.style.opacity = t > ti.t + (ti.dur || 1.8) ? 1 - (t - ti.t - (ti.dur || 1.8)) / 0.35 : 1; }
+  else OV.title.textContent = '';
+  OV.alarm.style.opacity = t < S.alarmUntil && t >= S.alarmFrom ? 0.28 * (1 - Math.abs(Math.cos(t * 6))) : 0;
+  OV.flash.style.opacity = S.flashAt >= 0 ? Math.max(0, 1 - (t - S.flashAt) / 0.35) : 0;
+}
+
+window.setupIntro = async () => {
+  const [sceneJ, heliJ, I] = await Promise.all(['scene.json', 'heli.json', 'intro.json'].map(f => fetch(f).then(r => r.json())));
+  newIntroWorld();
+  const map = buildMap(sceneJ);
+  const water = map.named.Water; if (water) water.castShadow = false;
+  const W0 = heliJ.wreck, wreckPos = V(...W0.pos);
+  const wreckM = new THREE.Matrix4().compose(wreckPos, quatYPR(W0.yaw, W0.pitch, W0.roll), V(1, 1, 1));
+  const flatM = new THREE.Matrix4().compose(V(W0.pos[0], 0, W0.pos[2]), quatYPR(W0.yaw, 0, 0), V(1, 1, 1));
+  const playerPos = V(0, 0, 70);
+  // chopper
+  const HK = I.heli.keys.map(k => ({ ...k, pos: k.pos === 'wreck' ? wreckPos.clone() : V(...k.pos) }));
+  function heliState(t) {
+    const pack = k => ({ pos: k.pos, yaw: k.yaw, pitch: k.pitch, roll: k.roll });
+    if (t <= HK[0].t) return pack(HK[0]);
+    for (let i = 0; i < HK.length - 1; i++) {
+      const k0 = HK[i], k1 = HK[i + 1]; if (t >= k1.t) continue;
+      const dt = k1.t - k0.t, s = (t - k0.t) / dt;
+      const slope = (j, f) => { const a = HK[Math.max(0, j - 1)], b = HK[Math.min(HK.length - 1, j + 1)]; return f(b, a) / Math.max(1e-4, b.t - a.t); };
+      const num = key => { if (k1.linear) { const e = IEASE[k1.ease || 'linear'](s); return k0[key] + (k1[key] - k0[key]) * e; }
+        const m0 = slope(i, (b, a) => b[key] - a[key]) * dt, m1 = slope(i + 1, (b, a) => b[key] - a[key]) * dt, s2 = s * s, s3 = s2 * s;
+        return k0[key] * (2 * s3 - 3 * s2 + 1) + m0 * (s3 - 2 * s2 + s) + k1[key] * (-2 * s3 + 3 * s2) + m1 * (s3 - s2); };
+      const vec = () => { if (k1.linear) { const e = IEASE[k1.ease || 'linear'](s); return k0.pos.clone().lerp(k1.pos, e); }
+        const out = V(0, 0, 0);
+        for (const ax of ['x', 'y', 'z']) { const g0 = slope(i, (b, a) => b.pos[ax] - a.pos[ax]) * dt, g1 = slope(i + 1, (b, a) => b.pos[ax] - a.pos[ax]) * dt, s2 = s * s, s3 = s2 * s;
+          out[ax] = k0.pos[ax] * (2 * s3 - 3 * s2 + 1) + g0 * (s3 - 2 * s2 + s) + k1.pos[ax] * (-2 * s3 + 3 * s2) + g1 * (s3 - s2); }
+        return out; };
+      return { pos: vec(), yaw: num('yaw'), pitch: num('pitch'), roll: num('roll') };
+    }
+    return pack(HK[HK.length - 1]);
+  }
+  const heliM = t => { const h = heliState(t); return new THREE.Matrix4().compose(h.pos, quatYPR(h.yaw, h.pitch, h.roll), V(1, 1, 1)); };
+  const heliGroup = new THREE.Group(); scene.add(heliGroup);
+  const hub = new THREE.Matrix4().makeTranslation(...heliJ.hub), hubInv = hub.clone().invert();
+  const tailHub = new THREE.Matrix4().makeTranslation(...heliJ.tailHub), tailInv = tailHub.clone().invert();
+  const heliParts = heliJ.parts.filter(p => p.name !== 'HeliRoot').map(p => {
+    const local = partMatrix(p), m = partMesh(p, local); heliGroup.add(m);
+    return { m, local, kind: p.name.startsWith('HeliRotor') ? 'rotor' : p.name === 'HeliTailRotor' ? 'tail' : '', name: p.name };
+  });
+  const splatMesh = heliParts.find(h => h.name === 'HeliBananaSplat').m; splatMesh.visible = false;
+  // banana in flight
+  let banana = null;
+  const bananaPos = t => { if (!banana) return V(0, 0, 0); const a = clamp01((t - banana.t0) / (banana.t1 - banana.t0));
+    return banana.p0.clone().lerp(banana.to.clone().applyMatrix4(heliM(t)), a).add(V(0, Math.sin(a * Math.PI) * banana.arc, 0)); };
+  const frameM = (rel, t) => rel === 'heli' ? heliM(t) : rel === 'wreckFlat' ? flatM : null;
+  const resolve = (rel, p, t) => { const v = V(...p);
+    if (rel === 'banana') return bananaPos(t).add(v); if (rel === 'player') return playerPos.clone().add(v);
+    const m = frameM(rel, t); return m ? v.applyMatrix4(m) : v; };
+  // camera
+  const CAM = I.camera;
+  function cameraAt(t) {
+    let i = 0; while (i < CAM.length - 1 && t >= CAM[i + 1].t) i++;
+    const k0 = CAM[i], k1 = CAM[i + 1];
+    const pt = (k, w) => resolve(w === 'pos' ? k.rel : (k.lookRel || k.rel), k[w], t);
+    let pos = pt(k0, 'pos'), look = pt(k0, 'look'), fov = k0.fov || 70;
+    if (k1 && !k1.cut) { const a = IEASE[k1.ease || 'inout'](clamp01((t - k0.t) / Math.max(1e-4, k1.t - k0.t)));
+      pos.lerp(pt(k1, 'pos'), a); look.lerp(pt(k1, 'look'), a); fov += ((k1.fov || 70) - fov) * a; }
+    return { pos, look, fov };
+  }
+  // tracks
+  const tracks = {};
+  for (const [name, keys] of Object.entries(I.tracks)) {
+    const out = []; let prev = { pos: [0, 0, 0], yaw: 0, pitch: 0, roll: 0, visible: true };
+    keys.forEach((k, i) => { const n = { t: k.t, rel: k.pos ? k.rel : prev.rel, pos: k.pos || prev.pos, yaw: k.yaw ?? prev.yaw, pitch: k.pitch ?? prev.pitch, roll: k.roll ?? prev.roll,
+      visible: k.hide ? false : k.show ? true : (i === 0 ? true : prev.visible), pose: k.pose || prev.pose, poseT: k.pose ? k.t : prev.poseT, prevPose: k.pose ? prev.pose : prev.prevPose,
+      anim: k.anim || prev.anim, animT: k.anim ? k.t : prev.animT, moves: !!k.pos && !k.cut, arc: k.arc, ease: k.ease, face: k.face };
+      out.push(n); prev = n; });
+    tracks[name] = out;
+  }
+  function trackAt(name, t) {
+    const keys = tracks[name]; let i = 0; while (i < keys.length - 1 && t >= keys[i + 1].t) i++;
+    const k0 = keys[i], k1 = keys[i + 1];
+    let pos = resolve(k0.rel, k0.pos, t), frame = frameM(k0.rel, t), yaw = k0.yaw, pitch = k0.pitch, roll = k0.roll, speed = 0;
+    if (k1 && k1.moves) {
+      const span = Math.max(1e-4, k1.t - k0.t), a = IEASE[k1.ease || 'linear'](clamp01((t - k0.t) / span));
+      pos.lerp(resolve(k1.rel, k1.pos, t), a).add(V(0, Math.sin(a * Math.PI) * (k1.arc || 0), 0));
+      const dx = k1.pos[0] - k0.pos[0], dz = k1.pos[2] - k0.pos[2]; speed = Math.hypot(dx, dz) / span; frame = frameM(k1.rel, t);
+      if (k1.face && speed > 0.05) yaw = Math.atan2(-dx, -dz) / D2R; else yaw += (k1.yaw - k0.yaw) * a;
+      pitch += (k1.pitch - k0.pitch) * a; roll += (k1.roll - k0.roll) * a;
+    }
+    const q = quatYPR(yaw, pitch, roll); if (frame) q.premultiply(new THREE.Quaternion().setFromRotationMatrix(frame));
+    return { pos, q, visible: k0.visible, key: k0, speed };
+  }
+  // poses
+  const full6 = v => v ? [v[0], v[1], v[2], v[3] || 0, v[4] || 0, v[5] || 0] : [0, 0, 0, 0, 0, 0];
+  function poseAt(name, t) {
+    const P = name && I.poses[name]; if (!P) return {};
+    const out = P.base ? poseAt(P.base, t) : {};
+    for (const [j, v] of Object.entries(P.pose || {})) out[j] = full6(v);
+    if (P.keys) { const lt = ((t % P.loop) + P.loop) % P.loop; let i = P.keys.length - 1; P.keys.forEach((k, n) => { if (lt >= k.t) i = n; });
+      const k0 = P.keys[i], k1 = P.keys[(i + 1) % P.keys.length], t1 = i === P.keys.length - 1 ? P.loop : k1.t, a = IEASE.inout(clamp01((lt - k0.t) / Math.max(1e-4, t1 - k0.t)));
+      for (const [j, v] of Object.entries(k0.pose)) { const w0 = full6(v), w1 = full6(k1.pose[j] || v); out[j] = w0.map((x, n) => x + (w1[n] - x) * a); } }
+    return out;
+  }
+  function blendedPose(key, t) {
+    const cur = poseAt(key.pose, t - (key.poseT || 0)), w = clamp01((t - (key.poseT || 0)) / 0.18);
+    if (w >= 1 || !key.prevPose) return cur;
+    const old = poseAt(key.prevPose, t), out = {};
+    for (const [j, v] of Object.entries(cur)) { const o = old[j] || [0, 0, 0, 0, 0, 0]; out[j] = v.map((x, n) => o[n] + (x - o[n]) * w); }
+    for (const [j, o] of Object.entries(old)) if (!cur[j]) out[j] = o.map(x => x * (1 - w));
+    return out;
+  }
+  // actors
+  const actors = {};
+  for (const [name, def] of Object.entries(I.actors)) {
+    if (def.kind === 'man') {
+      const m = makeMan(def.unit || def.look, 1, V(0, 0, 0), 0); m.manual = true; m.root.scale.setScalar(def.scale || 1);
+      actors[name] = { name, def, man: m, obj: m.root, clock: 0 };
+    } else {
+      const m = makeMonkey(def.variant, V(0, 0, 0), V(0, 0, -1)); m.manual = true;
+      actors[name] = { name, def, mk: m, obj: m.outer, clock: 0, phase: rnd(0, 6), seed: rnd(0, 10), headX: { x: 0, v: 0 }, headZ: { x: 0, v: 0 },
+        scale: ENEMY[def.variant].scale, gorilla: !!ENEMY[def.variant].boss };
+    }
+  }
+  const held = new THREE.Mesh(new THREE.BoxGeometry(0.5, 1.6, 0.5), mat('#ffd628'));
+  held.position.set(0, -1.9, 0.25); held.rotation.set(0.35, 0, 0.25); actors.Chucker.mk.parts.RightArm.add(held);
+  function animateMonkey(a, t, dt, st) {
+    const m = a.mk, anim = st.key.anim || 'idle', moving = st.speed > 0.5, clock = a.clock;
+    if (moving) a.phase += dt * st.speed * 0.9 * (a.def.variant === 'Speedy' ? 1.6 : a.def.variant === 'Baby' ? 1.9 : 1) / a.scale;
+    const swing = Math.sin(a.phase);
+    if (moving && Math.abs(Math.cos(a.phase)) > 0.97) { a.headZ.v += (swing > 0 ? 1 : -1) * 3.5; a.headX.v += 2; }
+    spring(a.headX, dt, 140, 7); spring(a.headZ, dt, 140, 7);
+    const armAmp = moving ? 0.7 : 0.08;
+    let la = [-swing * armAmp + (moving ? 0 : Math.sin(clock * 2) * 0.05), 0, 0], ra = [swing * armAmp, 0, 0];
+    let hl = [moving ? swing * 0.65 : 0, 0, 0], hr = [moving ? -swing * 0.65 : 0, 0, 0];
+    let bob = moving ? Math.abs(swing) * 0.22 * a.scale : 0, lean = 0, waddle = moving ? swing * 0.1 : 0, neckX = 0;
+    if (a.gorilla && moving) { la = [0.35 - swing * 0.55, 0, 0]; ra = [0.35 + swing * 0.55, 0, 0]; lean = 0.25; }
+    if (!moving) {
+      if (anim === 'pound') { const beat = Math.sin(clock * 11 + a.seed); la = [1.6 + beat * 1.1, 0, -0.2]; ra = [1.6 - beat * 1.1, 0, 0.2]; bob = Math.abs(beat) * 0.15 * a.scale; if (beat > 0.98) a.headX.v += 5; }
+      else if (anim === 'throw') { const k = clamp01((t - (st.key.animT ?? t)) / 0.8); ra = [k < 0.6 ? -k / 0.6 * 2.4 : -2.4 + (k - 0.6) / 0.4 * 4.2, 0, 0]; lean = k < 0.6 ? -0.15 * k / 0.6 : 0.2; }
+      else if (anim === 'hang') { la = [3.0, 0, -0.15]; ra = [3.0, 0, 0.15]; hl = [0.3 + Math.sin(clock * 3) * 0.35, 0, 0]; hr = [0.3 - Math.sin(clock * 3) * 0.35, 0, 0]; waddle = Math.sin(clock * 1.6) * 0.18; }
+      else if (anim === 'eat') { ra = [2.3 + Math.sin(clock * 9) * 0.25, 0, 0.3]; neckX = Math.sin(clock * 9) * 0.08; }
+      else if (anim === 'roar') { const k = clamp01((t - (st.key.animT ?? t)) / 0.25); la = [2.7 * k, 0, -0.7 * k]; ra = [2.7 * k, 0, 0.7 * k]; lean = -0.3 * k; neckX = -0.45 * k; }
+    }
+    setJoint(m, 'Torso', -lean, 0, waddle, bob); setJoint(m, 'Head', neckX - a.headX.x * 0.03, 0, a.headZ.x * 0.035, bob);
+    setJoint(m, 'LeftArm', ...la, bob); setJoint(m, 'RightArm', ...ra, bob); setJoint(m, 'LeftLeg', ...hl); setJoint(m, 'RightLeg', ...hr);
+  }
+  function poseMan(man, pose) {
+    for (const j of Object.values(man.joints)) j.rotation.set(0, 0, 0); man.joints.Root.position.copy(man.rootBase);
+    for (const [j, v] of Object.entries(pose)) { const jt = man.joints[j]; if (!jt) continue; jt.rotation.set(v[0], v[1], v[2], 'XYZ');
+      if (j === 'Root') jt.position.set(man.rootBase.x + v[3], man.rootBase.y + v[4], man.rootBase.z + v[5]); }
+  }
+  const headOf = a => { const v = V(0, 0, 0); if (a.man) { a.man.joints.Neck.getWorldPosition(v); v.y += 1.6 * (a.def.scale || 1); } else a.mk.parts.Head.getWorldPosition(v); return v; };
+  // map toggles: hide what the intro reveals
+  for (const n of ['Brazier', 'BrazierFire']) if (map.named[n]) map.named[n].visible = false;
+  for (const [n, m] of Object.entries(map.named)) if (n.startsWith('StashTop')) m.visible = false;
+  for (const m of map.wreck) m.visible = false;
+  const eyes = ['IdolEyeL', 'IdolEyeR'].map(n => map.named[n]).filter(Boolean).map(m => ({ m, color: m.material.color.clone() }));
+  for (const e of eyes) e.m.material.color.set('#28190f');
+  // events + overlay state
+  const S = { says: I.events.filter(e => e.do === 'say'), title: I.events.find(e => e.do === 'title'), barsOff: (I.events.find(e => e.do === 'letterbox') || { t: 99 }).t,
+    alarmFrom: 99, alarmUntil: -1, smokeUntil: -1, slideUntil: -1, flashAt: -1, nextSmoke: 0, nextSlide: 0, eyesAt: -1 };
+  const ENG = V(0, 6.6 * heliJ.scale, 0.8 * heliJ.scale), SKIDS = V(0, -1.0 * heliJ.scale, -2 * heliJ.scale), NOSE = V(0, 0, -6 * heliJ.scale);
+  const sand = '#eccd6e', sandD = '#d6b45c';
+  const HANDLERS = {
+    shake: e => shake(e.amount), punch: e => { S.fovKick = e.amount; },
+    idolEyes: e => { S.eyesAt = e.t; eyes.forEach(x => { const p = V(); x.m.matrix.decompose(p, new THREE.Quaternion(), V()); sparks(p, '#ff9628', 8, 3); }); },
+    banana: (e, t) => { const a = trackAt(e.from, t); const p0 = V(...e.fromLocal).applyQuaternion(a.q).add(a.pos);
+      const g = new THREE.Group(); const body = new THREE.Mesh(new THREE.BoxGeometry(0.6, 1.8, 0.6), mat('#ffd628')); const tip = new THREE.Mesh(new THREE.BoxGeometry(0.35, 0.35, 0.35), mat('#50381e'));
+      tip.position.y = 1.0; g.add(body, tip); body.castShadow = true; scene.add(g); banana = { p0, t0: t, t1: e.arrive, to: V(...e.to), arc: e.arc || 6, g }; held.visible = false; },
+    splat: (e, t) => { const at = banana ? bananaPos(t) : V(...[-1.6, 5.4, -5.4]).applyMatrix4(heliM(t)); if (banana) scene.remove(banana.g); banana = null;
+      splatMesh.visible = true; comic(at.clone().add(V(0, 1.5, 0)), 'SPLAT!', '#ffd628', 1.3); bricks(at, ['#ffd628', '#fff096'], 10, 18, 0.6); shake(0.35); },
+    alarm: e => { S.alarmFrom = e.t; S.alarmUntil = e.until; }, smoke: e => { S.smokeUntil = e.until; }, slide: e => { S.slideUntil = e.until; },
+    impact: (e, t) => { const p = SKIDS.clone().applyMatrix4(heliM(t)); p.y = 0.5; poof(p, 7, sand); sparks(p, '#ffc850', 14, 6); bricks(p, [sand, sandD], 14, 24, 0.8); ring(p, 9, '#fff0c8', 0.4, 0.3); shake(0.55); },
+    crash: (e, t) => { heliGroup.visible = false; for (const m of map.wreck) m.visible = true; const at = ENG.clone().applyMatrix4(wreckM);
+      explosion(at, 7); bricks(at, ['#586638', '#424e2a', sand], 30, 34, 1); poof(V(at.x, 1, at.z), 9, sand); S.flashAt = t; shake(1); S.alarmUntil = -1; },
+    land: (e, t) => { const a = trackAt(e.actor, t); poof(V(a.pos.x, 0.6, a.pos.z), e.soft ? 2.5 : 4, sand); shake(e.soft ? 0.05 : 0.15); },
+    faceBanana: e => { const a = actors[e.actor]; const b = new THREE.Mesh(new THREE.BoxGeometry(1.0, 0.5, 0.15), mat('#ffd628')); b.position.set(0, 0.67, -0.7); b.rotation.z = 0.35; a.man.joints.Neck.add(b); },
+    dizzy: e => { const a = actors[e.actor]; dizzy(() => headOf(a), e.dur || 2); },
+  };
+  let nextEv = 0, lastT = 0, spin = 0, tailSpin = 0;
+  const evs = I.events.slice().sort((a, b) => a.t - b.t);
+  const rateAt = t => { const R = I.rate; for (let i = 0; i < R.length - 1; i++) if (t < R[i + 1][0]) { const k = clamp01((t - R[i][0]) / Math.max(1e-4, R[i + 1][0] - R[i][0])); return R[i][1] + (R[i + 1][1] - R[i][1]) * k; } return R[R.length - 1][1]; };
+  S.fovKick = 0;
+  function introStep(dt) {
+    const t = simT, rate = rateAt(t);
+    while (nextEv < evs.length && evs[nextEv].t <= t) { const e = evs[nextEv++]; HANDLERS[e.do] && HANDLERS[e.do](e, t); }
+    if (heliGroup.visible) {
+      const hm = heliM(t); spin += dt * rate * I.rotorRps * Math.PI * 2; tailSpin += dt * rate * I.rotorRps * Math.PI * 5;
+      const rs = new THREE.Matrix4().makeRotationY(spin), ts = new THREE.Matrix4().makeRotationX(tailSpin);
+      for (const h of heliParts) { const m = hm.clone();
+        if (h.kind === 'rotor') m.multiply(hub).multiply(rs).multiply(hubInv); else if (h.kind === 'tail') m.multiply(tailHub).multiply(ts).multiply(tailInv);
+        h.m.matrix.copy(m.multiply(h.local)); }
+    }
+    for (const a of Object.values(actors)) {
+      const st = trackAt(a.name, t); a.obj.visible = st.visible; if (!st.visible) continue;
+      a.clock += dt * rate; a.obj.position.copy(st.pos); a.obj.quaternion.copy(st.q);
+      if (a.man) poseMan(a.man, blendedPose(st.key, t)); else animateMonkey(a, t, dt * rate, st);
+    }
+    if (banana) { const p = bananaPos(t); banana.g.position.copy(p); banana.g.rotation.set(t * 9, t * 6, 0); }
+    if (S.eyesAt >= 0) { const k = clamp01((t - S.eyesAt) / 0.5); for (const e of eyes) e.m.material.color.lerpColors(C('#28190f'), e.color, k); }
+    if (t < S.smokeUntil && t >= S.nextSmoke) { S.nextSmoke = t + 0.07; poof(ENG.clone().applyMatrix4(heliM(t)), 2.6, '#464442'); }
+    if (t < S.slideUntil && t >= S.nextSlide) { S.nextSlide = t + 0.05; const n = NOSE.clone().applyMatrix4(heliM(t)); poof(V(n.x, 0.8, n.z), 3.4, sand);
+      const hx = heliState(t).pos.x; for (const m of map.wreck) if (/^(Trench|Berm)/.test(m.name)) { const p = V(); p.setFromMatrixPosition(m.matrix); if (p.x > hx + 1) m.visible = true; } }
+    const c = cameraAt(t); S.fovKick *= Math.exp(-dt * 9);
+    camera.fov = c.fov + S.fovKick; camera.updateProjectionMatrix(); cam(c.pos, c.look);
+    overlayAt(t, S); lastT = t;
+  }
+  camera.near = 0.2; camera.far = 700; camera.aspect = W / H; camera.updateProjectionMatrix();
+  overlay();
+  every(dt => introStep(dt));
+  introStep(0); render();
+  window.INTRO_DURATION = I.duration;
+  return true;
+};
+
 window.READY = true;
 </script></body></html>

@@ -32,6 +32,11 @@ state:SetAttribute("StartWave", state:GetAttribute("StartWave") or 1)
 state.Parent = ReplicatedStorage
 
 local gameEvent = Net.event("GameEvent")
+local INTRO_MAX = 38 -- seconds a joining player may spend in the intro before the game starts anyway
+local joinedAt: { [Player]: number } = {}
+Net.event("IntroDone").OnServerEvent:Connect(function(p: Player)
+	p:SetAttribute("IntroDone", true)
+end)
 local baseHp = BASE_MAX_HP
 local running = 0 -- bumps on restart so old wave threads stop
 
@@ -111,7 +116,28 @@ local function runWave(run: number, n: number)
 	return true
 end
 
+-- Wave 1 waits until every player has finished (or skipped) the intro cutscene.
+local function waitForIntros(run: number)
+	state:SetAttribute("Phase", "Intro")
+	while running == run do
+		local waiting = false
+		for _, p in Players:GetPlayers() do
+			if not p:GetAttribute("IntroDone") and os.clock() - (joinedAt[p] or 0) < INTRO_MAX then
+				waiting = true
+			end
+		end
+		if not waiting and #Players:GetPlayers() > 0 then
+			return
+		end
+		task.wait(0.25)
+	end
+end
+
 local function gameLoop(run: number)
+	waitForIntros(run)
+	if running ~= run then
+		return
+	end
 	local startWave = math.clamp(state:GetAttribute("StartWave") or 1, 1, Waves.Total)
 	state:SetAttribute("Phase", "Intermission")
 	state:SetAttribute("NextWaveAt", now() + Waves.FirstDelay)
@@ -180,10 +206,17 @@ RunService.Heartbeat:Connect(function(dt)
 	end
 end)
 
-Players.PlayerAdded:Connect(Economy.setup)
-for _, p in Players:GetPlayers() do
+local function onJoin(p: Player)
+	joinedAt[p] = os.clock()
 	Economy.setup(p)
 end
+Players.PlayerAdded:Connect(onJoin)
+for _, p in Players:GetPlayers() do
+	onJoin(p)
+end
+Players.PlayerRemoving:Connect(function(p)
+	joinedAt[p] = nil
+end)
 Players.PlayerRemoving:Connect(UnitService.removeOwner)
 
 return GameService

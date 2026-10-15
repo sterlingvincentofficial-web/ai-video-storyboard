@@ -6,6 +6,7 @@ local Shared = ReplicatedStorage:WaitForChild("Shared")
 local Net = require(Shared.Net)
 
 local Modules = script.Parent:WaitForChild("Modules")
+local Cutscene = require(Modules.Cutscene)
 local EnemyView = require(Modules.EnemyView)
 local Fx = require(Modules.Fx)
 local Hud = require(Modules.Hud)
@@ -40,3 +41,5 @@ Net.event("EnemyActs").OnClientEvent:Connect(function(list)
 end)
 Net.event("GameEvent").OnClientEvent:Connect(Hud.gameEvent)
 
+-- the intro plays once per join; the server holds wave 1 until everyone has watched or skipped it
+task.spawn(Cutscene.play)

@@ -99,7 +99,10 @@
       },
       "Assets": {
         "$className": "Folder",
-        "$ignoreUnknownInstances": true
+        "$ignoreUnknownInstances": true,
+        "HeliFlying": {
+          "$path": "src/assets/HeliFlying.model.json"
+        }
       }
     },
     "StarterPlayer": {

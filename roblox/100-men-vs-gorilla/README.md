@@ -51,6 +51,16 @@ away), **Pop** (squash-and-stretch into studded bricks), **Launch** (blasted int
 wobbling bobble heads, damage numbers, coins flying into the cash counter, a combo counter with
 callouts, camera shake and FOV punches.
 
+## Intro cutscene (client)
+Plays once when a player joins (Skip button, or Space/Enter). The squad's chopper flies in past the
+islet, the temple idol's eyes light up and monkeys pour down the stairs, a Banana Chucker on the
+Banana Stash hits the windshield with a slow-motion banana, the chopper spins out and crashes
+exactly onto the map's wreck, the men tumble out into a pile, and THE Gorilla roars from the
+temple before the title slam and the swoop into the HUD. The server holds wave 1 until every
+player has finished or skipped it (38 s cap). The whole thing is data: `tools/cutscene/intro.json`
+(camera keys, flight path, actor tracks, events, poses), played by `Cutscene.luau` in the game and
+by `tools/preview/studio.html` for preview videos.
+
 ## Layout
 | Path | What |
 |---|---|
@@ -62,6 +72,7 @@ callouts, camera shake and FOV punches.
 | `tools/blender/build_gear.py` | Builds `MenGear.fbx` + `RigData/Gear.luau`. |
 | `tools/clothing/make_templates.py` | Optional Shirt/Pants templates. |
 | `tools/sfx/make_sfx.py` | Synthesizes the sound pack. |
+| `tools/cutscene/intro.json` | The intro timeline; `build_intro.py` turns it into `Config/Intro.luau`, `mix_audio.py` mixes a preview soundtrack. |
 | `src/shared/Config/` | Enemy stats, unit levels, wave recipes. |
 | `src/server/Services/` | Economy, enemies (data-only, path-based), units (targeting/attacks), game loop. |
 | `src/client/Modules/` | Enemy rendering + animation, army animation, kill effects, juice, HUD. |
@@ -69,6 +80,7 @@ callouts, camera shake and FOV punches.
 ## Rebuild
 ```
 python3 tools/build_map.py
+python3 tools/cutscene/build_intro.py
 python3 tools/blender/enemy_textures.py
 python tools/blender/build_enemies.py && python tools/blender/build_gear.py   # venv with bpy
 python3 tools/sfx/make_sfx.py

@@ -432,7 +432,10 @@ RunService.RenderStepped:Connect(function()
 	local phase = state:GetAttribute("Phase")
 	local wave = state:GetAttribute("Wave") or 0
 	local total = state:GetAttribute("TotalWaves") or 100
-	if phase == "Intermission" then
+	if phase == "Intro" then
+		wavePill.Text = "GET READY"
+		subPill.Text = "THE SQUAD IS LANDING..."
+	elseif phase == "Intermission" then
 		local left = math.max(0, math.ceil((state:GetAttribute("NextWaveAt") or 0) - workspace:GetServerTimeNow()))
 		wavePill.Text = if wave == 0 then "GET READY" else `WAVE {wave} CLEAR`
 		subPill.Text = `NEXT WAVE IN {left}`
@@ -471,6 +474,52 @@ ReplicatedStorage:WaitForChild("Enemies").ChildAdded:Connect(function(cfg)
 		bossFrame.Visible = true
 	end
 end)
+
+-- ---------------------------------------------------------------- intro hand-off
+
+-- The intro cutscene hides the HUD while it plays.
+function Hud.setVisible(on: boolean)
+	gui.Enabled = on
+end
+
+-- After the intro: the HUD pops in, the goal is called out, and a marker shows where to put
+-- the first man until one has been placed.
+local TUTORIAL_SPOT = Vector3.new(13, 0, 22)
+function Hud.introFinished()
+	local pop = make("UIScale", { Scale = 0.6, Parent = wavePill })
+	TweenService:Create(pop, TweenInfo.new(0.35, Enum.EasingStyle.Back), { Scale = 1 }):Play()
+	Juice.callout("PROTECT THE BANANA STASH!", Color3.fromRGB(255, 214, 40), 2.2)
+	Juice.sound("Horn")
+	if (player:GetAttribute("Units") or 0) > 0 then
+		return
+	end
+	local anchor = Fx.part({ Size = Vector3.new(0.2, 0.2, 0.2), Position = TUTORIAL_SPOT + Vector3.new(0, 6, 0), Transparency = 1 })
+	local bb = make("BillboardGui", { Size = UDim2.fromScale(9, 4.5), AlwaysOnTop = true, LightInfluence = 0, Adornee = anchor,
+		Parent = anchor })
+	local label = make("TextLabel", { Size = UDim2.fromScale(1, 0.55), BackgroundTransparency = 1, Font = FONT, TextScaled = true,
+		Text = "PLACE A BRAWLER HERE", TextColor3 = GREEN, Parent = bb })
+	stroke(label, 3)
+	local arrow = make("TextLabel", { Size = UDim2.fromScale(1, 0.45), Position = UDim2.fromScale(0, 0.55), BackgroundTransparency = 1,
+		Font = FONT, TextScaled = true, Text = "V", TextColor3 = GREEN, Parent = bb })
+	stroke(arrow, 3)
+	showToast("Press 1 (or tap BRAWLER), then click the marker", GREEN)
+	local t0 = os.clock()
+	local nextRing = 0
+	local conn
+	conn = RunService.RenderStepped:Connect(function()
+		local t = os.clock() - t0
+		if (player:GetAttribute("Units") or 0) > 0 or t > 40 then
+			conn:Disconnect()
+			anchor:Destroy()
+			return
+		end
+		anchor.Position = TUTORIAL_SPOT + Vector3.new(0, 6 + math.abs(math.sin(t * 4)) * 1.2, 0)
+		if t >= nextRing then
+			nextRing = t + 0.9
+			Fx.ring(TUTORIAL_SPOT + Vector3.new(0, 0.3, 0), 4, GREEN, 0.8, 0.25)
+		end
+	end)
+end
 
 function Hud.gameEvent(kind: string, a: any, b: any)
 	if kind == "WaveStart" then
