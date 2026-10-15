@@ -370,8 +370,6 @@ def main():
     # name, builder, world position of the feet, yaw (180 = face the camera at +Z)
     scene = [
         ("StylePlatform", build_platform(), (0, 0, 0), 0),
-        ("Monkey", build_monkey(), (-3, 0, 6), 205),
-        ("Brawler_L1", build_brawler(), (3, 0, 6), 155),
     ]
     preview = []
     for name, builder, origin, yaw in scene:
