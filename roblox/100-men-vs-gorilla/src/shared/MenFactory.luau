@@ -18,11 +18,16 @@ MenFactory.TAG = "Man"
 local IDLE_ANIMATION = "rbxassetid://507766388"
 local HEAD_WIDTH = 1.24 -- the head size the hats were modelled for (2 x 0.62)
 
--- Held items that point along the arm (rifles, axes...) get turned so they point forward when
--- the arm is raised to attack, and down at rest. Carried items (medkit, grenade) hang as-is.
-local POINTED = {
-	Slingshot = true, AxeHandle = true, AxeHead = true, RifleStock = true, RifleBarrel = true,
-	BigBanana = true, NetGun = true, NetGunMuzzle = true, Megaphone = true,
+-- How each held item sits in the hand (see HOLD). Carried items (medkit, grenade) hang as-is.
+local HOLD = {
+	-- modelled pointing forward: turned to lie along the forearm
+	RifleStock = CFrame.Angles(-math.pi / 2, 0, 0), RifleBarrel = CFrame.Angles(-math.pi / 2, 0, 0),
+	NetGun = CFrame.Angles(-math.pi / 2, 0, 0), NetGunMuzzle = CFrame.Angles(-math.pi / 2, 0, 0),
+	Megaphone = CFrame.Angles(-math.pi / 2, 0, 0),
+	-- modelled upright: fork up / banana up when the arm is held out
+	Slingshot = CFrame.Angles(-math.pi / 2, 0, 0), BigBanana = CFrame.Angles(-math.pi / 2, 0, 0),
+	-- modelled upright: flipped end-over-end so it extends the arm, edge facing the swing
+	AxeHandle = CFrame.Angles(math.pi, 0, 0), AxeHead = CFrame.Angles(math.pi, 0, 0),
 }
 
 local gearModel: Instance? = nil
@@ -111,7 +116,7 @@ local function dress(model: Model, look: Units.Look)
 		end
 		local grip = hand.CFrame * CFrame.new(0, -hand.Size.Y * 0.3, 0)
 		for i, item in items do
-			local rot = if POINTED[item] then CFrame.Angles(-math.pi / 2, 0, 0) else CFrame.identity
+			local rot = HOLD[item] or CFrame.identity
 			placeGear(item, grip * rot, 1, (colors and colors[i]) or Color3.new(1, 1, 1), folder, hand)
 		end
 	end

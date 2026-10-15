@@ -48,7 +48,7 @@ function faceTexture() {
 const FACE = faceTexture();
 
 // ---------------------------------------------------------------- world
-let scene, fxList, flyers, events, updaters, simT;
+let scene, fxList, flyers, events, updaters, simT, MEN = [];
 function newWorld(opts = {}) {
   scene = new THREE.Scene();
   scene.background = skyTexture();
@@ -66,7 +66,7 @@ function newWorld(opts = {}) {
     path.position.set(10, 0.1, 0); path.receiveShadow = true; scene.add(path);
     for (const [x, z] of [[-14, -12], [22, -14], [-20, 10]]) palm(x, z);
   }
-  fxList = []; flyers = []; events = []; updaters = []; simT = 0;
+  fxList = []; flyers = []; events = []; updaters = []; simT = 0; MEN = [];
 }
 function palm(x, z) {
   for (let i = 0; i < 8; i++) {
@@ -219,9 +219,10 @@ function makeMan(unit, level, pos, yaw) {
     joints[side + 'Shoulder'] = sh; joints[side + 'Elbow'] = el; hands[side] = el;
     const hip = joint(rootJ, V(0.5 * sx, 2.0, 0), V(0, 2.0, 0));
     box(1, 0.9, 1, L.pants, V(0, -0.45, 0), hip);
-    box(1, 0.8, 1, L.pants, V(0, -1.3, 0), hip);
-    box(1, 0.3, 1, L.pants, V(0, -1.85, 0), hip);
-    joints[side + 'Hip'] = hip;
+    const knee = joint(hip, V(0.5 * sx, 1.1, 0), V(0.5 * sx, 2.0, 0));
+    box(1, 0.8, 1, L.pants, V(0, -0.4, 0), knee);
+    box(1, 0.3, 1, L.pants, V(0, -0.95, 0), knee);
+    joints[side + 'Hip'] = hip; joints[side + 'Knee'] = knee;
   }
   // gear, placed exactly like MenFactory: anchor-at-origin meshes
   const hat = gearMesh(L.hat, L.hatColor); if (hat) { hat.position.set(0, 1.22, 0); hat.scale.setScalar(1.2 / 1.24 * 1.04); neck.add(hat); }
@@ -229,62 +230,77 @@ function makeMan(unit, level, pos, yaw) {
   if (L.badge) { const c = gearMesh(L.badge, GOLD); c.position.set(0, 1.27, -0.68); neck.add(c); }
   const hold = (side, items, colors) => (items || []).forEach((it, i) => {
     const g = gearMesh(it, colors[i]); if (!g) return;
-    const grip = new THREE.Group(); grip.position.set(0, -1.04, 0); if (POINTED.has(it)) grip.rotation.x = -Math.PI / 2;
+    const grip = new THREE.Group(); grip.position.set(0, -1.04, 0); if (POINTED.has(it)) grip.rotation.x = it.startsWith('Axe') ? Math.PI : -Math.PI / 2;
     grip.add(g); hands[side].add(grip);
   });
   hold('Right', L.held, L.heldColors || []); hold('Left', L.left, L.leftColors || []);
   if (L.wraps) for (const s of ['Right', 'Left']) box(1.18, 0.27, 1.18, L.wraps, V(0, -0.95, 0), hands[s]);
   if (L.rank) { const b = gearMesh(L.rank, L.rankColor); b.position.set(-0.44, 1.04, -0.53); waist.add(b); }
-  const man = { unit, level, root, joints, hands, anim: null, alt: false, auraT: 0, L };
+  const man = { unit, level, root, joints, hands, anim: null, alt: false, auraT: 0, L, kind: KIND[unit], w: 0, engagedUntil: -1, cycleI: 0, rootBase: rootJ.position.clone() };
   if (L.aura) every(dt => { man.auraT -= dt; if (man.auraT <= 0) { man.auraT = 0.12; const p = root.position.clone().add(V(rnd(-1.2, 1.2), rnd(1, 5), rnd(-1.2, 1.2))); sparkle(p); } });
   every(dt => animMan(man, dt));
+  MEN.push(man);
   return man;
 }
 function handPos(man, side = 'Right') { const v = new THREE.Vector3(); man.hands[side].localToWorld(v.set(0, -1.1, 0)); return v; }
 
-// ---- attack animations: straight ports of UnitView.ANIMS (CFrame.Angles == Euler XYZ)
-const ease = a => 1 - Math.pow(1 - a, 3);
-const ANIMS = {
-  Punch: { dur: 0.36, fn: (a, alt) => {
-    const main = alt ? 'LeftShoulder' : 'RightShoulder', other = alt ? 'RightShoulder' : 'LeftShoulder', elbow = alt ? 'LeftElbow' : 'RightElbow', tw = alt ? -1 : 1;
-    if (a < 0.25) { const k = a / 0.25; return { [main]: [0.5 * k, 0, 0], [elbow]: [1.6 * k, 0, 0], Waist: [0, 0.35 * k * tw, 0], [other]: [1.1, 0, 0] }; }
-    if (a < 0.45) return { [main]: [1.65, 0, 0], [elbow]: [0, 0, 0], Waist: [0.08, -0.4 * tw, 0], [other]: [1.1, 0, 0] };
-    const k = 1 - ease((a - 0.45) / 0.55); return { [main]: [1.65 * k, 0, 0], Waist: [0, -0.4 * tw * k, 0], [other]: [1.1 * k, 0, 0] }; } },
-  Chop: { dur: 0.6, fn: a => {
-    if (a < 0.35) { const k = ease(a / 0.35); return { RightShoulder: [2.9 * k, 0, 0], LeftShoulder: [2.7 * k, 0, 0.3 * k], Waist: [-0.25 * k, 0, 0] }; }
-    if (a < 0.45) return { RightShoulder: [0.5, 0, 0], LeftShoulder: [0.6, 0, 0.3], Waist: [0.45, 0, 0] };
-    const k = 1 - ease((a - 0.45) / 0.55); return { RightShoulder: [0.5 * k, 0, 0], LeftShoulder: [0.6 * k, 0, 0.3 * k], Waist: [0.45 * k, 0, 0] }; } },
-  Pebble: { dur: 0.4, fn: a => {
-    if (a < 0.35) { const k = ease(a / 0.35); return { LeftShoulder: [1.5, 0, -0.2], RightShoulder: [1.3, 0, 0.3 * k], RightElbow: [1.9 * k, 0, 0], Waist: [0, 0.25 * k, 0] }; }
-    const k = 1 - ease((a - 0.35) / 0.65); return { LeftShoulder: [1.5 * k, 0, -0.2 * k], RightShoulder: [1.6 * k, 0, 0], Waist: [0, -0.1 * k, 0] }; } },
-  Bullet: { dur: 0.45, fn: a => {
-    const kick = a < 0.12 ? a / 0.12 : Math.max(0, 1 - (a - 0.12) / 0.3), aim = a > 0.75 ? 1 - (a - 0.75) / 0.25 : 1;
-    return { RightShoulder: [(1.5 + 0.35 * kick) * aim, 0, 0], LeftShoulder: [1.55 * aim, 0, -0.5 * aim], LeftElbow: [0.4 * aim, 0, 0], Waist: [-0.12 * kick, 0, 0], Neck: [0.1 * aim, 0, 0] }; } },
-  Grenade: { dur: 0.55, fn: a => {
-    if (a < 0.4) { const k = ease(a / 0.4); return { RightShoulder: [-0.9 * k, 0, 0.2 * k], RightElbow: [1.2 * k, 0, 0], Waist: [-0.2 * k, 0.4 * k, 0], LeftShoulder: [1.2 * k, 0, 0] }; }
-    if (a < 0.55) { const k = (a - 0.4) / 0.15; return { RightShoulder: [-0.9 + 3.8 * k, 0, 0], Waist: [0.3 * k, -0.3 * k, 0], LeftShoulder: [1.2 - k, 0, 0] }; }
-    const k = 1 - ease((a - 0.55) / 0.45); return { RightShoulder: [1.45 * k, 0, 0], Waist: [0.3 * k, -0.3 * k, 0] }; } },
-  Net: { dur: 0.5, fn: a => {
-    const kick = a < 0.15 ? a / 0.15 : Math.max(0, 1 - (a - 0.15) / 0.4), aim = a > 0.7 ? 1 - (a - 0.7) / 0.3 : 1;
-    return { RightShoulder: [(1.5 + 0.25 * kick) * aim, 0, 0], LeftShoulder: [1.4 * aim, 0, -0.4 * aim], Waist: [-0.15 * kick, 0, 0] }; } },
-  Taunt: { dur: 1.0, fn: a => { const w = Math.sin(a * Math.PI * 6);
-    return { RightShoulder: [0, 0, 2.6 + w * 0.4], LeftShoulder: [0, 0, -2.6 - w * 0.4], Waist: [0, 0, w * 0.15], Neck: [0, 0, -w * 0.2] }; } },
-  Heal: { dur: 0.7, fn: a => { const k = Math.sin(a * Math.PI); return { RightShoulder: [2.6 * k, 0, 0], Neck: [0.2 * k, 0, 0] }; } },
-  Rally: { dur: 0.9, fn: a => { const k = Math.sin(a * Math.PI), s = Math.sin(a * Math.PI * 8) * 0.05;
-    return { RightShoulder: [1.9 * k, 0, 0], LeftShoulder: [0.4 * k, 0, -2.4 * k], Neck: [0.25 * k + s, 0, 0], Waist: [-0.15 * k, 0, 0] }; } },
-};
-function play(man, kind) { man.alt = !man.alt; man.anim = { a: ANIMS[kind], t0: simT, alt: man.alt }; }
+// ---- combat animation: same data + player as UnitAnims.luau / UnitView.luau
+const ANIM = await (await fetch('unit_anims.json')).json();
+const KIND = { Brawler: 'Punch', Slingshot: 'Pebble', Lumberjack: 'Chop', Hunter: 'Bullet', Medic: 'Heal', Bait: 'Taunt', Grenadier: 'Grenade', Zookeeper: 'Net', Commander: 'Rally' };
+const EASE = { linear: a => a, out: a => 1 - Math.pow(1 - a, 3), in: a => a * a * a, inout: a => a < 0.5 ? 4 * a * a * a : 1 - Math.pow(-2 * a + 2, 3) / 2 };
+const ZERO = [0, 0, 0, 0, 0, 0];
+const full = v => v ? [v[0], v[1], v[2], v[3] || 0, v[4] || 0, v[5] || 0] : ZERO;
+function poseAt(kind, clipName, t) {
+  const K = ANIM[kind], st = K.stance || {};
+  const out = {};
+  for (const j in st) out[j] = full(st[j]);
+  if (!clipName) return out;
+  const clip = K.clips[clipName];
+  const keys = [{ t: 0, pose: {} }, ...clip.keys, { t: clip.dur, pose: {}, ease: 'inout' }];
+  const joints = new Set(Object.keys(st)); clip.keys.forEach(k => Object.keys(k.pose).forEach(j => joints.add(j)));
+  let i = 0; while (i < keys.length - 2 && t >= keys[i + 1].t) i++;
+  const k0 = keys[i], k1 = keys[i + 1];
+  const a = Math.min(1, Math.max(0, (t - k0.t) / Math.max(1e-4, k1.t - k0.t))), e = EASE[k1.ease || 'inout'](a);
+  for (const j of joints) { const v0 = full(k0.pose[j] || st[j]), v1 = full(k1.pose[j] || st[j]); out[j] = v0.map((v, n) => v + (v1[n] - v) * e); }
+  return out;
+}
+function engage(man, secs) { man.engagedUntil = Math.max(man.engagedUntil, simT + secs); }
+function play(man, kind) {
+  const K = ANIM[kind]; const name = K.cycle[man.cycleI++ % K.cycle.length];
+  man.anim = { kind, name, t0: simT, dur: K.clips[name].dur };
+  const hasStance = Object.keys(K.stance || {}).length > 0;
+  engage(man, hasStance ? 2.0 : K.clips[name].dur);
+  man.animKind = kind;
+}
 function animMan(man, dt) {
+  const kind = man.animKind || man.kind;
+  const target = simT < man.engagedUntil ? 1 : 0;
+  man.w += (target - man.w) * Math.min(1, dt * 10);
+  let clip = null, t = 0;
+  if (man.anim) { t = simT - man.anim.t0; if (t >= man.anim.dur) man.anim = null; else clip = man.anim.name; }
+  const pose = poseAt(kind, clip, t);
   const idle = Math.sin(simT * 2.2) * 0.03;
   for (const j of Object.values(man.joints)) j.rotation.set(0, 0, 0);
+  man.joints.Root.position.copy(man.rootBase);
   man.joints.LeftShoulder.rotation.z = -0.06 - idle; man.joints.RightShoulder.rotation.z = 0.06 + idle; man.joints.Neck.rotation.x = idle;
-  if (man.anim) {
-    const a = (simT - man.anim.t0) / man.anim.a.dur;
-    if (a >= 1) man.anim = null;
-    else for (const [j, r] of Object.entries(man.anim.a.fn(a, man.anim.alt))) if (man.joints[j]) man.joints[j].rotation.set(r[0], r[1], r[2], 'XYZ');
+  const w = man.w, K = ANIM[kind];
+  for (const [j, v] of Object.entries(pose)) {
+    const jt = man.joints[j]; if (!jt) continue;
+    jt.rotation.set(jt.rotation.x * (1 - w) + v[0] * w, v[1] * w, jt.rotation.z * (1 - w) + v[2] * w, 'XYZ');
+    if (j === 'Root') jt.position.set(man.rootBase.x + v[3] * w, man.rootBase.y + v[4] * w, man.rootBase.z + v[5] * w);
   }
+  if (K.bounce && w > 0) man.joints.Root.position.y += Math.sin(simT * Math.PI * 2 * K.bounce[1]) * K.bounce[0] * w;
   if (man.stunT > simT) man.joints.Neck.rotation.z = Math.sin(simT * 12) * 0.25;
 }
+window.posePreview = (unit, clip, t, camPos) => {
+  newWorld({ noProps: true });
+  const m = makeMan(unit, 3, V(0, 0, 0), 0);
+  if (clip) { m.anim = { kind: KIND[unit], name: clip, t0: -t, dur: 99 }; }
+  simT = 0; m.w = 1; m.engagedUntil = 99; m.animKind = KIND[unit];
+  m.anim && (m.anim.t0 = -t); animMan(m, 0);
+  if (clip) { m.anim = { kind: KIND[unit], name: clip, t0: -t, dur: 99 }; const p = poseAt(KIND[unit], clip, t); for (const [j, v] of Object.entries(p)) { const jt = m.joints[j]; if (!jt) continue; jt.rotation.set(v[0], v[1], v[2], 'XYZ'); if (j === 'Root') jt.position.set(m.rootBase.x + v[3], m.rootBase.y + v[4], m.rootBase.z + v[5]); } }
+  cam(camPos ? V(camPos.x, camPos.y, camPos.z) : V(-7, 4, -9), V(0, 2.6, 0)); render();
+};
 
 // ---------------------------------------------------------------- FX (ports of Fx.luau)
 function mat(color, opts = {}) { return new THREE.MeshStandardMaterial({ color: C(color), roughness: 0.6, ...opts }); }
@@ -580,7 +596,12 @@ function portraitMonkey(variant) {
   cam(V(-3 * s, h * 0.75, -13 * s), V(0, h * 0.45, 0)); render();
 }
 
-window.setupScene = name => { newWorld(); SCENES[name](); render(); return true; };
+window.setupScene = name => {
+  newWorld(); SCENES[name]();
+  // like the game: a man raises his combat stance once monkeys come into range
+  at(0.45, () => MEN.forEach(m => engage(m, 30)));
+  render(); return true;
+};
 window.advance = n => { for (let i = 0; i < n; i++) stepOnce(); render(); return simT; };
 window.portraitUnit = portraitUnit;
 window.portraitMonkey = portraitMonkey;

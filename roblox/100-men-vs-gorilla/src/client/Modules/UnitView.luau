@@ -24,118 +24,92 @@ local function partOf(model: Model?, name: string): BasePart?
 	return model and model:FindFirstChild(name) :: BasePart?
 end
 
--- ---------------------------------------------------------------- attack animations
--- Each returns joint offsets for progress a (0..1). R15 joints: Waist, Neck, RightShoulder,
--- RightElbow, LeftShoulder, LeftElbow. +X on a shoulder swings the arm forward/up.
+-- ---------------------------------------------------------------- combat animation
+-- Data-driven (Config/UnitAnims, generated from tools/anim/unit_anims.json, also used by the
+-- preview studio). While a monkey is in range a man blends into his combat stance (boxer guard,
+-- shouldered rifle, raised slingshot...), attacks are keyframed clips that leave that stance and
+-- return to it, and the whole pose is blended over the idle animation so nothing snaps.
 
-local A = CFrame.Angles
-local function ease(a: number): number
-	return 1 - (1 - a) ^ 3
+local Units = require(Shared.Config.Units)
+local UnitAnims = require(Shared.Config.UnitAnims)
+
+local EASE = {
+	linear = function(a: number) return a end,
+	out = function(a: number) return 1 - (1 - a) ^ 3 end,
+	["in"] = function(a: number) return a * a * a end,
+	inout = function(a: number) return if a < 0.5 then 4 * a * a * a else 1 - (-2 * a + 2) ^ 3 / 2 end,
+}
+local ZERO = { 0, 0, 0, 0, 0, 0 }
+
+local function full(v: { number }?): { number }
+	if not v then
+		return ZERO
+	end
+	return { v[1], v[2], v[3], v[4] or 0, v[5] or 0, v[6] or 0 }
 end
 
-local ANIMS = {
-	Punch = {
-		dur = 0.36,
-		fn = function(a: number, alt: boolean)
-			local main, other = if alt then "LeftShoulder" else "RightShoulder", if alt then "RightShoulder" else "LeftShoulder"
-			local elbow = if alt then "LeftElbow" else "RightElbow"
-			local twist = if alt then -1 else 1
-			if a < 0.25 then -- cock back
-				local k = a / 0.25
-				return { [main] = A(0.5 * k, 0, 0), [elbow] = A(1.6 * k, 0, 0), Waist = A(0, 0.35 * k * twist, 0),
-					[other] = A(1.1, 0, 0) }
-			elseif a < 0.45 then -- jab!
-				return { [main] = A(1.65, 0, 0), [elbow] = A(0, 0, 0), Waist = A(0.08, -0.4 * twist, 0), [other] = A(1.1, 0, 0) }
-			end
-			local k = 1 - ease((a - 0.45) / 0.55)
-			return { [main] = A(1.65 * k, 0, 0), Waist = A(0, -0.4 * twist * k, 0), [other] = A(1.1 * k, 0, 0) }
-		end,
-	},
-	Chop = {
-		dur = 0.6,
-		fn = function(a: number)
-			if a < 0.35 then -- raise the axe overhead
-				local k = ease(a / 0.35)
-				return { RightShoulder = A(2.9 * k, 0, 0), LeftShoulder = A(2.7 * k, 0, 0.3 * k), Waist = A(-0.25 * k, 0, 0) }
-			elseif a < 0.45 then -- CHOP
-				return { RightShoulder = A(0.5, 0, 0), LeftShoulder = A(0.6, 0, 0.3), Waist = A(0.45, 0, 0) }
-			end
-			local k = 1 - ease((a - 0.45) / 0.55)
-			return { RightShoulder = A(0.5 * k, 0, 0), LeftShoulder = A(0.6 * k, 0, 0.3 * k), Waist = A(0.45 * k, 0, 0) }
-		end,
-	},
-	Pebble = {
-		dur = 0.4,
-		fn = function(a: number)
-			local hold = A(1.5, 0, -0.2)
-			if a < 0.35 then -- draw back the band
-				local k = ease(a / 0.35)
-				return { LeftShoulder = hold, RightShoulder = A(1.3, 0, 0.3 * k), RightElbow = A(1.9 * k, 0, 0), Waist = A(0, 0.25 * k, 0) }
-			end
-			local k = 1 - ease((a - 0.35) / 0.65)
-			return { LeftShoulder = A(1.5 * k, 0, -0.2 * k), RightShoulder = A(1.6 * k, 0, 0), Waist = A(0, -0.1 * k, 0) }
-		end,
-	},
-	Bullet = {
-		dur = 0.45,
-		fn = function(a: number)
-			local kick = if a < 0.12 then a / 0.12 else math.max(0, 1 - (a - 0.12) / 0.3)
-			local aim = if a > 0.75 then 1 - (a - 0.75) / 0.25 else 1
-			return { RightShoulder = A((1.5 + 0.35 * kick) * aim, 0, 0), LeftShoulder = A(1.55 * aim, 0, -0.5 * aim),
-				LeftElbow = A(0.4 * aim, 0, 0), Waist = A(-0.12 * kick, 0, 0), Neck = A(0.1 * aim, 0, 0) }
-		end,
-	},
-	Grenade = {
-		dur = 0.55,
-		fn = function(a: number)
-			if a < 0.4 then
-				local k = ease(a / 0.4)
-				return { RightShoulder = A(-0.9 * k, 0, 0.2 * k), RightElbow = A(1.2 * k, 0, 0), Waist = A(-0.2 * k, 0.4 * k, 0),
-					LeftShoulder = A(1.2 * k, 0, 0) }
-			elseif a < 0.55 then
-				local k = (a - 0.4) / 0.15
-				return { RightShoulder = A(-0.9 + 3.8 * k, 0, 0), Waist = A(0.3 * k, -0.3 * k, 0), LeftShoulder = A(1.2 - k, 0, 0) }
-			end
-			local k = 1 - ease((a - 0.55) / 0.45)
-			return { RightShoulder = A(2.9 * k * 0.5, 0, 0), Waist = A(0.3 * k, -0.3 * k, 0) }
-		end,
-	},
-	Net = {
-		dur = 0.5,
-		fn = function(a: number)
-			local kick = if a < 0.15 then a / 0.15 else math.max(0, 1 - (a - 0.15) / 0.4)
-			local aim = if a > 0.7 then 1 - (a - 0.7) / 0.3 else 1
-			return { RightShoulder = A((1.5 + 0.25 * kick) * aim, 0, 0), LeftShoulder = A(1.4 * aim, 0, -0.4 * aim),
-				Waist = A(-0.15 * kick, 0, 0) }
-		end,
-	},
-	Taunt = {
-		dur = 1.0,
-		fn = function(a: number)
-			local w = math.sin(a * math.pi * 6)
-			return { RightShoulder = A(0, 0, 2.6 + w * 0.4), LeftShoulder = A(0, 0, -2.6 - w * 0.4), Waist = A(0, 0, w * 0.15),
-				Neck = A(0, 0, -w * 0.2) }
-		end,
-	},
-	Heal = {
-		dur = 0.7,
-		fn = function(a: number)
-			local k = math.sin(a * math.pi)
-			return { RightShoulder = A(2.6 * k, 0, 0), Neck = A(0.2 * k, 0, 0) }
-		end,
-	},
-	Rally = {
-		dur = 0.9,
-		fn = function(a: number)
-			local k = math.sin(a * math.pi)
-			local shout = math.sin(a * math.pi * 8) * 0.05
-			return { RightShoulder = A(1.9 * k, 0, 0), LeftShoulder = A(0.4 * k, 0, -2.4 * k), Neck = A(0.25 * k + shout, 0, 0),
-				Waist = A(-0.15 * k, 0, 0) }
-		end,
-	},
-}
+-- Absolute pose of `kind` at time t into clip (or the stance when clip is nil).
+local function poseAt(kind: string, clipName: string?, t: number): { [string]: { number } }
+	local K = UnitAnims[kind]
+	local stance = K.stance or {}
+	local out = {}
+	for j, v in stance do
+		out[j] = full(v)
+	end
+	if not clipName then
+		return out
+	end
+	local clip = K.clips[clipName]
+	local keys = { { t = 0, pose = {} } }
+	for _, k in clip.keys do
+		table.insert(keys, k)
+	end
+	table.insert(keys, { t = clip.dur, pose = {}, ease = "inout" })
+	local i = 1
+	while i < #keys - 1 and t >= keys[i + 1].t do
+		i += 1
+	end
+	local k0, k1 = keys[i], keys[i + 1]
+	local a = math.clamp((t - k0.t) / math.max(1e-4, k1.t - k0.t), 0, 1)
+	local e = EASE[k1.ease or "inout"](a)
+	local joints = {}
+	for j in stance do
+		joints[j] = true
+	end
+	for _, k in clip.keys do
+		for j in k.pose do
+			joints[j] = true
+		end
+	end
+	for j in joints do
+		local v0, v1 = full(k0.pose[j] or stance[j]), full(k1.pose[j] or stance[j])
+		local v = table.create(6)
+		for n = 1, 6 do
+			v[n] = v0[n] + (v1[n] - v0[n]) * e
+		end
+		out[j] = v
+	end
+	return out
+end
 
-local playing = {} -- model -> { anim, t0, alt, motors }
+local function toCFrame(v: { number }): CFrame
+	return CFrame.new(v[4], v[5], v[6]) * CFrame.Angles(v[1], v[2], v[3])
+end
+
+type AnimState = {
+	motors: { [string]: Motor6D },
+	kind: string,
+	range: number,
+	hasStance: boolean,
+	w: number,
+	engagedUntil: number,
+	clip: string?,
+	clipKind: string?,
+	t0: number,
+	cycle: number,
+	nextScan: number,
+}
+local states: { [Model]: AnimState } = {}
 
 local function motorsOf(model: Model): { [string]: Motor6D }
 	local out = {}
@@ -147,38 +121,91 @@ local function motorsOf(model: Model): { [string]: Motor6D }
 	return out
 end
 
-local altFlip = {}
-local function play(model: Model, kind: string)
-	local anim = ANIMS[kind]
-	if not anim then
-		return
+local function stateOf(model: Model): AnimState?
+	local st = states[model]
+	if st then
+		return st
 	end
-	local prev = playing[model]
-	altFlip[model] = not altFlip[model]
-	playing[model] = { anim = anim, t0 = os.clock(), alt = altFlip[model], motors = prev and prev.motors or motorsOf(model) }
+	local unit = Units[model:GetAttribute("Unit") or ""]
+	if not unit then
+		return nil
+	end
+	local level = unit.Levels[model:GetAttribute("Level") or 1] or unit.Levels[1]
+	local kind = unit.Kind
+	local K = UnitAnims[kind]
+	st = {
+		motors = motorsOf(model),
+		kind = kind,
+		range = level.Range,
+		hasStance = K ~= nil and next(K.stance or {}) ~= nil,
+		w = 0,
+		engagedUntil = 0,
+		clip = nil,
+		clipKind = nil,
+		t0 = 0,
+		cycle = 0,
+		nextScan = 0,
+	}
+	states[model] = st
+	return st
 end
 
-RunService.Stepped:Connect(function()
+-- Plays the next attack clip of `kind` (cycling jab/cross etc.).
+local function play(model: Model, kind: string)
+	local st = stateOf(model)
+	local K = UnitAnims[kind]
+	if not (st and K) then
+		return
+	end
+	st.cycle += 1
+	local name = K.cycle[(st.cycle - 1) % #K.cycle + 1]
+	st.clip, st.clipKind, st.t0 = name, kind, os.clock()
+	st.engagedUntil = math.max(st.engagedUntil, os.clock() + (if st.hasStance then 2 else K.clips[name].dur))
+end
+
+RunService.Stepped:Connect(function(_, dt)
 	local now = os.clock()
-	for model, p in playing do
-		if not model.Parent then
-			playing[model] = nil
-			altFlip[model] = nil
+	for _, model in unitsFolder:GetChildren() do
+		if not model:IsA("Model") then
 			continue
 		end
-		local a = (now - p.t0) / p.anim.dur
-		if a >= 1 then
-			for _, m in p.motors do
-				m.Transform = CFrame.identity
+		local st = stateOf(model)
+		if not st then
+			continue
+		end
+		-- raise the stance when a monkey wanders into range (checked a few times a second)
+		if st.hasStance and now >= st.nextScan then
+			st.nextScan = now + 0.2
+			if EnemyView.anyWithin(model:GetPivot().Position, st.range + 4) then
+				st.engagedUntil = math.max(st.engagedUntil, now + 1)
 			end
-			playing[model] = nil
-			continue
 		end
-		for joint, cf in p.anim.fn(a, p.alt) do
-			local m = p.motors[joint]
+		local target = if now < st.engagedUntil then 1 else 0
+		st.w += (target - st.w) * math.min(1, dt * 10)
+		if st.w < 0.01 and not st.clip then
+			continue -- fully idle: leave the Animator's idle alone
+		end
+		local kind = st.clipKind or st.kind
+		local t = now - st.t0
+		if st.clip and t >= UnitAnims[kind].clips[st.clip].dur then
+			st.clip, st.clipKind = nil, nil
+			kind = st.kind
+		end
+		local pose = poseAt(kind, st.clip, t)
+		local K = UnitAnims[kind]
+		if K.bounce and pose.Root then
+			pose.Root[5] += math.sin(now * math.pi * 2 * K.bounce[2]) * K.bounce[1]
+		end
+		for joint, v in pose do
+			local m = st.motors[joint]
 			if m then
-				m.Transform = cf
+				m.Transform = m.Transform:Lerp(toCFrame(v), st.w)
 			end
+		end
+	end
+	for model in states do
+		if not model.Parent then
+			states[model] = nil
 		end
 	end
 end)

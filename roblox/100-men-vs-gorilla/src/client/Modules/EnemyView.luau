@@ -158,6 +158,18 @@ function EnemyView.position(id: number): Vector3?
 	return v and v.root and v.root.Position
 end
 
+-- True if any drawn monkey stands within `radius` (flat) of pos. Used to raise combat stances.
+function EnemyView.anyWithin(pos: Vector3, radius: number): boolean
+	local r2 = radius * radius
+	for _, v in views do
+		local d = v.pos - pos
+		if d.X * d.X + d.Z * d.Z <= r2 then
+			return true
+		end
+	end
+	return false
+end
+
 -- Hands a model over to the kill effects (stops animating and positioning it).
 function EnemyView.release(id: number)
 	local v = views[id]
