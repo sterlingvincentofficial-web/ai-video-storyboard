@@ -31,6 +31,7 @@ local unitFxEvent = Net.event("UnitFx")
 
 local units = {} -- uid -> unit
 local nextUid = 0
+local generation = 0 -- bumps when the game restarts and every man is cleared
 local pendingAttacks = {}
 local scheduled = {} -- { at, fn }
 
@@ -143,7 +144,11 @@ function UnitService.place(player: Player, unitId: string, pos: Vector3): (boole
 	if Economy.get(player) < cost then
 		return false, "Not enough cash"
 	end
-	local model, height = buildModel(unitId, 1)
+	local built, model, height = pcall(buildModel, unitId, 1)
+	if not built then
+		warn(`[100 Men] couldn't build {unitId}: {model}`)
+		return false, "Couldn't place him, try again"
+	end
 	-- the build may have yielded: the spot, the cap or the cash can have changed meanwhile
 	problem = if player.Parent then problemNow() else "Left the game"
 	if problem or not Economy.spend(player, cost) then
@@ -188,13 +193,23 @@ function UnitService.upgrade(player: Player, uid: number): (boolean, string?)
 		return false, "Not enough cash"
 	end
 	u.busy = true
-	local model, height = buildModel(u.unitId, u.level + 1)
+	local gen = generation
+	local built, model, height = pcall(buildModel, u.unitId, u.level + 1)
 	u.busy = false
-	if units[uid] ~= u or not u.model then -- sold, cleared or owner left during the build
-		model:Destroy()
-		if player.Parent then
+	-- refund unless the game restarted meanwhile (that reset everyone's cash already)
+	local function refund()
+		if player.Parent and generation == gen then
 			Economy.add(player, nextDef.Cost)
 		end
+	end
+	if not built then
+		warn(`[100 Men] couldn't build {u.unitId} L{u.level + 1}: {model}`)
+		refund()
+		return false, "Upgrade failed, try again"
+	end
+	if units[uid] ~= u or not u.model then -- sold, cleared or owner left during the build
+		model:Destroy()
+		refund()
 		return false, "That man is gone"
 	end
 	u.level += 1
@@ -230,6 +245,7 @@ function UnitService.removeOwner(player: Player)
 end
 
 function UnitService.clear()
+	generation += 1
 	for uid, u in units do
 		units[uid] = nil
 		destroyModel(u)

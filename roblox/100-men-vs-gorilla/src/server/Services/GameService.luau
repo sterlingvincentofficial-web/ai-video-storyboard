@@ -24,7 +24,7 @@ local state = ReplicatedStorage:FindFirstChild("GameState") or Instance.new("Con
 state.Name = "GameState"
 state:SetAttribute("Wave", 0)
 state:SetAttribute("TotalWaves", Waves.Total)
-state:SetAttribute("Phase", "Intermission") -- Intermission | Wave | GameOver | Victory
+state:SetAttribute("Phase", "Intro") -- Intro | Intermission | Wave | GameOver | Victory
 state:SetAttribute("NextWaveAt", 0)
 state:SetAttribute("BaseHp", BASE_MAX_HP)
 state:SetAttribute("BaseMaxHp", BASE_MAX_HP)
@@ -82,8 +82,8 @@ end
 local function runWave(run: number, n: number)
 	local wave = Waves.get(n)
 	state:SetAttribute("Wave", n)
+	state:SetAttribute("Boss", wave.Boss or "") -- before Phase, so listeners on Phase see the right boss
 	state:SetAttribute("Phase", "Wave")
-	state:SetAttribute("Boss", wave.Boss or "")
 	gameEvent:FireAllClients("WaveStart", n, wave.Boss)
 	local spawning = 0
 	for i, group in wave.Groups do

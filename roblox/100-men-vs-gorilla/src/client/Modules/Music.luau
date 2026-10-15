@@ -40,20 +40,22 @@ local stingers: { [string]: Track? } = {
 }
 
 Music.enabled = true
+local suppressed = false -- this player's own intro is playing (it has its own sound)
 local current: string? = nil
 
--- Which loop fits the moment (nil = silence: the intro has its own sound, game over its stinger).
+-- Which loop fits the moment (nil = silence: intros have their own sound, game over and
+-- victory their stingers).
 local function wanted(): string?
-	if not Music.enabled then
+	if not Music.enabled or suppressed then
 		return nil
 	end
 	local phase = state:GetAttribute("Phase")
-	if phase == "Intro" or phase == "GameOver" then
+	if phase == "Intro" or phase == "GameOver" or phase == "Victory" then
 		return nil
 	elseif phase == "Wave" then
 		return if (state:GetAttribute("Boss") or "") ~= "" then "Boss" else "Battle"
 	end
-	return "Calm" -- Intermission, Victory
+	return "Calm" -- Intermission
 end
 
 local function fadeTo(name: string?)
@@ -73,8 +75,9 @@ local function fadeTo(name: string?)
 		local tween = TweenService:Create(track.sound, FADE, { Volume = if on then track.volume else 0 })
 		tween:Play()
 		if not on then
-			tween.Completed:Once(function()
-				if current ~= key then
+			tween.Completed:Once(function(playback: Enum.PlaybackState)
+				-- a newer fade cancelling this one also fires Completed: only stop a finished fade-out
+				if playback == Enum.PlaybackState.Completed and current ~= key then
 					track.sound:Stop()
 				end
 			end)
@@ -97,6 +100,19 @@ end
 
 function Music.setEnabled(on: boolean)
 	Music.enabled = on
+	if not on then
+		for _, track in stingers do
+			if track then
+				track.sound:Stop()
+			end
+		end
+	end
+	refresh()
+end
+
+-- The intro cutscene silences the music while it plays (also for players who join mid-game).
+function Music.setSuppressed(on: boolean)
+	suppressed = on
 	refresh()
 end
 

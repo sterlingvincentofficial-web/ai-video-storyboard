@@ -194,10 +194,10 @@ local function showToast(text: string, color: Color3?)
 end
 Hud.toast = showToast
 
--- music on/off (bottom right, clear of the player list; M on a keyboard). Only shown once the
--- music has been uploaded.
-local musicButton = make("TextButton", { Size = UDim2.fromOffset(118, 34), Position = UDim2.new(1, -16, 1, -16),
-	AnchorPoint = Vector2.new(1, 1), BackgroundColor3 = MINT, Text = "MUSIC ON", Font = FONT, TextSize = 18,
+-- music on/off (left, under Roblox's top-bar buttons: clear of the player list and the mobile
+-- thumbstick and jump button; M on a keyboard). Only shown once the music has been uploaded.
+local musicButton = make("TextButton", { Size = UDim2.fromOffset(118, 34), Position = UDim2.fromOffset(16, 110),
+	BackgroundColor3 = MINT, Text = "MUSIC ON", Font = FONT, TextSize = 18,
 	TextColor3 = INK, Visible = Music.hasMusic(), Parent = root })
 rim(musicButton)
 local function toggleMusic()

@@ -1489,9 +1489,10 @@
           <Properties>
             <string name="Name">Brand</string>
             <string name="Source"><![CDATA[--!strict
--- The game's logo. Upload marketing/final/logo.png as a Decal (Creator Dashboard or Studio's
--- Asset Manager), then paste its image id here; the intro's title card shows it instead of the
--- plain text title. Leave nil to keep the text.
+-- The game's logo. Upload marketing/final/logo.png as an image (Studio: Asset Manager → Bulk
+-- Import, or View → Asset Manager → Images) and paste its image id here; the intro's title card
+-- then slams in the logo instead of the plain text title. Use the image id, not a Decal's id
+-- (they differ). If the image hasn't loaded or is still in moderation, the text title shows.
 
 return {
 	Logo = nil :: number?, -- e.g. 1234567890
@@ -6048,7 +6049,7 @@ local state = ReplicatedStorage:FindFirstChild("GameState") or Instance.new("Con
 state.Name = "GameState"
 state:SetAttribute("Wave", 0)
 state:SetAttribute("TotalWaves", Waves.Total)
-state:SetAttribute("Phase", "Intermission") -- Intermission | Wave | GameOver | Victory
+state:SetAttribute("Phase", "Intro") -- Intro | Intermission | Wave | GameOver | Victory
 state:SetAttribute("NextWaveAt", 0)
 state:SetAttribute("BaseHp", BASE_MAX_HP)
 state:SetAttribute("BaseMaxHp", BASE_MAX_HP)
@@ -6106,8 +6107,8 @@ end
 local function runWave(run: number, n: number)
 	local wave = Waves.get(n)
 	state:SetAttribute("Wave", n)
+	state:SetAttribute("Boss", wave.Boss or "") -- before Phase, so listeners on Phase see the right boss
 	state:SetAttribute("Phase", "Wave")
-	state:SetAttribute("Boss", wave.Boss or "")
 	gameEvent:FireAllClients("WaveStart", n, wave.Boss)
 	local spawning = 0
 	for i, group in wave.Groups do
@@ -6312,6 +6313,7 @@ local unitFxEvent = Net.event("UnitFx")
 
 local units = {} -- uid -> unit
 local nextUid = 0
+local generation = 0 -- bumps when the game restarts and every man is cleared
 local pendingAttacks = {}
 local scheduled = {} -- { at, fn }
 
@@ -6424,7 +6426,11 @@ function UnitService.place(player: Player, unitId: string, pos: Vector3): (boole
 	if Economy.get(player) < cost then
 		return false, "Not enough cash"
 	end
-	local model, height = buildModel(unitId, 1)
+	local built, model, height = pcall(buildModel, unitId, 1)
+	if not built then
+		warn(`[100 Men] couldn't build {unitId}: {model}`)
+		return false, "Couldn't place him, try again"
+	end
 	-- the build may have yielded: the spot, the cap or the cash can have changed meanwhile
 	problem = if player.Parent then problemNow() else "Left the game"
 	if problem or not Economy.spend(player, cost) then
@@ -6469,13 +6475,23 @@ function UnitService.upgrade(player: Player, uid: number): (boolean, string?)
 		return false, "Not enough cash"
 	end
 	u.busy = true
-	local model, height = buildModel(u.unitId, u.level + 1)
+	local gen = generation
+	local built, model, height = pcall(buildModel, u.unitId, u.level + 1)
 	u.busy = false
-	if units[uid] ~= u or not u.model then -- sold, cleared or owner left during the build
-		model:Destroy()
-		if player.Parent then
+	-- refund unless the game restarted meanwhile (that reset everyone's cash already)
+	local function refund()
+		if player.Parent and generation == gen then
 			Economy.add(player, nextDef.Cost)
 		end
+	end
+	if not built then
+		warn(`[100 Men] couldn't build {u.unitId} L{u.level + 1}: {model}`)
+		refund()
+		return false, "Upgrade failed, try again"
+	end
+	if units[uid] ~= u or not u.model then -- sold, cleared or owner left during the build
+		model:Destroy()
+		refund()
 		return false, "That man is gone"
 	end
 	u.level += 1
@@ -6511,6 +6527,7 @@ function UnitService.removeOwner(player: Player)
 end
 
 function UnitService.clear()
+	generation += 1
 	for uid, u in units do
 		units[uid] = nil
 		destroyModel(u)
@@ -6827,6 +6844,7 @@ task.spawn(Cutscene.play)
 -- preview studio plays too): camera keys, the chopper's flight, actor tracks (men + monkeys)
 -- and timed events. Client-only: actors are local clones, the map is only hidden/shown locally.
 
+local ContentProvider = game:GetService("ContentProvider")
 local Players = game:GetService("Players")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local RunService = game:GetService("RunService")
@@ -6842,6 +6860,7 @@ local Sounds = require(Shared.Sounds)
 local Fx = require(script.Parent.Fx)
 local Hud = require(script.Parent.Hud)
 local Juice = require(script.Parent.Juice)
+local Music = require(script.Parent.Music)
 
 local Cutscene = {}
 
@@ -7266,6 +7285,9 @@ local function buildUi()
 			ScaleType = Enum.ScaleType.Fit, Visible = false, ZIndex = 8, Rotation = -3, Parent = gui })
 		make("UIAspectRatioConstraint", { AspectRatio = Brand.LogoAspect, Parent = ui.logo })
 		ui.logoScale = make("UIScale", { Parent = ui.logo })
+		task.spawn(function() -- fetch it now so it's ready by the title card ~29 s in
+			pcall(ContentProvider.PreloadAsync, ContentProvider, { ui.logo })
+		end)
 	end
 	ui.skip = make("TextButton", { Size = UDim2.fromOffset(150, 40), Position = UDim2.new(1, -20, 1, -16), AnchorPoint = Vector2.new(1, 1),
 		BackgroundColor3 = GREEN, BorderSizePixel = 0, Text = "SKIP >>", Font = FONT, TextScaled = true,
@@ -7285,6 +7307,7 @@ function Cutscene.play()
 		return
 	end
 	running = true
+	Music.setSuppressed(true) -- the intro brings its own sound
 	local assets = ReplicatedStorage:WaitForChild("Assets")
 	local heliTemplate = assets:WaitForChild("HeliFlying", 10)
 	local squad = assets:WaitForChild("CutsceneSquad", 15)
@@ -7292,6 +7315,7 @@ function Cutscene.play()
 	local map = workspace:WaitForChild("Map", 10)
 	local function done()
 		running = false
+		Music.setSuppressed(false)
 		Hud.setVisible(true)
 		Hud.introFinished()
 		Net.event("IntroDone"):FireServer()
@@ -7644,7 +7668,8 @@ function Cutscene.play()
 	handlers.title = function(ev)
 		Juice.sound("Title")
 		Juice.shake(0.45)
-		if ui.logo then
+		-- the logo only if it has loaded (a wrong id or one still in moderation falls back to text)
+		if ui.logo and ui.logo.IsLoaded then
 			ui.logo.Visible = true
 			ui.logo.ImageTransparency = 0
 			ui.logoScale.Scale = 3
@@ -8813,10 +8838,10 @@ local function showToast(text: string, color: Color3?)
 end
 Hud.toast = showToast
 
--- music on/off (bottom right, clear of the player list; M on a keyboard). Only shown once the
--- music has been uploaded.
-local musicButton = make("TextButton", { Size = UDim2.fromOffset(118, 34), Position = UDim2.new(1, -16, 1, -16),
-	AnchorPoint = Vector2.new(1, 1), BackgroundColor3 = MINT, Text = "MUSIC ON", Font = FONT, TextSize = 18,
+-- music on/off (left, under Roblox's top-bar buttons: clear of the player list and the mobile
+-- thumbstick and jump button; M on a keyboard). Only shown once the music has been uploaded.
+local musicButton = make("TextButton", { Size = UDim2.fromOffset(118, 34), Position = UDim2.fromOffset(16, 110),
+	BackgroundColor3 = MINT, Text = "MUSIC ON", Font = FONT, TextSize = 18,
 	TextColor3 = INK, Visible = Music.hasMusic(), Parent = root })
 rim(musicButton)
 local function toggleMusic()
@@ -10016,20 +10041,22 @@ local stingers: { [string]: Track? } = {
 }
 
 Music.enabled = true
+local suppressed = false -- this player's own intro is playing (it has its own sound)
 local current: string? = nil
 
--- Which loop fits the moment (nil = silence: the intro has its own sound, game over its stinger).
+-- Which loop fits the moment (nil = silence: intros have their own sound, game over and
+-- victory their stingers).
 local function wanted(): string?
-	if not Music.enabled then
+	if not Music.enabled or suppressed then
 		return nil
 	end
 	local phase = state:GetAttribute("Phase")
-	if phase == "Intro" or phase == "GameOver" then
+	if phase == "Intro" or phase == "GameOver" or phase == "Victory" then
 		return nil
 	elseif phase == "Wave" then
 		return if (state:GetAttribute("Boss") or "") ~= "" then "Boss" else "Battle"
 	end
-	return "Calm" -- Intermission, Victory
+	return "Calm" -- Intermission
 end
 
 local function fadeTo(name: string?)
@@ -10049,8 +10076,9 @@ local function fadeTo(name: string?)
 		local tween = TweenService:Create(track.sound, FADE, { Volume = if on then track.volume else 0 })
 		tween:Play()
 		if not on then
-			tween.Completed:Once(function()
-				if current ~= key then
+			tween.Completed:Once(function(playback: Enum.PlaybackState)
+				-- a newer fade cancelling this one also fires Completed: only stop a finished fade-out
+				if playback == Enum.PlaybackState.Completed and current ~= key then
 					track.sound:Stop()
 				end
 			end)
@@ -10073,6 +10101,19 @@ end
 
 function Music.setEnabled(on: boolean)
 	Music.enabled = on
+	if not on then
+		for _, track in stingers do
+			if track then
+				track.sound:Stop()
+			end
+		end
+	end
+	refresh()
+end
+
+-- The intro cutscene silences the music while it plays (also for players who join mid-game).
+function Music.setSuppressed(on: boolean)
+	suppressed = on
 	refresh()
 end
 

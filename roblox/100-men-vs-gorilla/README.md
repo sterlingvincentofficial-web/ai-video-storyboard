@@ -23,7 +23,7 @@ avatars for the men.
   `src/shared/Sounds.luau`. Until then, built-in Roblox sounds stand in for the effects and there
   is no music. The `music_*` files are the soundtrack: a calm loop between waves, a battle loop,
   a boss loop, and victory / game-over stingers (a MUSIC button and the M key toggle it).
-- Logo: upload `marketing/final/logo.png` as a Decal and paste its id into
+- Logo: upload `marketing/final/logo.png` as an image (Asset Manager) and paste its image id into
   `src/shared/Config/Brand.luau`; the intro's title card then uses it.
 - Game page: the icon and thumbnails are in `marketing/final/` (see `marketing/README.md`).
 - Jump to a later wave for testing: set the `StartWave` attribute on `ReplicatedStorage.GameState`

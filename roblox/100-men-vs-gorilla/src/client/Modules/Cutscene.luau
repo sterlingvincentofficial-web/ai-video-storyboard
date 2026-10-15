@@ -5,6 +5,7 @@
 -- preview studio plays too): camera keys, the chopper's flight, actor tracks (men + monkeys)
 -- and timed events. Client-only: actors are local clones, the map is only hidden/shown locally.
 
+local ContentProvider = game:GetService("ContentProvider")
 local Players = game:GetService("Players")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local RunService = game:GetService("RunService")
@@ -20,6 +21,7 @@ local Sounds = require(Shared.Sounds)
 local Fx = require(script.Parent.Fx)
 local Hud = require(script.Parent.Hud)
 local Juice = require(script.Parent.Juice)
+local Music = require(script.Parent.Music)
 
 local Cutscene = {}
 
@@ -444,6 +446,9 @@ local function buildUi()
 			ScaleType = Enum.ScaleType.Fit, Visible = false, ZIndex = 8, Rotation = -3, Parent = gui })
 		make("UIAspectRatioConstraint", { AspectRatio = Brand.LogoAspect, Parent = ui.logo })
 		ui.logoScale = make("UIScale", { Parent = ui.logo })
+		task.spawn(function() -- fetch it now so it's ready by the title card ~29 s in
+			pcall(ContentProvider.PreloadAsync, ContentProvider, { ui.logo })
+		end)
 	end
 	ui.skip = make("TextButton", { Size = UDim2.fromOffset(150, 40), Position = UDim2.new(1, -20, 1, -16), AnchorPoint = Vector2.new(1, 1),
 		BackgroundColor3 = GREEN, BorderSizePixel = 0, Text = "SKIP >>", Font = FONT, TextScaled = true,
@@ -463,6 +468,7 @@ function Cutscene.play()
 		return
 	end
 	running = true
+	Music.setSuppressed(true) -- the intro brings its own sound
 	local assets = ReplicatedStorage:WaitForChild("Assets")
 	local heliTemplate = assets:WaitForChild("HeliFlying", 10)
 	local squad = assets:WaitForChild("CutsceneSquad", 15)
@@ -470,6 +476,7 @@ function Cutscene.play()
 	local map = workspace:WaitForChild("Map", 10)
 	local function done()
 		running = false
+		Music.setSuppressed(false)
 		Hud.setVisible(true)
 		Hud.introFinished()
 		Net.event("IntroDone"):FireServer()
@@ -822,7 +829,8 @@ function Cutscene.play()
 	handlers.title = function(ev)
 		Juice.sound("Title")
 		Juice.shake(0.45)
-		if ui.logo then
+		-- the logo only if it has loaded (a wrong id or one still in moderation falls back to text)
+		if ui.logo and ui.logo.IsLoaded then
 			ui.logo.Visible = true
 			ui.logo.ImageTransparency = 0
 			ui.logoScale.Scale = 3

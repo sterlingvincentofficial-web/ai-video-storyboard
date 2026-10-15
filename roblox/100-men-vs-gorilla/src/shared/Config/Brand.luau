@@ -1,7 +1,8 @@
 --!strict
--- The game's logo. Upload marketing/final/logo.png as a Decal (Creator Dashboard or Studio's
--- Asset Manager), then paste its image id here; the intro's title card shows it instead of the
--- plain text title. Leave nil to keep the text.
+-- The game's logo. Upload marketing/final/logo.png as an image (Studio: Asset Manager → Bulk
+-- Import, or View → Asset Manager → Images) and paste its image id here; the intro's title card
+-- then slams in the logo instead of the plain text title. Use the image id, not a Decal's id
+-- (they differ). If the image hasn't loaded or is still in moderation, the text title shows.
 
 return {
 	Logo = nil :: number?, -- e.g. 1234567890
