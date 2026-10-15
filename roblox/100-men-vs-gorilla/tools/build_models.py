@@ -360,6 +360,8 @@ def to_rojo(parts):
         node = {"name": p["name"], "className": "Part", "properties": props}
         if p["mesh"]:
             node["children"] = [{"name": "Mesh", "className": "SpecialMesh", "properties": dict(p["mesh"])}]
+        if p.get("extra"):
+            node.setdefault("children", []).extend(p["extra"])
         children.append(node)
     return {"className": "Model", "children": children}
 

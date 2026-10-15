@@ -57,6 +57,7 @@ PALETTE.update({
     "metal_dark": rgb(50, 52, 56),
     "ink": rgb(20, 18, 16),
     "flower": rgb(255, 90, 120),
+    "lagoon_bed": rgb(96, 168, 128),
 })
 
 ISLAND_X, ISLAND_Z = 112, 92          # half extents of the sand top
@@ -214,7 +215,7 @@ def build_ground():
     ]
     for i, (x0, x1, z0, z1) in enumerate(tiles):
         box(g, f"Sand{i + 1}", x0, x1, -2, 0, z0, z1, "sand")
-    box(g, "LagoonBed", lx0, lx1, -2, -1.4, lz0, lz1, "sand_dark")
+    box(g, "LagoonBed", lx0, lx1, -2, -1.4, lz0, lz1, "lagoon_bed")
     # shoreline: a lime band on the outside, a green band inside it (S, W and E edges; N is cliff)
     for k, (w0, w1, col) in enumerate(((0, 2.4, "grass_lime"), (2.4, 3.8, "grass"))):
         box(g, f"ShoreS{k}", -ISLAND_X + w0, ISLAND_X - w0, 0, 0.25, ISLAND_Z - w1, ISLAND_Z - w0, col)
@@ -516,6 +517,19 @@ def hut(g, name, x, z, stilts=True, door="S"):
             "trunk_ring" if k % 2 else "wood")
 
 
+def ladder(g, name, x, y0, y1, z0, z1):
+    """Wooden ladder standing on a deck, rails at x +-0.7, between z0..z1."""
+    obj(name)
+    for sx in (-1, 1):
+        box(g, f"{name}Rail{sx}", x + sx * 0.7 - 0.125, x + sx * 0.7 + 0.125, y0, y1, z0, z1, "wood_dark")
+    y = y0 + 0.5
+    k = 0
+    while y + 0.2 < y1 - 0.3:
+        box(g, f"{name}Rung{k}", x - 0.575, x + 0.575, y, y + 0.2, z0 + 0.03, z1 - 0.03, "wood")
+        y += 0.6
+        k += 1
+
+
 def barrel(g, name, x, z):
     obj(name)
     smooth(g, name, (1.8, 1.7, 1.7), (x, 0.9, z), "wood", shape="Cylinder", rot=(0, 0, 90))
@@ -523,55 +537,129 @@ def barrel(g, name, x, z):
     take("ground", x, z, 1.0)
 
 
+def ring(g, name, x0, x1, z0, z1, w, y0, y1, color):
+    """Rectangular frame of width w inside x0..x1 / z0..z1 (four strips, no overlaps)."""
+    box(g, name + "N", x0, x1, y0, y1, z0, z0 + w, color)
+    box(g, name + "S", x0, x1, y0, y1, z1 - w, z1, color)
+    box(g, name + "W", x0, x0 + w, y0, y1, z0 + w, z1 - w, color)
+    box(g, name + "E", x1 - w, x1, y0, y1, z0 + w, z1 - w, color)
+
+
+def rope_between(g, name, p, q, inset=0.36):
+    d = [q[i] - p[i] for i in range(3)]
+    L = math.sqrt(sum(c * c for c in d))
+    a = [p[i] + d[i] / L * inset for i in range(3)]
+    b = [q[i] - d[i] / L * inset for i in range(3)]
+    rope(g, name, a, b, 0.2, "rope")
+
+
 def build_east():
     g = "Map_East"
     lx0, lx1, lz0, lz1 = LAGOON
+    # sunken pond: a wet-sand ledge just above the water, a submerged step, see-through water
     obj("T:lagoon")
-    smooth(g, "LagoonWater", (lx1 - lx0, 0.6, lz1 - lz0), ((lx0 + lx1) / 2, -0.9, (lz0 + lz1) / 2), "water",
-           reflectance=0.08)
-    # lime rim as a clean frame, cut where the dock comes ashore
-    box(g, "LagoonLimeN", lx0, lx1, 0, 0.25, lz0, lz0 + 1.6, "grass_lime")
-    box(g, "LagoonLimeS", lx0, lx1, 0, 0.25, lz1 - 1.6, lz1, "grass_lime")
-    box(g, "LagoonLimeE", lx1 - 1.6, lx1, 0, 0.25, lz0 + 1.6, lz1 - 1.6, "grass_lime")
-    box(g, "LagoonLimeW1", lx0, lx0 + 1.6, 0, 0.25, lz0 + 1.6, -41.6, "grass_lime")
-    box(g, "LagoonLimeW2", lx0, lx0 + 1.6, 0, 0.25, -32.4, lz1 - 1.6, "grass_lime")
-    # rocks in the water along the north and south rims, never touching each other
-    obj("LagoonRocks")
-    for side, zc in (("n", lz0 + 2.8), ("s", lz1 - 2.8)):
-        x, i = lx0 + 3, 0
-        while True:
-            w = R.uniform(2.2, 3.8)
-            if x + w > lx1 - 3:
-                break
-            if not (62 < x + w / 2 < 70 and side == "n"):
-                brick(g, f"LagoonRock{side}{i}", (w, 0.9, 1.6), (x + w / 2, -0.45, zc), R.choice(["rock", "rock_dark"]))
-            x += w + R.uniform(1.0, 3.0)
-            i += 1
-    # dock from the west shore out across the lagoon, with branches to both stilt huts
-    obj("Dock")
-    for i in range(20):
-        x = 47 + i * 2.3
-        brick(g, f"DockPlank{i}", (2.2, 0.5, 7), (x, 0.15, -37), "wood" if i % 2 else "wood_dark")
-        if i % 4 == 2:
-            for side, zc in (("N", -40.95), ("S", -33.05)):
-                box(g, f"DockPost{i}{side}", x - 0.45, x + 0.45, -1.4, 1.6, zc - 0.45, zc + 0.45, "wood_dark")
-    for j in range(4):
-        z = -41.05 - j * 1.1
-        box(g, f"DockBranchA{j}", 64.5, 67.5, -0.1, 0.4, z - 0.5, z + 0.5, "wood_dark" if j % 2 else "wood")
-    for j in range(3):
-        z = -32.95 + j * 1.1
-        box(g, f"DockBranchB{j}", 84.5, 87.5, -0.1, 0.4, z - 0.5, z + 0.5, "wood_dark" if j % 2 else "wood")
+    ring(g, "LagoonBank", lx0, lx1, lz0, lz1, 2, -1.4, -0.3, "sand_dark")
+    ring(g, "LagoonStep", lx0 + 2, lx1 - 2, lz0 + 2, lz1 - 2, 2, -1.4, -1.0, "sand_dark")
+    box(g, "LagoonWater", lx0 + 2, lx1 - 2, -1.4, -0.6, lz0 + 2, lz1 - 2, "water", studs=False,
+        reflectance=0.08, transparency=0.3)
+    ring(g, "LagoonGrass", lx0 - 1.6, lx1 + 1.6, lz0 - 1.6, lz1 + 1.6, 1.6, 0, 0.25, "grass_lime")
+
+    # boardwalk: one deck on stringers and pilings, rope railings, branches + ladders up to both huts
+    zn, zs = -39.25, -34.75
+    DY0, DY1 = 0.3, 0.6
+    obj("Boardwalk")
+    x, i = 46.0, 0
+    while x + 1 <= 92:
+        box(g, f"Plank{i}", x, x + 1, DY0, DY1, zn, zs, "wood" if i % 2 else "wood_dark")
+        x += 1.1
+        i += 1
+    end_x = x - 0.1
+    for side, (za, zb) in (("N", (zn, zn + 0.5)), ("S", (zs - 0.5, zs))):
+        box(g, f"Stringer{side}", 46, end_x, 0, DY0, za, zb, "wood_dark")
+    xs = [46.4 + k * 4.4 for k in range(11) if 46.4 + k * 4.4 < end_x - 0.4] + [end_x - 0.4]
+    for k, px in enumerate(xs):
+        if px > 50.5:
+            for side, zc in (("N", zn + 0.25), ("S", zs - 0.25)):
+                box(g, f"Piling{k}{side}", px - 0.35, px + 0.35, -1.4, 0, zc - 0.35, zc + 0.35, "wood_dark")
+    # branch A runs north to HutA's door, branch B south to HutB's door
+    k, z1 = 0, zn
+    while z1 - 1 >= -45 - 1e-6:
+        box(g, f"BranchA{k}", 64, 68, DY0, DY1, z1 - 1, z1, "wood" if k % 2 else "wood_dark")
+        z1 -= 1.1
+        k += 1
+    k, z0 = 0, zs
+    while z0 + 1 <= -30 + 1e-6:
+        box(g, f"BranchB{k}", 86, 90, DY0, DY1, z0, z0 + 1, "wood" if k % 2 else "wood_dark")
+        z0 += 1.1
+        k += 1
+    for px in (64.4, 67.6):
+        box(g, f"BranchPilingA{px}", px - 0.35, px + 0.35, -1.4, DY0, -44.9, -44.2, "wood_dark")
+    for px in (86.4, 89.6):
+        box(g, f"BranchPilingB{px}", px - 0.35, px + 0.35, -1.4, DY0, -30.8, -30.1, "wood_dark")
+    # railing posts and ropes; the main deck rail opens where each branch leaves it
+    openings = {"N": (64, 68), "S": (86, 90)}
+    for side, zc in (("N", zn + 0.3), ("S", zs - 0.3)):
+        o0, o1 = openings[side]
+        posts = sorted([px for px in xs if not o0 - 0.6 < px < o1 + 0.6] + [o0 - 0.4, o1 + 0.4])
+        for k, px in enumerate(posts):
+            box(g, f"Rail{side}{k}", px - 0.3, px + 0.3, DY1, DY1 + 1.6, zc - 0.3, zc + 0.3, "wood_dark")
+            if k and not (posts[k - 1] < o0 < px):
+                rope_between(g, f"RailRope{side}{k}", (posts[k - 1], DY1 + 1.3, zc), (px, DY1 + 1.3, zc))
+    rope_between(g, "RailRopeEnd", (end_x - 0.4, DY1 + 1.3, zn + 0.3), (end_x - 0.4, DY1 + 1.3, zs - 0.3))
+    for name, bx0, za, zb in (("A", 64, -44.0, zn - 0.6), ("B", 86, zs + 0.6, -31.0)):
+        for px in (bx0 + 0.3, bx0 + 3.7):
+            for k, pz in enumerate((za, zb)):
+                box(g, f"BranchRail{name}{px}{k}", px - 0.3, px + 0.3, DY1, DY1 + 1.6, pz - 0.3, pz + 0.3, "wood_dark")
+            rope_between(g, f"BranchRope{name}{px}", (px, DY1 + 1.3, za), (px, DY1 + 1.3, zb))
     hut(g, "HutA", 66, -49, door="S")
     hut(g, "HutB", 88, -26, door="N")
+    ladder(g, "LadderA", 66, DY1, 4.6, -44.95, -44.7)
+    ladder(g, "LadderB", 88, DY1, 4.6, -30.3, -30.05)
     hut(g, "HutC", 104, -63, stilts=False, door="S")
     take("ground", 104, -63, 6)
     take("canopy", 104, -63, 6)
-    # rope fence along the lagoon's south shore
+
+    # pond life: lily pads on the water, reed clumps and stones on the bank
+    keep_out = [(46, 93, zn - 0.8, zs + 0.8), (63.2, 68.8, -45.4, zn), (85.2, 90.8, zs, -29.6),
+                (61.5, 70.5, -53.5, -44.5), (83.5, 92.5, -30.5, -21.5)]
+    pads = []
+    for k in range(400):
+        if len(pads) >= 16:
+            break
+        d = R.uniform(1.4, 2.4)
+        px, pz = R.uniform(lx0 + 2.5 + d / 2, lx1 - 2.5 - d / 2), R.uniform(lz0 + 2.5 + d / 2, lz1 - 2.5 - d / 2)
+        if any(a - d / 2 < px < b + d / 2 and c - d / 2 < pz < e + d / 2 for a, b, c, e in keep_out):
+            continue
+        if any(math.hypot(px - qx, pz - qz) < (d + qd) / 2 + 0.6 for qx, qz, qd in pads):
+            continue
+        pads.append((px, pz, d))
+        obj(f"LilyPad{k}")
+        smooth(g, f"LilyPad{k}", (0.1, d, d), (px, -0.55, pz), "leaf" if k % 2 else "leaf_light", shape="Cylinder",
+               rot=(0, 0, 90))
+        if R.random() < 0.35:
+            brick(g, f"LilyFlower{k}", (0.45, 0.35, 0.45), (px + d * 0.15, -0.325, pz), "flower", rot=(0, 45, 0))
+    for k, (rx, rz) in enumerate(((51, -57), (99, -57), (51, -17), (99, -17), (76, -57), (51, -48), (99, -42),
+                                  (72, -17))):
+        obj(f"Reeds{k}")
+        for j, (ox, oz) in enumerate(((-0.45, -0.3), (0.35, -0.4), (0.0, 0.45), (0.55, 0.35))):
+            h = R.uniform(1.6, 2.6)
+            box(g, f"Reed{k}_{j}", rx + ox - 0.12, rx + ox + 0.12, -0.3, -0.3 + h, rz + oz - 0.12, rz + oz + 0.12, "grass")
+            if j % 2 == 0:
+                box(g, f"Cattail{k}_{j}", rx + ox - 0.2, rx + ox + 0.2, -0.3 + h, -0.3 + h + 0.6, rz + oz - 0.2,
+                    rz + oz + 0.2, "trunk_ring")
+    for k, (sx, sz) in enumerate(((51, -27), (99, -50), (86, -57), (60, -17), (88, -17), (99, -24))):
+        obj(f"BankStone{k}")
+        box(g, f"BankStone{k}", sx - 0.9, sx + 0.9, -0.3, 0.6, sz - 0.7, sz + 0.7, R.choice(["rock", "rock_light"]))
+        box(g, f"BankStone{k}Top", sx - 0.5, sx + 0.4, 0.6, 1.1, sz - 0.4, sz + 0.4, "rock_dark")
+
+    # rope fence: along the south shore, round the corner and up to the boardwalk's railing
     obj("Fence")
-    for i, x in enumerate(range(54, 100, 4)):
-        box(g, f"FencePost{i}", x - 0.35, x + 0.35, 0, 2.4, -12.85, -12.15, "wood_dark")
-        if i:
-            rope(g, f"Rope{i}", (x - 3.65, 2.0, -12.5), (x - 0.35, 2.0, -12.5), 0.2, "rope")
+    pts = [(98 - 4 * k, -13.5) for k in range(13)] + [(47.5, -13.5)] + [(47.5, -13.5 - 4 * k) for k in range(1, 6)]
+    for k, (fx, fz) in enumerate(pts):
+        box(g, f"FencePost{k}", fx - 0.35, fx + 0.35, 0, 2.4, fz - 0.35, fz + 0.35, "wood_dark")
+        if k:
+            rope_between(g, f"Rope{k}", (pts[k - 1][0], 2.0, pts[k - 1][1]), (fx, 2.0, fz))
+    rope_between(g, "RopeTie", (47.5, 2.0, -33.5), (46.4, 1.9, zs - 0.3))
     for i, (x, z) in enumerate([(101, -8), (103, -8), (102, -6), (56, -65), (57.9, -65.3)]):
         barrel(g, f"Barrel{i}", x, z)
 
@@ -622,57 +710,122 @@ def tent(g, name, x, z, yaw):
 
 
 def helicopter_wreck(g, x, z):
-    """The chopper from the intro, nose-down in the sand beside the base. Built in its own frame."""
-    obj("Helicopter")
-    f = Frame((x, 0, z), yaw=25, pitch=-9, roll=12)
+    """The chopper from the intro: slid in nose-first, ploughed a trench, spilled the squad's cargo."""
+    yaw, S = 100, 1.35
+    f = Frame((x, 0, z), yaw=yaw, pitch=-8, roll=10)
     parts = []
 
     def P(name, size, lpos, color, lrot=(0, 0, 0), studs=True, **kw):
-        parts.append((name, size, lpos, color, lrot, studs, kw))
+        parts.append((name, [v * S for v in size], [v * S for v in lpos], color, lrot, studs, kw))
 
-    P("HeliBody", (5, 4.2, 8), (0, 2.6, 0), "olive")
-    P("HeliNose", (4.2, 3.2, 2.6), (0, 2.2, -5.3), "olive_dark")
-    P("HeliGlass", (3.6, 1.8, 0.3), (0, 2.9, -6.75), "glass", studs=False, transparency=0.3)
-    P("HeliBananaSplat", (1.3, 0.5, 0.15), (0.6, 3.1, -6.975), "banana", lrot=(0, 0, 25), studs=False)
+    P("HeliBelly", (4.6, 1.0, 7.6), (0, 1.0, 0), "olive_dark")
+    P("HeliCabin", (5, 3.0, 8), (0, 3.0, 0), "olive")
+    P("HeliHousing", (3.4, 1.2, 4.4), (0, 5.1, 0.8), "olive_dark")
     for sx in (-1, 1):
-        P(f"HeliWindow{sx}", (0.2, 1.2, 2), (sx * 2.6, 3.4, -2), "glass", studs=False, transparency=0.3)
-    P("HeliDoor", (0.15, 2.8, 2.4), (2.575, 2.2, 1.6), (0.08, 0.08, 0.07), studs=False)
-    P("HeliTail", (1.4, 1.4, 11), (0, 3.4, 9.5), "olive")
-    P("HeliFin", (0.4, 3, 1.8), (0, 5.6, 14.1), "olive_dark")
-    P("HeliTailRotor", (0.2, 2.6, 0.3), (0.3, 5.6, 14.5), "metal_dark", lrot=(30, 0, 0))
+        P(f"HeliExhaust{sx}", (1.6, 0.7, 0.7), (sx * 1.0, 5.1, 3.8), "metal_dark", lrot=(0, 90, 0), studs=False,
+          shape="Cylinder")
+    P("HeliNose", (4.2, 2.6, 2.4), (0, 2.3, -5.2), "olive")
     for sx in (-1, 1):
-        P(f"HeliStab{sx}", (1.5, 0.25, 1), (sx * 1.45, 3.4, 13), "olive_dark")
-        P(f"HeliSkid{sx}", (0.4, 0.4, 8), (sx * 1.8, -0.7, 0), "metal")
+        P(f"HeliPane{sx}", (1.8, 1.8, 0.2), (sx * 1.05, 2.7, -6.5), "glass", studs=False, transparency=0.3)
+        P(f"HeliWindow{sx}", (0.15, 1.2, 1.8), (sx * 2.575, 3.4, -2.4), "glass", studs=False, transparency=0.3)
+    P("HeliPaneFrame", (0.3, 2.0, 0.25), (0, 2.7, -6.525), "metal_dark")
+    P("HeliBananaSplat", (1.0, 0.45, 0.12), (-1.0, 2.9, -6.66), "banana", lrot=(0, 0, 25), studs=False)
+    P("HeliDoorway", (0.15, 2.4, 2.6), (2.575, 2.8, 1.0), (0.08, 0.08, 0.07), studs=False)
+    P("HeliStripe", (0.12, 0.5, 8), (-2.56, 2.0, 0), "white", studs=False)
+    P("HeliBoom1", (1.6, 1.6, 6), (0, 3.4, 7), "olive")
+    P("HeliBoom2", (1.1, 1.1, 5.5), (0, 3.6, 12.75), "olive")
+    P("HeliFin", (0.4, 3.2, 2.0), (0, 5.75, 14.5), "olive_dark")
+    P("HeliTailRotor", (0.15, 2.8, 0.35), (0.375, 5.6, 15.0), "metal_dark", lrot=(35, 0, 0))
+    for sx in (-1, 1):
+        P(f"HeliStab{sx}", (1.6, 0.25, 1.0), (sx * 1.35, 3.6, 12.5), "olive_dark")
+        P(f"HeliSkid{sx}", (0.4, 0.4, 8.4), (sx * 2.0, -0.6, 0), "metal")
         for sz in (-1, 1):
             if (sx, sz) != (-1, -1):  # front-left strut snapped off in the crash
-                P(f"HeliStrut{sx}{sz}", (0.3, 1.0, 0.3), (sx * 1.8, 0.0, sz * 2.5), "metal")
-    P("HeliMast", (0.8, 0.8, 0.8), (0, 5.1, 0), "metal")
-    for i, (a, length, droop) in enumerate(((20, 6.5, 4), (140, 6.5, -6), (260, 3.4, 10))):
-        ca, sa = math.cos(math.radians(a)), math.sin(math.radians(a))
+                P(f"HeliStrut{sx}{sz}", (0.3, 0.9, 0.3), (sx * 2.0, 0.05, sz * 2.6), "metal")
+    P("HeliMast", (0.8, 0.6, 0.8), (0, 6.0, -0.6), "metal")
+    for i, (a, length) in enumerate(((30, 3.0), (160, 2.0))):
         r = 0.4 + length / 2
-        P(f"HeliBlade{i}", (length, 0.2, 0.9), (ca * r, 5.3 + math.sin(math.radians(droop)) * r * 0.5, -sa * r),
-          "metal_dark", lrot=(0, a, droop))
-    # sit it so its lowest corner is just buried in the sand
+        ca, sa = math.cos(math.radians(a)), math.sin(math.radians(a))
+        P(f"HeliStub{i}", (length, 0.2, 0.8), (ca * r, 6.4, -0.6 - sa * r), "metal_dark", lrot=(0, a, -8))
+    flames = [((-0.7, 6.4, 1.3), 1.2), ((0.8, 6.2, 2.2), 1.0)]
+    for i, (lp, s) in enumerate(flames):
+        P(f"HeliFlame{i}", (s, 1.4 if i == 0 else 1.0, s), lp, "torch_fire", studs=False, neon=True)
     low = 1e9
-    for name, size, lpos, *_ in parts:
+    for name, size, lpos, color, lrot, *_ in parts:
+        Rl = matmul(f.R, rot_matrix(*lrot))
         for cx in (-1, 1):
             for cy in (-1, 1):
                 for cz in (-1, 1):
-                    c = [lpos[0] + cx * size[0] / 2, lpos[1] + cy * size[1] / 2, lpos[2] + cz * size[2] / 2]
-                    low = min(low, matvec(f.R, c)[1])
-    f.o[1] = -low - 0.4
+                    c = matvec(Rl, [cx * size[0] / 2, cy * size[1] / 2, cz * size[2] / 2])
+                    low = min(low, matvec(f.R, lpos)[1] + c[1])
+    f.o[1] = -low - 0.5
+    obj("Helicopter")
     for name, size, lpos, color, lrot, studs, kw in parts:
         f.add(g, name, size, lpos, color, lrot=lrot, studs=studs, **kw)
-    obj("T:scorch")
-    smooth(g, "Scorch", (0.12, 19, 19), (x + 2, 0.06, z + 4), "sand_dark", shape="Cylinder", rot=(0, 0, 90))
+        if name == "HeliFlame0":
+            M.group(g).parts[-1]["extra"] = [{"name": "Fire", "className": "Fire",
+                                              "properties": {"Size": 5, "Heat": 9}}]
+        elif name == "HeliHousing":
+            M.group(g).parts[-1]["extra"] = [{"name": "Smoke", "className": "Smoke", "properties": {
+                "Color": [0.3, 0.3, 0.31], "Opacity": 0.3, "RiseVelocity": 5, "Size": 2.5}}]
+
+    # the trench it ploughed: dark floor narrowing behind it, sand berms along both sides, a pile at the nose
+    d = (math.sin(math.radians(yaw)), math.cos(math.radians(yaw)))          # tail direction (x, z)
+    n = (d[1], -d[0])                                                       # across the trench
+    at = lambda t, o=0.0: (x + d[0] * t + n[0] * o, z + d[1] * t + n[1] * o)
+    obj("T:crash")
+    t = -2.0
+    for k, (L, w) in enumerate(((11, 5.6), (9, 4.2), (8, 3.0))):
+        cx, cz = at(t + L / 2)
+        brick(g, f"Trench{k}", (L, 0.12, w), (cx, 0.06, cz), "sand_dark", rot=(0, yaw - 90, 0))
+        t += L
+    t, k = 9.4, 0
+    while t < 26:
+        w = 5.6 if t < 9 else 4.2 if t < 18 else 3.0
+        h = max(0.4, 1.0 - (t - 7) * 0.035)
+        for side in (-1, 1):
+            cx, cz = at(t, side * (w / 2 + 0.75))
+            brick(g, f"Berm{k}_{side}", (2.6, h, 1.4), (cx, h / 2, cz), "sand" if k % 2 else "sand_dark",
+                  rot=(0, yaw - 90, 0))
+        t += 2.6
+        k += 1
+    for k, (tt, sz, h) in enumerate(((-10.2, (3.4, 7.4), 1.1), (-10.5, (2.6, 5.4), 0.9), (-10.7, (1.6, 3.2), 0.7))):
+        cx, cz = at(tt)
+        brick(g, f"NosePile{k}", (sz[0], h, sz[1]), (cx, sum((1.1, 0.9, 0.7)[:k]) + h / 2, cz), "sand" if k % 2 else "sand_dark",
+              rot=(0, yaw - 90, 0))
+    # snapped rotor blade stuck in the sand, another lying in the trench, a broken skid
+    obj("HeliBladeStuck")
+    cx, cz = at(14, -7.5)
+    brick(g, "HeliBladeStuck", (0.9, 6.5, 0.22), (cx, 2.6, cz), "metal_dark", rot=(0, 30, 12))
     obj("HeliBladeLoose")
-    brick(g, "HeliBladeLoose", (5, 0.2, 0.9), (x - 9, 0.22, z + 6), "metal_dark", rot=(0, 70, 0))
-    for i, (dx, dz, s) in enumerate(((-7, -4, 1.2), (8, -5, 0.9), (-5, 11, 1.0), (10, 6, 1.4))):
-        obj(f"HeliDebris{i}")
-        brick(g, f"HeliDebris{i}", (s, s * 0.5, s * 1.3), (x + dx, 0.12 + s * 0.25, z + dz),
-              R.choice(["olive", "olive_dark", "metal"]), rot=(0, R.uniform(0, 90), 0))
-    take("ground", x + 2, z + 4, 10)
-    take("canopy", x + 4, z + 8, 11)
+    cx, cz = at(20)
+    brick(g, "HeliBladeLoose", (4.2, 0.2, 0.8), (cx, 0.22, cz), "metal_dark", rot=(0, yaw - 90 + 22, 0))
+    obj("HeliSkidLoose")
+    cx, cz = at(10.5, 0.6)
+    brick(g, "HeliSkidLoose", (0.4, 0.4, 2.6), (cx, 0.32, cz), "metal", rot=(0, yaw + 30, 0))
+    # the squad's cargo spilled out of the open door
+    out = (f.R[0][0], f.R[2][0])
+    door = f.at([2.6 * S, 1.6 * S, 1.0 * S])
+    place = lambda o, a: (door[0] + out[0] * o + d[0] * a, door[2] + out[1] * o + d[1] * a)
+    obj("CargoAmmo")
+    cx, cz = place(2.8, 0.5)
+    brick(g, "CargoAmmo", (1.8, 1.0, 1.2), (cx, 0.5, cz), "olive_dark", rot=(0, 20, 0))
+    obj("CargoCrate")
+    cx, cz = place(4.6, -1.5)
+    brick(g, "CargoCrate", (2.0, 2.0, 2.0), (cx, 1.0, cz), "wood", rot=(0, 35, 0))
+    obj("CargoOpen")
+    cx, cz = place(6.4, 1.6)
+    brick(g, "CargoOpen", (1.8, 1.4, 1.8), (cx, 0.7, cz), "wood_dark", rot=(0, -15, 0))
+    cx, cz = place(6.6, 3.6)
+    banana_bunch(g, "CargoBananas", cx, 0, cz, 40)
+    obj("HeliDoorPanel")
+    cx, cz = place(2.6, -4.8)
+    brick(g, "HeliDoorPanel", (2.6, 0.2, 2.4), (cx, 0.1, cz), "olive", rot=(0, yaw + 15, 0))
+    take("ground", x, z, 11)
+    for tt in (10, 18, 24):
+        take("ground", *at(tt), 4.5)
+    take("ground", *place(4.6, 0), 5)
+    take("canopy", *at(8), 10)
 
 
 def build_base():
