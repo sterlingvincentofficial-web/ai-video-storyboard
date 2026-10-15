@@ -7,9 +7,6 @@
       "$properties": {
         "Gravity": 196.2
       },
-      "StyleTest": {
-        "$path": "src/workspace"
-      },
       "SpawnLocation": {
         "$className": "SpawnLocation",
         "$properties": {
@@ -22,12 +19,15 @@
           "Position": [
             0,
             0.5,
-            14
+            70
           ],
           "Transparency": 1,
           "CanCollide": false,
           "Neutral": true
         }
+      },
+      "Map": {
+        "$path": "src/workspace"
       }
     },
     "Lighting": {

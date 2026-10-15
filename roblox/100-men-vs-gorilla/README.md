@@ -1,44 +1,76 @@
 # 100 Men vs 1 Gorilla (Roblox)
 
-Wave-based defense: place men, upgrade them, survive monkey waves and gorilla bosses.
+Wave defense: place up to 100 men, upgrade them, and survive 100 waves of bobble-headed monkeys
+and gorilla bosses trying to steal your Banana Stash. You don't fight; your army does.
 
-**Art style:** classic Roblox bricks. Map parts are Plastic with Studs surfaces (LEGO-baseplate sand,
-stair-stepped studded cliffs), mint water, lime shoreline strips, voxel palms. Monkeys are textured
-meshes made in Blender; the men are real Roblox avatars (R15) dressed per unit level. See `docs/previews/`.
+## Play it in Studio
+1. Open `100MenVsGorilla.rbxlx` (File → Open from File).
+2. **Import the meshes once:** Avatar/Home tab → **Import 3D** →
+   - `assets/enemies/Enemies.fbx` (all 11 monkeys and gorillas, textures embedded)
+   - `assets/men/MenGear.fbx` (hats, weapons, badges, projectiles)
 
-## Open in Studio
-1. Open `100MenVsGorilla_StyleTest.rbxlx` (File → Open from File).
-2. **Import the meshes** (one time): Home/Avatar tab → **Import 3D** → pick `assets/monkey/Monkey.fbx` → Import.
-   Do the same for `assets/men/MenGear.fbx`. Leave them where they land; the showcase script finds them.
-3. Press **Play**: three monkeys wander the beach and two level 1 Brawlers idle next to them.
-4. Save the place so the imports stay.
+   Leave them where they land; the server tidies them into `ReplicatedStorage.Assets`.
+3. Press **Play**. The first wave starts after 12 seconds. Pick a man on the hotbar (or keys 1-9),
+   click the sand to place him, click a man to upgrade or sell him. Q / right-click cancels.
+4. **Save the place** so the imports stay.
 
-Optional: upload `assets/men/Brawler_Shirt.png` and `Brawler_Pants.png` (Asset Manager → Bulk Import),
-then put the image IDs in `src/shared/Units.luau` (`ShirtTemplate` / `PantsTemplate`). Until then the
-Brawler wears plain white/blue body colors. If the monkey comes in flat gray, upload `MonkeyAtlas.png` and
-set `MONKEY_TEXTURE_ID` in `src/server/StyleShowcase.server.luau`.
+Before the imports, the game still runs with block stand-ins for the monkeys and gear-less men.
 
-Live sync instead: install [Rojo](https://rojo.space), run `rojo serve` here, click **Connect** in the Rojo plugin.
+**Optional:**
+- Sounds: upload `assets/sfx/*.wav` (Asset Manager → Bulk Import) and paste the IDs into
+  `src/shared/Sounds.luau`. Until then, built-in Roblox sounds stand in.
+- Jump to a later wave for testing: set the `StartWave` attribute on `ReplicatedStorage.GameState`
+  while the game is running in Studio, before the first wave starts (the attribute is created when you press Play).
+
+## The roster
+| Monkeys | | Bosses (every 10th wave) | |
+|---|---|---|---|
+| Monkey | the basic brown bobble-head | Silverback | ground slams stun your men |
+| Speedy | fast, cocky | Rock Thrower | hurls boulders |
+| Banana Chucker | throws bananas that daze men | Berserker | enrages at half health |
+| Brute | bucket helmet + armor | The Alpha | summons more monkeys |
+| Baby Monkey | tiny, comes in swarms | The Gorilla (Titan) | wave 100, does all of it |
+| Ninja Monkey | leaps over your front line | | |
+
+| Army (3 levels each) | |
+|---|---|
+| Brawler | punches (heads pop off) |
+| Slingshot Kid | pebbles |
+| Lumberjack | axe cleave |
+| Hunter | sniper, boss damage |
+| Medic | heals the stash, hypes the men |
+| Bait Guy | banana costume, taunts monkeys |
+| Grenadier | splash, launches monkeys |
+| Zookeeper | nets slow monkeys down |
+| Commander | aura buff + rally shout |
+
+## Kill feel (client)
+Every kill style follows the weapon: **Bonk** (head pops off, bounces, bursts), **Whack** (batted
+away), **Pop** (squash-and-stretch into studded bricks), **Launch** (blasted into the sky),
+**Caught** (shrinks into the net), plus a multi-explosion boss death. On top: hit flashes,
+wobbling bobble heads, damage numbers, coins flying into the cash counter, a combo counter with
+callouts, camera shake and FOV punches.
 
 ## Layout
 | Path | What |
 |---|---|
-| `tools/build_models.py` | Builds the map platform from studded parts. **All map colors live in `PALETTE`.** |
-| `tools/blender/build_monkey.py` | Builds the Monkey mesh + texture atlas in Blender (`pip install bpy`) → `assets/monkey/`, and `src/shared/RigData/Monkey.luau`. |
-| `tools/blender/build_gear.py` | Builds the men's gear meshes (headband, hand wraps) → `assets/men/MenGear.fbx`. |
-| `tools/clothing/make_templates.py` | Draws classic Shirt/Pants templates for the men's outfits → `assets/men/`. |
-| `src/shared/MonkeyRig.luau` | Rigs the imported monkey (root, Motor6Ds, Humanoid). |
-| `src/shared/MenFactory.luau`, `Units.luau` | Men are real Roblox avatars (HumanoidDescription) dressed per unit level. |
-| `src/client/MonkeyAnimator.client.luau` | Procedural walk/idle/tail animation for monkeys. |
-| `src/workspace/*.model.json` | Generated map output, synced into `Workspace.StyleTest`. Don't hand-edit; re-run the script. |
-| `src/server/StyleShowcase.server.luau` | Style-test scene: spawns rigged monkeys + Brawlers. |
-| `tools/preview/` | Three.js preview renderer used to screenshot models without Studio. |
+| `tools/build_map.py` | Builds the map + `src/shared/MapData.luau` (paths, base, build area). |
+| `tools/build_models.py` | Shared studded-brick helpers and palette. |
+| `tools/blender/enemy_defs.py` | Every enemy variant: proportions, colors, face, extras. |
+| `tools/blender/enemy_textures.py` | Paints each variant's atlas (Pillow). |
+| `tools/blender/build_enemies.py` | Builds `Enemies.fbx` + `RigData/Enemies.luau` (Blender `bpy`). |
+| `tools/blender/build_gear.py` | Builds `MenGear.fbx` + `RigData/Gear.luau`. |
+| `tools/clothing/make_templates.py` | Optional Shirt/Pants templates. |
+| `tools/sfx/make_sfx.py` | Synthesizes the sound pack. |
+| `src/shared/Config/` | Enemy stats, unit levels, wave recipes. |
+| `src/server/Services/` | Economy, enemies (data-only, path-based), units (targeting/attacks), game loop. |
+| `src/client/Modules/` | Enemy rendering + animation, army animation, kill effects, juice, HUD. |
 
 ## Rebuild
 ```
-python3 tools/build_models.py
-python3 tools/blender/monkey_texture.py
-python tools/blender/build_monkey.py && python tools/blender/build_gear.py   # Blender venv with bpy
-python3 tools/clothing/make_templates.py
-rojo build -o 100MenVsGorilla_StyleTest.rbxlx
+python3 tools/build_map.py
+python3 tools/blender/enemy_textures.py
+python tools/blender/build_enemies.py && python tools/blender/build_gear.py   # venv with bpy
+python3 tools/sfx/make_sfx.py
+rojo build -o 100MenVsGorilla.rbxlx
 ```
