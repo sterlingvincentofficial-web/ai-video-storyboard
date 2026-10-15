@@ -282,14 +282,15 @@ RunService.RenderStepped:Connect(function(dt)
 		local armAmp = if moving then 0.7 else 0.08
 		local lArm = CFrame.Angles(-swing * armAmp, 0, 0)
 		local rArm = CFrame.Angles(swing * armAmp, 0, 0)
+		-- (on this rig +X swings an arm forward/up, -X swings it back)
 		if v.gorilla and moving then -- knuckle walk: arms swing wide and reach forward
-			lArm = CFrame.Angles(-0.35 - swing * 0.55, 0, 0)
-			rArm = CFrame.Angles(-0.35 + swing * 0.55, 0, 0)
+			lArm = CFrame.Angles(0.35 - swing * 0.55, 0, 0)
+			rArm = CFrame.Angles(0.35 + swing * 0.55, 0, 0)
 		end
 		if attacking then -- pounding the stash (or the Bait Guy)
 			local beat = math.sin(clock * 11 + id)
-			lArm = CFrame.Angles(-1.6 - beat * 1.1, 0, -0.2)
-			rArm = CFrame.Angles(-1.6 + beat * 1.1, 0, 0.2)
+			lArm = CFrame.Angles(1.6 + beat * 1.1, 0, -0.2)
+			rArm = CFrame.Angles(1.6 - beat * 1.1, 0, 0.2)
 			bob = math.abs(beat) * 0.15
 			if beat > 0.98 then
 				v.headX.v += 5
@@ -298,24 +299,25 @@ RunService.RenderStepped:Connect(function(dt)
 		local throwA = clock - v.throwT
 		if throwA < 0.8 then -- wind up and fling a banana
 			local k = throwA / 0.8
-			rArm = if k < 0.6 then CFrame.Angles(0.4 + k * 4, 0, 0) else CFrame.Angles(-2.6 + (k - 0.6) * 5, 0, 0)
+			-- reach back over the shoulder, then whip it forward
+			rArm = if k < 0.6 then CFrame.Angles(-k / 0.6 * 2.4, 0, 0) else CFrame.Angles(-2.4 + (k - 0.6) / 0.4 * 4.2, 0, 0)
 		end
 		local slamA = clock - v.slamT
 		local slamLean = 0
 		if slamA < 0.75 then -- both fists up... and down
 			local k = slamA / 0.75
 			local up = if k < 0.55 then k / 0.55 else 1 - (k - 0.55) / 0.45 * 1.4
-			lArm = CFrame.Angles(-3 * up, 0, 0)
-			rArm = CFrame.Angles(-3 * up, 0, 0)
+			lArm = CFrame.Angles(3 * up, 0, 0)
+			rArm = CFrame.Angles(3 * up, 0, 0)
 			slamLean = if k < 0.55 then -0.2 * up else 0.35
 		end
 		local hipL = CFrame.Angles(swing * legAmp, 0, 0)
 		local hipR = CFrame.Angles(-swing * legAmp, 0, 0)
 		if hop > 0 then
-			hipL = CFrame.Angles(-0.9, 0, 0)
-			hipR = CFrame.Angles(0.6, 0, 0)
-			lArm = CFrame.Angles(-2.6, 0, -0.4)
-			rArm = CFrame.Angles(-2.6, 0, 0.4)
+			hipL = CFrame.Angles(0.9, 0, 0)
+			hipR = CFrame.Angles(-0.6, 0, 0)
+			lArm = CFrame.Angles(2.6, 0, -0.4)
+			rArm = CFrame.Angles(2.6, 0, 0.4)
 		end
 		local waddle = if moving then swing * 0.1 else 0
 		local forwardLean = (if v.gorilla and moving then 0.25 else if v.type == "Ninja" and moving then 0.3 else 0)
