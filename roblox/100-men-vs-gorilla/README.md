@@ -54,7 +54,7 @@ callouts, camera shake and FOV punches.
 ## Layout
 | Path | What |
 |---|---|
-| `tools/build_map.py` | Builds the map + `src/shared/MapData.luau` (paths, base, build area). |
+| `tools/build_map.py` | Builds the map + `src/shared/MapData.luau` (paths, base, build area). Fails if any two props overlap or surfaces z-fight. |
 | `tools/build_models.py` | Shared studded-brick helpers and palette. |
 | `tools/blender/enemy_defs.py` | Every enemy variant: proportions, colors, face, extras. |
 | `tools/blender/enemy_textures.py` | Paints each variant's atlas (Pillow). |

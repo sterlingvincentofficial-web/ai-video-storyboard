@@ -218,7 +218,7 @@ local function localProblem(pos: Vector3, hit: RaycastResult?): string?
 	if pos.X < area.Min.X or pos.X > area.Max.X or pos.Z < area.Min.Z or pos.Z > area.Max.Z then
 		return "Out of bounds"
 	end
-	if not hit or not hit.Instance.Name:match("^Sand%d") or math.abs(hit.Position.Y) > 0.6 then
+	if not hit or not (hit.Instance.Name:match("^Sand%d") or hit.Instance.Name:match("^Plaza%d")) or math.abs(hit.Position.Y) > 0.6 then
 		return "Can't stand there"
 	end
 	if PathUtil.distanceToPaths(PATHS, pos) < MapData.PathWidth / 2 + 1 then

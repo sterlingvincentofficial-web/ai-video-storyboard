@@ -47,7 +47,7 @@ local function groundOk(pos: Vector3): boolean
 	params.FilterType = Enum.RaycastFilterType.Include
 	params.FilterDescendantsInstances = { workspace:FindFirstChild("Map") or workspace }
 	local hit = workspace:Raycast(pos + Vector3.new(0, 30, 0), Vector3.new(0, -40, 0), params)
-	return hit ~= nil and hit.Instance.Name:match("^Sand%d") ~= nil and math.abs(hit.Position.Y) < 0.6
+	return hit ~= nil and (hit.Instance.Name:match("^Sand%d") ~= nil or hit.Instance.Name:match("^Plaza%d") ~= nil) and math.abs(hit.Position.Y) < 0.6
 end
 
 -- Why a spot is not placeable, or nil if it is.
