@@ -131,7 +131,7 @@ function Fx.sparks(pos: Vector3, color: Color3, count: number, speed: number?)
 	end
 end
 
-local FONT = Enum.Font.LuckiestGuy
+local FONT = Enum.Font.GothamBlack
 
 local function billboard(pos: Vector3, w: number, h: number): (BillboardGui, Part)
 	local anchor = Fx.part({ Size = Vector3.one * 0.1, Position = pos, Transparency = 1 })

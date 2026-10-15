@@ -25,9 +25,9 @@ local Cutscene = {}
 local player = Players.LocalPlayer
 local camera = workspace.CurrentCamera
 local rad = math.rad
-local FONT = Enum.Font.LuckiestGuy
-local FONT_UI = Enum.Font.FredokaOne
-local GREEN = Color3.fromRGB(120, 240, 150)
+local FONT = Enum.Font.GothamBlack
+local FONT_UI = Enum.Font.GothamBold
+local GREEN = Color3.fromRGB(96, 244, 151) -- the HUD's mint
 
 local EASE = {
 	linear = function(a: number) return a end,
@@ -437,10 +437,11 @@ local function buildUi()
 	ui.titleStroke = make("UIStroke", { Thickness = 6, Parent = ui.title })
 	ui.titleScale = make("UIScale", { Parent = ui.title })
 	ui.skip = make("TextButton", { Size = UDim2.fromOffset(150, 40), Position = UDim2.new(1, -20, 1, -16), AnchorPoint = Vector2.new(1, 1),
-		BackgroundColor3 = GREEN, Text = "SKIP >>", Font = FONT, TextScaled = true, TextColor3 = Color3.fromRGB(16, 18, 16),
-		ZIndex = 10, Parent = gui })
-	make("UICorner", { CornerRadius = UDim.new(0, 6), Parent = ui.skip })
-	make("UIStroke", { Thickness = 3, ApplyStrokeMode = Enum.ApplyStrokeMode.Border, Parent = ui.skip })
+		BackgroundColor3 = GREEN, BorderSizePixel = 0, Text = "SKIP >>", Font = FONT, TextScaled = true,
+		TextColor3 = Color3.fromRGB(5, 20, 13), ZIndex = 10, Parent = gui })
+	make("UIPadding", { PaddingTop = UDim.new(0, 8), PaddingBottom = UDim.new(0, 8), Parent = ui.skip })
+	make("UIStroke", { Thickness = 2, Color = Color3.fromRGB(139, 250, 175), ApplyStrokeMode = Enum.ApplyStrokeMode.Border,
+		Parent = ui.skip })
 	return ui
 end
 

@@ -40,11 +40,11 @@ local function motor(model: Model, name: string): Motor6D?
 	return model:FindFirstChild(name, true) :: Motor6D?
 end
 
--- Health bar: chunky outlined pill with segment ticks. The fill shifts green -> yellow -> red,
+-- Health bar, square like the reference game's: black frame, glossy fill, dark notches. The fill shifts green -> yellow -> red,
 -- a white "damage trail" lingers behind each hit and then drains, and the bar pops on every hit.
 local function hpColor(r: number): Color3
 	if r > 0.6 then
-		return Color3.fromRGB(110, 235, 70)
+		return Color3.fromRGB(96, 226, 60)
 	elseif r > 0.3 then
 		return Color3.fromRGB(255, 205, 40)
 	end
@@ -66,15 +66,12 @@ local function hpBar(view)
 	holder.Size = UDim2.fromScale(1, 1)
 	holder.AnchorPoint = Vector2.new(0.5, 0.5)
 	holder.Position = UDim2.fromScale(0.5, 0.5)
-	holder.BackgroundColor3 = Color3.fromRGB(24, 22, 20)
+	holder.BackgroundColor3 = Color3.fromRGB(20, 32, 22)
 	holder.BorderSizePixel = 0
 	holder.Parent = bb
-	local corner = Instance.new("UICorner")
-	corner.CornerRadius = UDim.new(0.45, 0)
-	corner.Parent = holder
 	local stroke = Instance.new("UIStroke")
 	stroke.Thickness = 2.5
-	stroke.Color = Color3.fromRGB(10, 10, 10)
+	stroke.Color = Color3.fromRGB(5, 20, 13)
 	stroke.Parent = holder
 	local pad = Instance.new("UIPadding")
 	pad.PaddingLeft, pad.PaddingRight = UDim.new(0, 2), UDim.new(0, 2)
@@ -86,9 +83,6 @@ local function hpBar(view)
 		f.BackgroundColor3 = color
 		f.BorderSizePixel = 0
 		f.ZIndex = z
-		local c = Instance.new("UICorner")
-		c.CornerRadius = UDim.new(0.45, 0)
-		c.Parent = f
 		f.Parent = holder
 		return f
 	end
@@ -105,10 +99,9 @@ local function hpBar(view)
 	shine.Parent = fill
 	for i = 1, 9 do
 		local tick = Instance.new("Frame")
-		tick.Size = UDim2.new(0, 2, 1, 0)
+		tick.Size = UDim2.new(0, 2, 0.55, 0)
 		tick.Position = UDim2.fromScale(i / 10, 0)
-		tick.BackgroundColor3 = Color3.fromRGB(24, 22, 20)
-		tick.BackgroundTransparency = 0.35
+		tick.BackgroundColor3 = Color3.fromRGB(20, 32, 22)
 		tick.BorderSizePixel = 0
 		tick.ZIndex = 3
 		tick.Parent = holder

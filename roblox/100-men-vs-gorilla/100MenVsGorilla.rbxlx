@@ -6746,9 +6746,9 @@ local Cutscene = {}
 local player = Players.LocalPlayer
 local camera = workspace.CurrentCamera
 local rad = math.rad
-local FONT = Enum.Font.LuckiestGuy
-local FONT_UI = Enum.Font.FredokaOne
-local GREEN = Color3.fromRGB(120, 240, 150)
+local FONT = Enum.Font.GothamBlack
+local FONT_UI = Enum.Font.GothamBold
+local GREEN = Color3.fromRGB(96, 244, 151) -- the HUD's mint
 
 local EASE = {
 	linear = function(a: number) return a end,
@@ -7158,10 +7158,11 @@ local function buildUi()
 	ui.titleStroke = make("UIStroke", { Thickness = 6, Parent = ui.title })
 	ui.titleScale = make("UIScale", { Parent = ui.title })
 	ui.skip = make("TextButton", { Size = UDim2.fromOffset(150, 40), Position = UDim2.new(1, -20, 1, -16), AnchorPoint = Vector2.new(1, 1),
-		BackgroundColor3 = GREEN, Text = "SKIP >>", Font = FONT, TextScaled = true, TextColor3 = Color3.fromRGB(16, 18, 16),
-		ZIndex = 10, Parent = gui })
-	make("UICorner", { CornerRadius = UDim.new(0, 6), Parent = ui.skip })
-	make("UIStroke", { Thickness = 3, ApplyStrokeMode = Enum.ApplyStrokeMode.Border, Parent = ui.skip })
+		BackgroundColor3 = GREEN, BorderSizePixel = 0, Text = "SKIP >>", Font = FONT, TextScaled = true,
+		TextColor3 = Color3.fromRGB(5, 20, 13), ZIndex = 10, Parent = gui })
+	make("UIPadding", { PaddingTop = UDim.new(0, 8), PaddingBottom = UDim.new(0, 8), Parent = ui.skip })
+	make("UIStroke", { Thickness = 2, Color = Color3.fromRGB(139, 250, 175), ApplyStrokeMode = Enum.ApplyStrokeMode.Border,
+		Parent = ui.skip })
 	return ui
 end
 
@@ -7758,11 +7759,11 @@ local function motor(model: Model, name: string): Motor6D?
 	return model:FindFirstChild(name, true) :: Motor6D?
 end
 
--- Health bar: chunky outlined pill with segment ticks. The fill shifts green -> yellow -> red,
+-- Health bar, square like the reference game's: black frame, glossy fill, dark notches. The fill shifts green -> yellow -> red,
 -- a white "damage trail" lingers behind each hit and then drains, and the bar pops on every hit.
 local function hpColor(r: number): Color3
 	if r > 0.6 then
-		return Color3.fromRGB(110, 235, 70)
+		return Color3.fromRGB(96, 226, 60)
 	elseif r > 0.3 then
 		return Color3.fromRGB(255, 205, 40)
 	end
@@ -7784,15 +7785,12 @@ local function hpBar(view)
 	holder.Size = UDim2.fromScale(1, 1)
 	holder.AnchorPoint = Vector2.new(0.5, 0.5)
 	holder.Position = UDim2.fromScale(0.5, 0.5)
-	holder.BackgroundColor3 = Color3.fromRGB(24, 22, 20)
+	holder.BackgroundColor3 = Color3.fromRGB(20, 32, 22)
 	holder.BorderSizePixel = 0
 	holder.Parent = bb
-	local corner = Instance.new("UICorner")
-	corner.CornerRadius = UDim.new(0.45, 0)
-	corner.Parent = holder
 	local stroke = Instance.new("UIStroke")
 	stroke.Thickness = 2.5
-	stroke.Color = Color3.fromRGB(10, 10, 10)
+	stroke.Color = Color3.fromRGB(5, 20, 13)
 	stroke.Parent = holder
 	local pad = Instance.new("UIPadding")
 	pad.PaddingLeft, pad.PaddingRight = UDim.new(0, 2), UDim.new(0, 2)
@@ -7804,9 +7802,6 @@ local function hpBar(view)
 		f.BackgroundColor3 = color
 		f.BorderSizePixel = 0
 		f.ZIndex = z
-		local c = Instance.new("UICorner")
-		c.CornerRadius = UDim.new(0.45, 0)
-		c.Parent = f
 		f.Parent = holder
 		return f
 	end
@@ -7823,10 +7818,9 @@ local function hpBar(view)
 	shine.Parent = fill
 	for i = 1, 9 do
 		local tick = Instance.new("Frame")
-		tick.Size = UDim2.new(0, 2, 1, 0)
+		tick.Size = UDim2.new(0, 2, 0.55, 0)
 		tick.Position = UDim2.fromScale(i / 10, 0)
-		tick.BackgroundColor3 = Color3.fromRGB(24, 22, 20)
-		tick.BackgroundTransparency = 0.35
+		tick.BackgroundColor3 = Color3.fromRGB(20, 32, 22)
 		tick.BorderSizePixel = 0
 		tick.ZIndex = 3
 		tick.Parent = holder
@@ -8319,7 +8313,7 @@ function Fx.sparks(pos: Vector3, color: Color3, count: number, speed: number?)
 	end
 end
 
-local FONT = Enum.Font.LuckiestGuy
+local FONT = Enum.Font.GothamBlack
 
 local function billboard(pos: Vector3, w: number, h: number): (BillboardGui, Part)
 	local anchor = Fx.part({ Size = Vector3.one * 0.1, Position = pos, Transparency = 1 })
@@ -8499,7 +8493,7 @@ return Fx
               <string name="Name">Hud</string>
               <string name="Source"><![CDATA[-- The HUD: wave pill + countdown, Banana Stash health, boss bar, cash counter, army count,
 -- the unit hotbar with a placement ghost, and the tap-a-man panel for upgrading/selling.
--- Green pills with black text, chunky outlines: matching the game's toy look.
+-- Styled after the reference game: flat mint boxes, near-black number boxes, square cards.
 
 local Players = game:GetService("Players")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
@@ -8524,10 +8518,19 @@ local state = ReplicatedStorage:WaitForChild("GameState")
 local unitsFolder = workspace:WaitForChild("Units")
 local PATHS = PathUtil.fromMapData(MapData)
 
-local GREEN = Color3.fromRGB(120, 240, 150)
-local INK = Color3.fromRGB(16, 18, 16)
-local FONT = Enum.Font.LuckiestGuy
-local FONT_UI = Enum.Font.FredokaOne
+-- Colours sampled from the reference game's HUD: flat mint boxes with a light rim, near-black
+-- boxes with mint numbers, an orange $ tile, a segmented green health bar, square cards.
+local MINT = Color3.fromRGB(96, 244, 151)
+local MINT_RIM = Color3.fromRGB(139, 250, 175)
+local INK = Color3.fromRGB(5, 20, 13)
+local NOTCH = Color3.fromRGB(20, 32, 22)
+local ORANGE = Color3.fromRGB(229, 171, 66)
+local GOLD = Color3.fromRGB(255, 214, 64)
+local RED = Color3.fromRGB(255, 84, 64)
+local WHITE = Color3.new(1, 1, 1)
+local GREEN = MINT
+local FONT = Enum.Font.GothamBlack
+local FONT_UI = Enum.Font.GothamBold
 
 local gui = Instance.new("ScreenGui")
 gui.Name = "Hud"
@@ -8538,6 +8541,9 @@ gui.Parent = player:WaitForChild("PlayerGui")
 
 local function make(class: string, props: { [string]: any }): any
 	local inst = Instance.new(class)
+	if inst:IsA("GuiObject") then
+		inst.BorderSizePixel = 0
+	end
 	for k, v in props do
 		if k ~= "Parent" then
 			(inst :: any)[k] = v
@@ -8547,94 +8553,126 @@ local function make(class: string, props: { [string]: any }): any
 	return inst
 end
 
-local function stroke(parent: Instance, thickness: number?, color: Color3?)
-	return make("UIStroke", { Thickness = thickness or 3, Color = color or INK, Parent = parent })
+-- Everything sits in one root scaled to the screen, laid out for 1280x720 (so a phone gets the
+-- same proportions as the reference instead of oversized boxes).
+local root = make("Frame", { Size = UDim2.fromScale(1, 1), Position = UDim2.fromScale(0.5, 0.5), AnchorPoint = Vector2.new(0.5, 0.5),
+	BackgroundTransparency = 1, Parent = gui })
+local rootScale = make("UIScale", { Parent = root })
+local function fitToScreen()
+	local v = camera.ViewportSize
+	local s = math.clamp(math.min(v.X / 1280, v.Y / 720), 0.55, 1.6)
+	rootScale.Scale = s
+	root.Size = UDim2.fromScale(1 / s, 1 / s)
+end
+camera:GetPropertyChangedSignal("ViewportSize"):Connect(fitToScreen)
+fitToScreen()
+
+-- a box's light rim (or any border colour)
+local function rim(parent: Instance, color: Color3?, thickness: number?): UIStroke
+	return make("UIStroke", { Thickness = thickness or 2, Color = color or MINT_RIM,
+		ApplyStrokeMode = Enum.ApplyStrokeMode.Border, Parent = parent })
 end
 
-local function pill(parent: Instance, text: string, size: UDim2, pos: UDim2, bg: Color3?): TextLabel
-	local label = make("TextLabel", {
-		Size = size, Position = pos, AnchorPoint = Vector2.new(0.5, 0), BackgroundColor3 = bg or GREEN,
-		Text = text, Font = FONT, TextScaled = true, TextColor3 = INK, Parent = parent,
-	})
-	make("UICorner", { CornerRadius = UDim.new(0, 6), Parent = label })
-	make("UIPadding", { PaddingLeft = UDim.new(0, 10), PaddingRight = UDim.new(0, 10), PaddingTop = UDim.new(0, 4),
-		PaddingBottom = UDim.new(0, 4), Parent = label })
-	local s = stroke(label, 3)
-	s.ApplyStrokeMode = Enum.ApplyStrokeMode.Border
-	return label
+-- a dark outline around text (captions over the world)
+local function outline(label: Instance, thickness: number?): UIStroke
+	return make("UIStroke", { Thickness = thickness or 1.5, Color = INK, Parent = label })
 end
 
--- ---------------------------------------------------------------- top: wave, stash, boss
+-- A centred horizontal row; its boxes size themselves to their text.
+local function row(pos: UDim2, height: number, padding: number?): Frame
+	local f = make("Frame", { Size = UDim2.new(1, 0, 0, height), Position = pos, BackgroundTransparency = 1, Parent = root })
+	make("UIListLayout", { FillDirection = Enum.FillDirection.Horizontal, HorizontalAlignment = Enum.HorizontalAlignment.Center,
+		VerticalAlignment = Enum.VerticalAlignment.Center, Padding = UDim.new(0, padding or 0),
+		SortOrder = Enum.SortOrder.LayoutOrder, Parent = f })
+	return f
+end
 
-local wavePill = pill(gui, "GET READY", UDim2.fromOffset(240, 46), UDim2.new(0.5, 0, 0, 10))
-local subPill = pill(gui, "", UDim2.fromOffset(300, 30), UDim2.new(0.5, 0, 0, 62), Color3.fromRGB(30, 34, 30))
-subPill.TextColor3 = GREEN
+-- A text box that grows to fit its text; minWidth keeps short labels from shrinking.
+local function chip(parent: Instance, text: string, bg: Color3, fg: Color3, textSize: number, height: number,
+	order: number, minWidth: number?): TextLabel
+	local l = make("TextLabel", { AutomaticSize = Enum.AutomaticSize.X, Size = UDim2.fromOffset(minWidth or 0, height),
+		BackgroundColor3 = bg, Text = text, Font = FONT, TextSize = textSize, TextColor3 = fg, LayoutOrder = order, Parent = parent })
+	make("UIPadding", { PaddingLeft = UDim.new(0, 14), PaddingRight = UDim.new(0, 14), Parent = l })
+	return l
+end
 
-local stashFrame = make("Frame", { Size = UDim2.fromOffset(300, 26), Position = UDim2.new(0.5, 0, 0, 100),
-	AnchorPoint = Vector2.new(0.5, 0), BackgroundColor3 = Color3.fromRGB(30, 30, 30), Parent = gui })
-stroke(stashFrame, 3)
-make("UICorner", { CornerRadius = UDim.new(0, 6), Parent = stashFrame })
-local stashFill = make("Frame", { Size = UDim2.fromScale(1, 1), BackgroundColor3 = Color3.fromRGB(255, 214, 40),
-	BorderSizePixel = 0, Parent = stashFrame })
-make("UICorner", { CornerRadius = UDim.new(0, 6), Parent = stashFill })
-make("TextLabel", { Size = UDim2.fromScale(1, 1), BackgroundTransparency = 1, Text = "BANANA STASH", Font = FONT,
-	TextScaled = true, TextColor3 = INK, ZIndex = 2, Parent = stashFrame })
+-- The reference's health bar: black frame, glossy green fill, dark notches every segment.
+local function segmentBar(size: UDim2, pos: UDim2, top: Color3, bottom: Color3, segments: number): (Frame, Frame, UIStroke)
+	local frame = make("Frame", { Size = size, Position = pos, AnchorPoint = Vector2.new(0.5, 0), BackgroundColor3 = NOTCH, Parent = root })
+	local border = rim(frame, INK, 3)
+	local fill = make("Frame", { Size = UDim2.fromScale(1, 1), BackgroundColor3 = WHITE, Parent = frame })
+	make("UIGradient", { Rotation = 90, Color = ColorSequence.new(top, bottom), Parent = fill })
+	for i = 1, segments - 1 do
+		make("Frame", { Size = UDim2.new(0, 3, 0.55, 0), Position = UDim2.fromScale(i / segments, 0), AnchorPoint = Vector2.new(0.5, 0),
+			BackgroundColor3 = NOTCH, ZIndex = 2, Parent = frame })
+	end
+	return frame, fill, border
+end
 
-local bossFrame = make("Frame", { Size = UDim2.fromOffset(460, 34), Position = UDim2.new(0.5, 0, 0, 136),
-	AnchorPoint = Vector2.new(0.5, 0), BackgroundColor3 = Color3.fromRGB(30, 10, 10), Visible = false, Parent = gui })
-stroke(bossFrame, 3)
-local bossFill = make("Frame", { Size = UDim2.fromScale(1, 1), BackgroundColor3 = Color3.fromRGB(230, 40, 40),
-	BorderSizePixel = 0, Parent = bossFrame })
-local bossName = make("TextLabel", { Size = UDim2.fromScale(1, 1), BackgroundTransparency = 1, Text = "", Font = FONT,
-	TextScaled = true, TextColor3 = Color3.new(1, 1, 1), ZIndex = 2, Parent = bossFrame })
-stroke(bossName, 2)
+-- small white caption above a box, like the reference's "UPGRADES" / "ABILITIES"
+local function caption(parent: Instance, text: string, width: number): TextLabel
+	local l = make("TextLabel", { Size = UDim2.fromOffset(width, 16), Position = UDim2.fromOffset(0, -20), BackgroundTransparency = 1,
+		Text = text, Font = FONT_UI, TextSize = 14, TextColor3 = WHITE, TextXAlignment = Enum.TextXAlignment.Left, Parent = parent })
+	outline(l, 1.5)
+	return l
+end
+
+-- ---------------------------------------------------------------- top: wave, objective, stash, boss
+
+local waveRow = row(UDim2.fromOffset(0, 8), 48)
+local wavePill = chip(waveRow, "GET READY", MINT, INK, 34, 48, 1, 210)
+rim(wavePill)
+
+local objRow = row(UDim2.fromOffset(0, 70), 50)
+local objLabel = chip(objRow, "", MINT, INK, 30, 50, 1)
+rim(objLabel)
+local objCount = chip(objRow, "", INK, MINT, 30, 50, 2, 90)
+
+local stashFrame, stashFill, stashBorder = segmentBar(UDim2.fromOffset(300, 24), UDim2.new(0.5, 0, 0, 146),
+	Color3.fromRGB(133, 216, 117), Color3.fromRGB(33, 165, 3), 10)
+caption(stashFrame, "BANANA STASH", 300)
+
+local bossFrame, bossFill = segmentBar(UDim2.fromOffset(460, 26), UDim2.new(0.5, 0, 0, 200),
+	Color3.fromRGB(255, 132, 108), Color3.fromRGB(186, 24, 18), 20)
+bossFrame.Visible = false
+local bossName = caption(bossFrame, "", 460)
+bossName.TextSize = 18
+bossName.Font = FONT
 
 -- ---------------------------------------------------------------- bottom: cash, men, hotbar
 
-local cashFrame = make("Frame", { Size = UDim2.fromOffset(190, 50), Position = UDim2.new(0.5, 0, 1, -150),
-	AnchorPoint = Vector2.new(0.5, 0), BackgroundTransparency = 1, Parent = gui })
-local dollar = make("TextLabel", { Size = UDim2.fromOffset(46, 50), BackgroundColor3 = Color3.fromRGB(236, 190, 110),
-	Text = "$", Font = FONT, TextScaled = true, TextColor3 = INK, Parent = cashFrame })
-stroke(dollar, 3).ApplyStrokeMode = Enum.ApplyStrokeMode.Border
-local cashLabel = make("TextLabel", { Size = UDim2.new(1, -50, 1, 0), Position = UDim2.fromOffset(50, 0),
-	BackgroundColor3 = Color3.fromRGB(20, 22, 20), Text = "0", Font = FONT, TextScaled = true, TextColor3 = Color3.new(1, 1, 1),
-	TextXAlignment = Enum.TextXAlignment.Left, Parent = cashFrame })
-stroke(cashLabel, 3).ApplyStrokeMode = Enum.ApplyStrokeMode.Border
-make("UIPadding", { PaddingLeft = UDim.new(0, 8), Parent = cashLabel })
+local cashRow = row(UDim2.new(0, 0, 1, -166), 46, 12)
+local cashFrame = make("Frame", { AutomaticSize = Enum.AutomaticSize.X, Size = UDim2.fromOffset(0, 46), BackgroundTransparency = 1,
+	LayoutOrder = 1, Parent = cashRow })
+make("UIListLayout", { FillDirection = Enum.FillDirection.Horizontal, SortOrder = Enum.SortOrder.LayoutOrder, Parent = cashFrame })
+local dollar = make("TextLabel", { Size = UDim2.fromOffset(42, 46), BackgroundColor3 = ORANGE, Text = "$", Font = FONT, TextSize = 34,
+	TextColor3 = INK, LayoutOrder = 1, Parent = cashFrame })
+local cashLabel = chip(cashFrame, "0", INK, WHITE, 32, 46, 2, 60)
 local cashScale = make("UIScale", { Parent = cashFrame })
-local menLabel = make("TextLabel", { Size = UDim2.fromOffset(120, 28), Position = UDim2.new(0.5, 110, 1, -139),
-	AnchorPoint = Vector2.new(0, 0), BackgroundTransparency = 1, Text = "MEN 0/100", Font = FONT, TextScaled = true,
-	TextColor3 = GREEN, Parent = gui })
-stroke(menLabel, 2)
+local menFrame = make("Frame", { AutomaticSize = Enum.AutomaticSize.X, Size = UDim2.fromOffset(0, 34), BackgroundTransparency = 1,
+	LayoutOrder = 2, Parent = cashRow })
+make("UIListLayout", { FillDirection = Enum.FillDirection.Horizontal, VerticalAlignment = Enum.VerticalAlignment.Center,
+	SortOrder = Enum.SortOrder.LayoutOrder, Parent = menFrame })
+chip(menFrame, "MEN", MINT, INK, 20, 34, 1)
+local menLabel = chip(menFrame, "0/100", INK, MINT, 20, 34, 2)
 
 Juice.cashScreenPos = function(): Vector2
-	local p, s = cashFrame.AbsolutePosition, cashFrame.AbsoluteSize
-	return Vector2.new(p.X + 23, p.Y + s.Y / 2)
+	local p, s = dollar.AbsolutePosition, dollar.AbsoluteSize
+	return Vector2.new(p.X + s.X / 2, p.Y + s.Y / 2)
 end
 Juice.onCoinArrive = function(_amount: number)
 	cashScale.Scale = 1.18
 	TweenService:Create(cashScale, TweenInfo.new(0.15, Enum.EasingStyle.Back), { Scale = 1 }):Play()
 end
 
-local shownCash = 0
-RunService.RenderStepped:Connect(function(dt)
-	local actual = player:GetAttribute("Cash") or 0
-	shownCash += (actual - shownCash) * math.min(1, dt * 8)
-	if math.abs(actual - shownCash) < 0.5 then
-		shownCash = actual
-	end
-	cashLabel.Text = tostring(math.floor(shownCash + 0.5))
-	menLabel.Text = `MEN {player:GetAttribute("Units") or 0}/100`
-end)
-
-local toast = make("TextLabel", { Size = UDim2.fromOffset(420, 34), Position = UDim2.new(0.5, 0, 1, -196),
-	AnchorPoint = Vector2.new(0.5, 0), BackgroundTransparency = 1, Text = "", Font = FONT_UI, TextScaled = true,
-	TextColor3 = Color3.fromRGB(255, 120, 100), TextTransparency = 1, Parent = gui })
-local toastStroke = stroke(toast, 2)
+local toast = make("TextLabel", { Size = UDim2.fromOffset(520, 26), Position = UDim2.new(0.5, 0, 1, -204),
+	AnchorPoint = Vector2.new(0.5, 0), BackgroundTransparency = 1, Text = "", Font = FONT_UI, TextSize = 22,
+	TextColor3 = RED, TextTransparency = 1, Parent = root })
+local toastStroke = outline(toast, 2)
 toastStroke.Transparency = 1
 local function showToast(text: string, color: Color3?)
 	toast.Text = text
-	toast.TextColor3 = color or Color3.fromRGB(255, 120, 100)
+	toast.TextColor3 = color or RED
 	toast.TextTransparency = 0
 	toastStroke.Transparency = 0
 	local token = {}
@@ -8648,7 +8686,7 @@ local function showToast(text: string, color: Color3?)
 end
 Hud.toast = showToast
 
--- hotbar
+-- hotbar: one card per unit, like the reference's item cards (index badge, portrait, price, name strip)
 local order = {}
 for id, def in Units do
 	table.insert(order, { id = id, def = def })
@@ -8657,38 +8695,79 @@ table.sort(order, function(a, b)
 	return a.def.Order < b.def.Order
 end)
 
-local bar = make("Frame", { Size = UDim2.fromOffset(#order * 86, 88), Position = UDim2.new(0.5, 0, 1, -94),
-	AnchorPoint = Vector2.new(0.5, 0), BackgroundTransparency = 1, Parent = gui })
-make("UIListLayout", { FillDirection = Enum.FillDirection.Horizontal, Padding = UDim.new(0, 6),
-	HorizontalAlignment = Enum.HorizontalAlignment.Center, Parent = bar })
-local slots = {}
+local CARD_W, CARD_H = 84, 106
+local bar = row(UDim2.new(0, 0, 1, -(CARD_H + 10)), CARD_H, 8)
+local slots: { [string]: { button: TextButton, rim: UIStroke, cost: TextLabel, price: number } } = {}
 local selected: string? = nil
 
 local function setSelected(id: string?)
 	selected = id
-	for sid, b in slots do
-		b.BackgroundColor3 = if sid == id then Color3.fromRGB(255, 220, 80) else GREEN
+	for sid, slot in slots do
+		local on = sid == id
+		slot.rim.Color = if on then GOLD else MINT_RIM
+		slot.rim.Thickness = if on then 4 else 2
+		slot.button.BackgroundColor3 = if on then Color3.fromRGB(150, 252, 186) else MINT
 	end
 	Hud.onSelectUnit(id)
 end
 
+-- The unit's own figure as the card picture, once the server has built the army rigs.
+local function fillPortrait(vp: ViewportFrame, unitId: string, fallback: TextLabel)
+	local rigs = ReplicatedStorage:WaitForChild("MenRigs", 20)
+	local template = rigs and rigs:WaitForChild(`{unitId}_L1`, 10)
+	if not template then
+		return
+	end
+	local model = template:Clone()
+	model.Parent = vp
+	local h = model:GetAttribute("Height") or 6
+	local cam = make("Camera", { FieldOfView = 30, Parent = vp })
+	cam.CFrame = CFrame.lookAt(Vector3.new(h * 0.42, h * 0.72, -h * 1.45), Vector3.new(0, h * 0.56, 0))
+	vp.CurrentCamera = cam
+	fallback.Visible = false
+end
+
 for i, entry in order do
-	local b = make("TextButton", { Size = UDim2.fromOffset(80, 86), BackgroundColor3 = GREEN, Text = "", AutoButtonColor = true,
+	local b = make("TextButton", { Size = UDim2.fromOffset(CARD_W, CARD_H), BackgroundColor3 = MINT, Text = "", AutoButtonColor = true,
 		LayoutOrder = i, Parent = bar })
-	make("UICorner", { CornerRadius = UDim.new(0, 8), Parent = b })
-	stroke(b, 3).ApplyStrokeMode = Enum.ApplyStrokeMode.Border
-	make("TextLabel", { Size = UDim2.new(1, -6, 0, 18), Position = UDim2.fromOffset(3, 3), BackgroundTransparency = 1,
-		Text = tostring(i), Font = FONT, TextScaled = true, TextColor3 = INK, TextXAlignment = Enum.TextXAlignment.Left, Parent = b })
-	make("TextLabel", { Size = UDim2.new(1, -6, 0, 34), Position = UDim2.fromOffset(3, 20), BackgroundTransparency = 1,
-		Text = entry.def.DisplayName, Font = FONT_UI, TextScaled = true, TextColor3 = INK, TextWrapped = true, Parent = b })
-	make("TextLabel", { Size = UDim2.new(1, -6, 0, 22), Position = UDim2.new(0, 3, 1, -26), BackgroundTransparency = 1,
-		Text = `${entry.def.Levels[1].Cost}`, Font = FONT, TextScaled = true, TextColor3 = Color3.fromRGB(30, 90, 30), Parent = b })
+	local border = rim(b, MINT_RIM, 2)
+	local vp = make("ViewportFrame", { Size = UDim2.fromOffset(CARD_W, CARD_H - 20), BackgroundTransparency = 1,
+		Ambient = Color3.fromRGB(190, 196, 192), LightColor = WHITE, LightDirection = Vector3.new(0.4, -1, 0.8), Parent = b })
+	local fallback = make("TextLabel", { Size = UDim2.new(1, -8, 0, 40), Position = UDim2.fromOffset(4, 24), BackgroundTransparency = 1,
+		Text = string.upper(entry.def.DisplayName), Font = FONT, TextScaled = true, TextWrapped = true, TextColor3 = INK, Parent = b })
+	make("UITextSizeConstraint", { MaxTextSize = 18, Parent = fallback })
+	make("TextLabel", { Size = UDim2.fromOffset(22, 22), Position = UDim2.fromOffset(4, 4), BackgroundColor3 = INK,
+		Text = tostring(i), Font = FONT, TextSize = 16, TextColor3 = WHITE, ZIndex = 3, Parent = b })
+	local cost = make("TextLabel", { Size = UDim2.new(1, -8, 0, 20), Position = UDim2.new(0, 5, 1, -42), BackgroundTransparency = 1,
+		Text = `${entry.def.Levels[1].Cost}`, Font = FONT, TextSize = 19, TextColor3 = ORANGE,
+		TextXAlignment = Enum.TextXAlignment.Left, ZIndex = 3, Parent = b })
+	outline(cost, 1.5)
+	local strip = make("TextLabel", { Size = UDim2.new(1, 0, 0, 20), Position = UDim2.new(0, 0, 1, -20), BackgroundColor3 = INK,
+		Text = string.upper(entry.def.DisplayName), Font = FONT_UI, TextScaled = true, TextColor3 = WHITE, ZIndex = 3, Parent = b })
+	make("UIPadding", { PaddingLeft = UDim.new(0, 4), PaddingRight = UDim.new(0, 4), PaddingTop = UDim.new(0, 3),
+		PaddingBottom = UDim.new(0, 3), Parent = strip })
+	make("UITextSizeConstraint", { MaxTextSize = 13, Parent = strip })
+	task.spawn(fillPortrait, vp, entry.id, fallback)
 	b.Activated:Connect(function()
 		Juice.sound("Ui")
 		setSelected(if selected == entry.id then nil else entry.id)
 	end)
-	slots[entry.id] = b
+	slots[entry.id] = { button = b, rim = border, cost = cost, price = entry.def.Levels[1].Cost }
 end
+
+local shownCash = 0
+RunService.RenderStepped:Connect(function(dt)
+	local actual = player:GetAttribute("Cash") or 0
+	shownCash += (actual - shownCash) * math.min(1, dt * 8)
+	if math.abs(actual - shownCash) < 0.5 then
+		shownCash = actual
+	end
+	cashLabel.Text = tostring(math.floor(shownCash + 0.5))
+	menLabel.Text = `{player:GetAttribute("Units") or 0}/100`
+	for _, slot in slots do
+		slot.cost.TextColor3 = if actual >= slot.price then ORANGE else RED
+	end
+end)
 
 -- ---------------------------------------------------------------- placement ghost
 
@@ -8788,21 +8867,22 @@ end
 
 -- ---------------------------------------------------------------- unit panel
 
-local panel = make("Frame", { Size = UDim2.fromOffset(250, 210), Position = UDim2.new(1, -16, 0.5, 0),
-	AnchorPoint = Vector2.new(1, 0.5), BackgroundColor3 = Color3.fromRGB(26, 30, 26), Visible = false, Parent = gui })
-make("UICorner", { CornerRadius = UDim.new(0, 10), Parent = panel })
-stroke(panel, 3, GREEN)
-local panelTitle = make("TextLabel", { Size = UDim2.new(1, -20, 0, 34), Position = UDim2.fromOffset(10, 8), BackgroundTransparency = 1,
-	Font = FONT, TextScaled = true, TextColor3 = GREEN, Text = "", Parent = panel })
-local panelInfo = make("TextLabel", { Size = UDim2.new(1, -20, 0, 70), Position = UDim2.fromOffset(10, 44), BackgroundTransparency = 1,
-	Font = FONT_UI, TextScaled = true, TextColor3 = Color3.new(1, 1, 1), TextXAlignment = Enum.TextXAlignment.Left,
+local panel = make("Frame", { Size = UDim2.fromOffset(260, 232), Position = UDim2.new(1, -16, 0.5, 0),
+	AnchorPoint = Vector2.new(1, 0.5), BackgroundColor3 = INK, BackgroundTransparency = 0.08, Visible = false, Parent = root })
+rim(panel, MINT, 2)
+caption(panel, "UPGRADES", 260)
+local panelTitle = make("TextLabel", { Size = UDim2.new(1, 0, 0, 40), BackgroundColor3 = MINT, Font = FONT, TextScaled = true,
+	TextColor3 = INK, Text = "", Parent = panel })
+make("UIPadding", { PaddingLeft = UDim.new(0, 10), PaddingRight = UDim.new(0, 10), PaddingTop = UDim.new(0, 7),
+	PaddingBottom = UDim.new(0, 7), Parent = panelTitle })
+local panelInfo = make("TextLabel", { Size = UDim2.new(1, -24, 0, 74), Position = UDim2.fromOffset(12, 50), BackgroundTransparency = 1,
+	Font = FONT_UI, TextSize = 16, TextWrapped = true, TextColor3 = WHITE, TextXAlignment = Enum.TextXAlignment.Left,
 	TextYAlignment = Enum.TextYAlignment.Top, Text = "", Parent = panel })
-local upButton = make("TextButton", { Size = UDim2.new(1, -20, 0, 38), Position = UDim2.fromOffset(10, 120),
-	BackgroundColor3 = GREEN, Font = FONT, TextScaled = true, TextColor3 = INK, Text = "UPGRADE", Parent = panel })
-make("UICorner", { CornerRadius = UDim.new(0, 6), Parent = upButton })
-local sellButton = make("TextButton", { Size = UDim2.new(1, -20, 0, 34), Position = UDim2.fromOffset(10, 166),
-	BackgroundColor3 = Color3.fromRGB(240, 110, 90), Font = FONT, TextScaled = true, TextColor3 = INK, Text = "SELL", Parent = panel })
-make("UICorner", { CornerRadius = UDim.new(0, 6), Parent = sellButton })
+local upButton = make("TextButton", { Size = UDim2.new(1, -24, 0, 42), Position = UDim2.fromOffset(12, 130),
+	BackgroundColor3 = MINT, Font = FONT, TextSize = 22, TextColor3 = INK, Text = "UPGRADE", Parent = panel })
+rim(upButton)
+local sellButton = make("TextButton", { Size = UDim2.new(1, -24, 0, 36), Position = UDim2.fromOffset(12, 182),
+	BackgroundColor3 = ORANGE, Font = FONT, TextSize = 20, TextColor3 = INK, Text = "SELL", Parent = panel })
 local panelRing = Fx.part({ Shape = Enum.PartType.Cylinder, Size = Vector3.new(0.15, 2, 2), Material = Enum.Material.Neon,
 	Color = Color3.fromRGB(255, 220, 80), Transparency = 0.65, Parent = nil })
 local panelUid: number? = nil
@@ -8818,11 +8898,12 @@ local function refreshPanel()
 	local def = Units[unitId]
 	local cur = def.Levels[level]
 	local nxt = def.Levels[level + 1]
-	panelTitle.Text = `{def.DisplayName}  LV{level}`
+	panelTitle.Text = string.upper(`{def.DisplayName}  LV {level}`)
 	local stats = if cur.Damage > 0 then `DMG {cur.Damage}  RANGE {cur.Range}\n` else ""
 	panelInfo.Text = stats .. def.Blurb
 	upButton.Text = if nxt then `UPGRADE  ${nxt.Cost}` else "MAX LEVEL"
-	upButton.BackgroundColor3 = if nxt then GREEN else Color3.fromRGB(90, 90, 90)
+	upButton.BackgroundColor3 = if nxt then MINT else Color3.fromRGB(70, 80, 75)
+	upButton.TextColor3 = if nxt then INK else WHITE
 	local spent = 0
 	for i = 1, level do
 		spent += def.Levels[i].Cost
@@ -8933,20 +9014,20 @@ RunService.RenderStepped:Connect(function()
 	local total = state:GetAttribute("TotalWaves") or 100
 	if phase == "Intro" then
 		wavePill.Text = "GET READY"
-		subPill.Text = "THE SQUAD IS LANDING..."
+		objLabel.Text, objCount.Text = "THE SQUAD IS LANDING", "..."
 	elseif phase == "Intermission" then
 		local left = math.max(0, math.ceil((state:GetAttribute("NextWaveAt") or 0) - workspace:GetServerTimeNow()))
 		wavePill.Text = if wave == 0 then "GET READY" else `WAVE {wave} CLEAR`
-		subPill.Text = `NEXT WAVE IN {left}`
+		objLabel.Text, objCount.Text = "NEXT WAVE IN", tostring(left)
 	elseif phase == "Wave" then
 		wavePill.Text = `WAVE {wave}`
-		subPill.Text = `SURVIVE WAVES {math.max(0, wave - 1)} / {total}`
+		objLabel.Text, objCount.Text = "SURVIVE WAVES", `{math.max(0, wave - 1)} / {total}`
 	elseif phase == "GameOver" then
 		wavePill.Text = "GAME OVER"
-		subPill.Text = "RESTARTING..."
+		objLabel.Text, objCount.Text = "RESTARTING", "..."
 	elseif phase == "Victory" then
 		wavePill.Text = "VICTORY!"
-		subPill.Text = "100 MEN BEAT THE GORILLA"
+		objLabel.Text, objCount.Text = "100 MEN BEAT THE GORILLA", "100 / 100"
 	end
 	local hp, maxHp = state:GetAttribute("BaseHp") or 0, state:GetAttribute("BaseMaxHp") or 1
 	stashFill.Size = UDim2.fromScale(math.clamp(hp / maxHp, 0, 1), 1)
@@ -8969,7 +9050,7 @@ ReplicatedStorage:WaitForChild("Enemies").ChildAdded:Connect(function(cfg)
 	local def = EnemyDefs[cfg:GetAttribute("Type") or ""]
 	if def and def.Boss then
 		bossId = tonumber(cfg.Name)
-		bossName.Text = def.DisplayName
+		bossName.Text = string.upper(def.DisplayName)
 		bossFrame.Visible = true
 	end
 end)
@@ -8993,14 +9074,16 @@ function Hud.introFinished()
 		return
 	end
 	local anchor = Fx.part({ Size = Vector3.new(0.2, 0.2, 0.2), Position = TUTORIAL_SPOT + Vector3.new(0, 6, 0), Transparency = 1 })
-	local bb = make("BillboardGui", { Size = UDim2.fromScale(9, 4.5), AlwaysOnTop = true, LightInfluence = 0, Adornee = anchor,
+	local bb = make("BillboardGui", { Size = UDim2.fromScale(10, 4), AlwaysOnTop = true, LightInfluence = 0, Adornee = anchor,
 		Parent = anchor })
-	local label = make("TextLabel", { Size = UDim2.fromScale(1, 0.55), BackgroundTransparency = 1, Font = FONT, TextScaled = true,
-		Text = "PLACE A BRAWLER HERE", TextColor3 = GREEN, Parent = bb })
-	stroke(label, 3)
-	local arrow = make("TextLabel", { Size = UDim2.fromScale(1, 0.45), Position = UDim2.fromScale(0, 0.55), BackgroundTransparency = 1,
-		Font = FONT, TextScaled = true, Text = "V", TextColor3 = GREEN, Parent = bb })
-	stroke(arrow, 3)
+	local label = make("TextLabel", { Size = UDim2.fromScale(1, 0.5), BackgroundColor3 = MINT, Font = FONT, TextScaled = true,
+		Text = "PLACE A BRAWLER HERE", TextColor3 = INK, ZIndex = 2, Parent = bb })
+	make("UIPadding", { PaddingLeft = UDim.new(0.05, 0), PaddingRight = UDim.new(0.05, 0), PaddingTop = UDim.new(0.1, 0),
+		PaddingBottom = UDim.new(0.1, 0), Parent = label })
+	rim(label)
+	local arrow = make("Frame", { Size = UDim2.fromScale(0.13, 0.33), Position = UDim2.fromScale(0.5, 0.5), AnchorPoint = Vector2.new(0.5, 0.5),
+		SizeConstraint = Enum.SizeConstraint.RelativeYY, Rotation = 45, BackgroundColor3 = MINT, Parent = bb })
+	rim(arrow)
 	showToast("Press 1 (or tap BRAWLER), then click the marker", GREEN)
 	local t0 = os.clock()
 	local nextRing = 0
@@ -9025,7 +9108,7 @@ function Hud.gameEvent(kind: string, a: any, b: any)
 		Juice.callout(`WAVE {a}`, GREEN, 1.2)
 		Juice.sound("Horn")
 	elseif kind == "WaveClear" then
-		Juice.callout("WAVE CLEARED!", Color3.fromRGB(255, 220, 80), 1.4)
+		Juice.callout("WAVE CLEARED!", GOLD, 1.4)
 		showToast(`+${b} wave bonus`, GREEN)
 		Fx.confetti(camera.CFrame.Position + camera.CFrame.LookVector * 14 + Vector3.new(0, 4, 0), 30)
 	elseif kind == "BossIncoming" then
@@ -9033,9 +9116,9 @@ function Hud.gameEvent(kind: string, a: any, b: any)
 		Juice.sound("Roar", nil, 0.8)
 		Juice.shake(0.6)
 	elseif kind == "BaseHit" then
-		stashFrame.BackgroundColor3 = Color3.fromRGB(160, 20, 20)
+		stashBorder.Color = RED
 		task.delay(0.08, function()
-			stashFrame.BackgroundColor3 = Color3.fromRGB(30, 30, 30)
+			stashBorder.Color = INK
 		end)
 	elseif kind == "GameOver" then
 		Juice.callout("THE MONKEYS GOT THE BANANAS", Color3.fromRGB(255, 80, 60), 4)
@@ -9228,7 +9311,7 @@ comboLabel.AnchorPoint = Vector2.new(1, 0.5)
 comboLabel.Position = UDim2.new(1, -30, 0.42, 0)
 comboLabel.Size = UDim2.fromOffset(260, 70)
 comboLabel.BackgroundTransparency = 1
-comboLabel.Font = Enum.Font.LuckiestGuy
+comboLabel.Font = Enum.Font.GothamBlack
 comboLabel.TextScaled = true
 comboLabel.TextColor3 = Color3.fromRGB(255, 230, 80)
 comboLabel.TextXAlignment = Enum.TextXAlignment.Right
@@ -9254,7 +9337,7 @@ callout.AnchorPoint = Vector2.new(0.5, 0.5)
 callout.Position = UDim2.fromScale(0.5, 0.3)
 callout.Size = UDim2.fromOffset(700, 110)
 callout.BackgroundTransparency = 1
-callout.Font = Enum.Font.LuckiestGuy
+callout.Font = Enum.Font.GothamBlack
 callout.TextScaled = true
 callout.TextColor3 = Color3.fromRGB(255, 120, 40)
 callout.Visible = false

@@ -10,8 +10,11 @@ import { GLTFLoader } from './node_modules/three/examples/jsm/loaders/GLTFLoader
 import { mergeGeometries } from './node_modules/three/examples/jsm/utils/BufferGeometryUtils.js';
 import { makeComposer } from './grade.js';
 
-const W = 960, H = 540, DT = 1 / 60;
-const font = new FontFace('LG', 'url(LuckiestGuy.woff2)'); await font.load(); document.fonts.add(font);
+const QS = new URLSearchParams(location.search);
+const W = +(QS.get('w') || 960), H = +(QS.get('h') || 540), DT = 1 / 60;
+// the game's GothamBlack, approximated with a local heavy sans
+const font = new FontFace('LG', "local('Inter Black'), local('Inter-Black'), local('Arial Black')", { weight: '900' });
+try { await font.load(); document.fonts.add(font); } catch (e) { console.log('font fallback'); }
 
 const renderer = new THREE.WebGLRenderer({ antialias: true, preserveDrawingBuffer: true });
 renderer.setSize(W, H); renderer.shadowMap.enabled = true; renderer.shadowMap.type = THREE.PCFSoftShadowMap;
@@ -451,7 +454,7 @@ function flash(m, color, dur = 0.12) { m.flashT = dur; m.flashColor = color ? C(
 
 // ---------------------------------------------------------------- health bars (EnemyView.luau)
 const MAXHP = { Monkey: 60, Speedy: 50, Chucker: 40, Brute: 600, Baby: 30, Ninja: 40, Silverback: 2400 };
-function hpColor(r) { return r > 0.6 ? '#6eeb46' : r > 0.3 ? '#ffcd28' : '#f53c2d'; }
+function hpColor(r) { return r > 0.6 ? '#60e23c' : r > 0.3 ? '#ffcd28' : '#f53c2d'; }
 function attachBar(m) {
   const c = document.createElement('canvas'); c.width = 256; c.height = 44;
   const tex = new THREE.CanvasTexture(c); tex.colorSpace = THREE.SRGBColorSpace;
@@ -463,11 +466,11 @@ function attachBar(m) {
     if (!sp.visible) return;
     if (simT > b.hold && b.trail > b.ratio) b.trail = Math.max(b.ratio, b.trail - dt * 1.4);
     const g = c.getContext('2d'); g.clearRect(0, 0, 256, 44);
-    const rr = (x, y, w, h, col) => { g.fillStyle = col; g.beginPath(); g.roundRect(x, y, Math.max(0, w), h, h / 2); g.fill(); };
-    rr(2, 2, 252, 40, '#0a0a0a'); rr(6, 6, 244, 32, '#181614');
+    const rr = (x, y, w, h, col) => { g.fillStyle = col; g.fillRect(x, y, Math.max(0, w), h); };
+    rr(2, 2, 252, 40, '#05140d'); rr(6, 6, 244, 32, '#142016');
     rr(8, 8, 240 * b.trail, 28, '#ffffff'); rr(8, 8, 240 * b.ratio, 28, hpColor(b.ratio));
-    if (b.ratio > 0) { g.fillStyle = 'rgba(255,255,255,0.35)'; g.beginPath(); g.roundRect(10, 10, Math.max(0, 236 * b.ratio), 10, 5); g.fill(); }
-    g.fillStyle = 'rgba(24,22,20,0.65)'; for (let i = 1; i < 10; i++) g.fillRect(8 + 24 * i - 1, 8, 2, 28);
+    if (b.ratio > 0) { const sh = g.createLinearGradient(0, 8, 0, 36); sh.addColorStop(0, 'rgba(255,255,255,0.3)'); sh.addColorStop(0.45, 'rgba(0,0,0,0)'); sh.addColorStop(1, 'rgba(0,0,0,0.3)'); g.fillStyle = sh; g.fillRect(8, 8, 240 * b.ratio, 28); }
+    g.fillStyle = '#142016'; for (let i = 1; i < 10; i++) g.fillRect(8 + 24 * i - 1, 8, 2, 15);
     tex.needsUpdate = true;
     b.pop = Math.max(0, b.pop - dt * 6);
     const sc = 1 + 0.3 * b.pop, S = m.def.scale, head = monkeyHead(m);
@@ -748,12 +751,12 @@ function overlay() {
   OV = { root,
     alarm: el('left:0;top:0;width:100%;height:100%;background:#ff1414;opacity:0'),
     top: el(`left:0;width:100%;height:${H * 0.11}px;background:#000`), bottom: el(`left:0;width:100%;height:${H * 0.11}px;background:#000`),
-    who: el(`left:10%;width:80%;top:${H * 0.72}px;text-align:center;font-size:${H * 0.035}px;color:#78f096;${stroke(4)}`),
+    who: el(`left:10%;width:80%;top:${H * 0.72}px;text-align:center;font-size:${H * 0.035}px;color:#60f497;${stroke(4)}`),
     line: el(`left:5%;width:90%;top:${H * 0.765}px;text-align:center;font-family:Arial Black,Arial,sans-serif;font-weight:900;font-size:${H * 0.04}px;color:#fff;${stroke(4)}`),
     shout: el(`left:0;width:100%;top:${H * 0.24}px;text-align:center;font-size:${H * 0.12}px;color:#ff3c28;${stroke(8)}`),
     title: el(`left:0;width:100%;top:${H * 0.32}px;text-align:center;font-size:${H * 0.14}px;color:#ffd628;${stroke(10)};transform-origin:50% 50%`),
     flash: el('left:0;top:0;width:100%;height:100%;background:#fff;opacity:0'),
-    skip: el(`right:20px;bottom:16px;width:150px;height:40px;line-height:44px;text-align:center;background:#78f096;border:3px solid #10120f;border-radius:6px;font-size:28px;color:#10120f`, 'SKIP &gt;&gt;'),
+    skip: el(`right:20px;bottom:16px;width:150px;height:40px;line-height:44px;text-align:center;background:#60f497;border:2px solid #8bfaaf;font-size:26px;color:#05140d`, 'SKIP &gt;&gt;'),
   };
   document.body.style.position = 'relative'; document.body.appendChild(root);
 }
@@ -974,6 +977,58 @@ window.setupIntro = async () => {
   every(dt => introStep(dt));
   introStep(0); render();
   window.INTRO_DURATION = I.duration;
+  return true;
+};
+
+// ---------------------------------------------------------------- gameplay stills (with the HUD)
+// The real map, a few placed men fighting monkeys on the paths, the camera behind the player like
+// Roblox's default follow camera, and hud.js drawing Hud.luau's layout on top.
+const CARD_ORDER = [['Brawler', 'Brawler', 100], ['Slingshot', 'Slingshot Kid', 150], ['Lumberjack', 'Lumberjack', 250],
+  ['Hunter', 'Hunter', 400], ['Medic', 'Medic', 300], ['Bait', 'Bait Guy', 200], ['Grenadier', 'Grenadier', 450],
+  ['Zookeeper', 'Zookeeper', 350], ['Commander', 'Commander', 600]];
+// Each card's picture, framed like Hud.luau's ViewportFrame camera (FOV 30, front three-quarter).
+function cardPortraits() {
+  const r = new THREE.WebGLRenderer({ antialias: true, alpha: true, preserveDrawingBuffer: true });
+  r.setSize(168, 172); r.outputColorSpace = THREE.SRGBColorSpace; r.setClearColor(0x000000, 0);
+  const saved = { scene, updaters, MEN }, out = {};
+  for (const [unit] of CARD_ORDER) {
+    scene = new THREE.Scene(); updaters = []; MEN = [];
+    scene.add(new THREE.AmbientLight(new THREE.Color().setRGB(190 / 255, 196 / 255, 192 / 255, THREE.SRGBColorSpace), 1.6));
+    const sun = new THREE.DirectionalLight(0xffffff, 1.8); sun.position.set(-0.4, 1, -0.8); scene.add(sun);
+    const man = makeMan(unit, 1, V(0, 0, 0), 0);
+    const h = new THREE.Box3().setFromObject(man.root).max.y;
+    const c = new THREE.PerspectiveCamera(30, 84 / 86, 0.1, 100);
+    c.position.set(h * 0.42, h * 0.72, -h * 1.45); c.lookAt(0, h * 0.56, 0);
+    r.render(scene, c); out[unit] = r.domElement.toDataURL();
+  }
+  scene = saved.scene; updaters = saved.updaters; MEN = saved.MEN;
+  r.dispose(); return out;
+}
+window.setupGameplay = async (opts = {}) => {
+  const sceneJ = await (await fetch('scene.json')).json();
+  const pics = cardPortraits();
+  newIntroWorld(); buildMap(sceneJ);
+  const face = (from, to) => Math.atan2(-(to.x - from.x), -(to.z - from.z)); // yaw 0 faces -Z
+  const men = opts.men || [['Brawler', 1, 6, 4], ['Slingshot', 2, -14, 4], ['Lumberjack', 1, 4, -10], ['Hunter', 3, 22, 2], ['Grenadier', 2, -8, 20]];
+  const monkeys = opts.monkeys || [['Monkey', -1.2, 7.6, 2, 14], ['Speedy', -10, -6.6, -6, -2], ['Monkey', -17, -14.6, -6, -2],
+    ['Chucker', -18, -24, -20, -18], ['Brute', -15, -35, -20, -18], ['Monkey', 0, -52, 0, -50]];
+  const ms = monkeys.map(([v, x, z, nx, nz]) => { const m = makeMonkey(v, V(x, 0, z), V(nx - x, 0, nz - z).normalize()); m.speed = 0.001;
+    m.maxHp = m.hp = MAXHP[v] || 60; attachBar(m); m.bar.sp.visible = true; m.bar.ratio = m.bar.trail = v === 'Brute' ? 0.7 : v === 'Monkey' ? 0.45 : 1; return m; });
+  for (const [unit, level, x, z] of men) {
+    let best = ms[0], d = 1e9; for (const m of ms) { const dd = Math.hypot(m.outer.position.x - x, m.outer.position.z - z); if (dd < d) { d = dd; best = m; } }
+    const man = makeMan(unit, level, V(x, 0, z), face(V(x, 0, z), best.outer.position)); engage(man, 99);
+    at(0.2 + Math.random() * 0.3, () => play(man, man.kind));
+  }
+  const you = opts.you || [14, 20, 0];
+  const player = makeMan('Pilot', 1, V(you[0], 0, you[1]), you[2]); player.manual = true;
+  for (let i = 0; i < 40; i++) stepOnce();
+  const c = opts.cam || [17, 8, 33, 8, 2.5, 4];
+  camera.fov = opts.fov || 70; camera.near = 0.2; camera.far = 700; camera.aspect = W / H; camera.updateProjectionMatrix();
+  cam(V(c[0], c[1], c[2]), V(c[3], c[4], c[5])); render();
+  const hud = Object.assign({ wave: 'WAVE 3', obj: ['SURVIVE WAVES', '2 / 100'], stash: 0.8, cash: 320, men: men.length,
+    cards: CARD_ORDER.map(([u, name, cost]) => ({ name, cost, img: pics[u] })), selected: null }, opts.hud || {});
+  if (opts.marker) { const p = V(...opts.marker).project(camera); hud.marker = { x: (p.x + 1) / 2 * W, y: (1 - p.y) / 2 * H, w: opts.markerW || 220 }; }
+  const { drawHud } = await import('./hud.js'); drawHud(W, H, hud);
   return true;
 };
 
