@@ -188,8 +188,8 @@ end
 function EnemyService.slow(id: number, factor: number, duration: number)
 	local e = enemies[id]
 	if not e or e.def.Boss then
-		if e then -- bosses shrug off most of it
-			e.slowFactor = math.max(e.slowFactor, 0.8)
+		if e then -- bosses shrug off most of it: a light slow for half as long
+			e.slowFactor = 0.8
 			e.slowUntil = now() + duration * 0.5
 		end
 		return
@@ -291,7 +291,15 @@ end
 
 function EnemyService.step(dt: number)
 	local t = now()
+	-- iterate a snapshot: Summon abilities spawn new monkeys mid-loop
+	local list = {}
 	for _, e in enemies do
+		table.insert(list, e)
+	end
+	for _, e in list do
+		if enemies[e.id] ~= e then
+			continue
+		end
 		local p = progressOf(e, t)
 		if not e.atBase and p >= e.path.length - 0.25 then
 			e.atBase = true

@@ -95,11 +95,17 @@ local function facePathYaw(pos: Vector3): CFrame
 	return CFrame.new(pos)
 end
 
-local function spawnModel(u, cf: CFrame)
-	local model = MenFactory.build(u.unitId, u.level)
+-- Builds a man's model. With the custom rigs this is a clone; the avatar fallback yields
+-- (CreateHumanoidModelFromDescription), so callers build first and re-check state afterwards.
+local function buildModel(unitId: string, level: number): (Model, number)
+	local model = MenFactory.build(unitId, level)
 	local humanoid = model:FindFirstChildOfClass("Humanoid")
 	local root = model:FindFirstChild("HumanoidRootPart") :: BasePart
 	local height = model:GetAttribute("RootHeight") or ((humanoid :: Humanoid).HipHeight + root.Size.Y / 2)
+	return model, height
+end
+
+local function showModel(u, model: Model, height: number, cf: CFrame)
 	model:PivotTo(cf + Vector3.new(0, height, 0))
 	model:SetAttribute("Uid", u.uid)
 	model:SetAttribute("Owner", u.owner.UserId)
@@ -110,22 +116,39 @@ local function spawnModel(u, cf: CFrame)
 	u.height = height
 end
 
+local function destroyModel(u)
+	if u.model then
+		u.model:Destroy()
+		u.model = nil
+	end
+end
+
 function UnitService.place(player: Player, unitId: string, pos: Vector3): (boolean, string?)
 	local unit = Units[unitId]
 	if not unit then
 		return false, "Unknown unit"
 	end
-	if (player:GetAttribute("Units") or 0) >= UnitService.MAX_PER_PLAYER then
-		return false, `Army full ({UnitService.MAX_PER_PLAYER} men)`
-	end
 	pos = Vector3.new(pos.X, 0, pos.Z)
-	local problem = UnitService.placementProblem(pos)
+	local function problemNow(): string?
+		if (player:GetAttribute("Units") or 0) >= UnitService.MAX_PER_PLAYER then
+			return `Army full ({UnitService.MAX_PER_PLAYER} men)`
+		end
+		return UnitService.placementProblem(pos)
+	end
+	local cost = unit.Levels[1].Cost
+	local problem = problemNow()
 	if problem then
 		return false, problem
 	end
-	local cost = unit.Levels[1].Cost
-	if not Economy.spend(player, cost) then
+	if Economy.get(player) < cost then
 		return false, "Not enough cash"
+	end
+	local model, height = buildModel(unitId, 1)
+	-- the build may have yielded: the spot, the cap or the cash can have changed meanwhile
+	problem = if player.Parent then problemNow() else "Left the game"
+	if problem or not Economy.spend(player, cost) then
+		model:Destroy()
+		return false, problem or "Not enough cash"
 	end
 	nextUid += 1
 	local u = {
@@ -142,8 +165,8 @@ function UnitService.place(player: Player, unitId: string, pos: Vector3): (boole
 		hypedUntil = 0,
 		rally = 0,
 	}
+	showModel(u, model, height, facePathYaw(pos))
 	units[u.uid] = u
-	spawnModel(u, facePathYaw(pos))
 	player:SetAttribute("Units", (player:GetAttribute("Units") or 0) + 1)
 	unitFxEvent:FireAllClients("place", u.uid, pos)
 	return true, nil
@@ -154,6 +177,9 @@ function UnitService.upgrade(player: Player, uid: number): (boolean, string?)
 	if not u or u.owner ~= player then
 		return false, "Not your man"
 	end
+	if u.busy then
+		return false, "Already upgrading"
+	end
 	local nextDef = u.unit.Levels[u.level + 1]
 	if not nextDef then
 		return false, "Max level"
@@ -161,12 +187,22 @@ function UnitService.upgrade(player: Player, uid: number): (boolean, string?)
 	if not Economy.spend(player, nextDef.Cost) then
 		return false, "Not enough cash"
 	end
+	u.busy = true
+	local model, height = buildModel(u.unitId, u.level + 1)
+	u.busy = false
+	if units[uid] ~= u or not u.model then -- sold, cleared or owner left during the build
+		model:Destroy()
+		if player.Parent then
+			Economy.add(player, nextDef.Cost)
+		end
+		return false, "That man is gone"
+	end
 	u.level += 1
 	u.def = nextDef
 	u.spent += nextDef.Cost
 	local cf = u.model:GetPivot() - Vector3.new(0, u.height, 0)
-	u.model:Destroy()
-	spawnModel(u, cf)
+	destroyModel(u)
+	showModel(u, model, height, cf)
 	unitFxEvent:FireAllClients("upgrade", u.uid, u.pos, u.level)
 	return true, nil
 end
@@ -180,7 +216,7 @@ function UnitService.sell(player: Player, uid: number): (boolean, string?)
 	Economy.add(player, u.spent * UnitService.SELL_RATE)
 	player:SetAttribute("Units", math.max(0, (player:GetAttribute("Units") or 1) - 1))
 	unitFxEvent:FireAllClients("sell", uid, u.pos)
-	u.model:Destroy()
+	destroyModel(u)
 	return true, nil
 end
 
@@ -188,7 +224,7 @@ function UnitService.removeOwner(player: Player)
 	for uid, u in units do
 		if u.owner == player then
 			units[uid] = nil
-			u.model:Destroy()
+			destroyModel(u)
 		end
 	end
 end
@@ -196,7 +232,7 @@ end
 function UnitService.clear()
 	for uid, u in units do
 		units[uid] = nil
-		u.model:Destroy()
+		destroyModel(u)
 	end
 end
 
@@ -232,7 +268,7 @@ end
 
 local function faceTarget(u, target: Vector3)
 	local flat = Vector3.new(target.X, u.pos.Y, target.Z)
-	if (flat - u.pos).Magnitude > 0.1 then
+	if u.model and (flat - u.pos).Magnitude > 0.1 then
 		u.model:PivotTo(CFrame.lookAt(u.pos, flat) + Vector3.new(0, u.height, 0))
 	end
 end

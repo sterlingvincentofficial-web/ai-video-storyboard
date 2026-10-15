@@ -18,7 +18,9 @@ local GameService = {}
 
 local BASE_MAX_HP = 1000
 
-local state = Instance.new("Configuration")
+-- Reused if it already exists, so a GameState placed in ReplicatedStorage in Studio (with a
+-- StartWave attribute) works too.
+local state = ReplicatedStorage:FindFirstChild("GameState") or Instance.new("Configuration")
 state.Name = "GameState"
 state:SetAttribute("Wave", 0)
 state:SetAttribute("TotalWaves", Waves.Total)
@@ -27,7 +29,8 @@ state:SetAttribute("NextWaveAt", 0)
 state:SetAttribute("BaseHp", BASE_MAX_HP)
 state:SetAttribute("BaseMaxHp", BASE_MAX_HP)
 state:SetAttribute("Boss", "")
--- Set this in Studio (ReplicatedStorage.GameState) before pressing Play to jump to a later wave.
+-- Jump to a later wave for testing: set StartWave on ReplicatedStorage.GameState while the intro
+-- plays, or on a GameState you put there in Studio before pressing Play.
 state:SetAttribute("StartWave", state:GetAttribute("StartWave") or 1)
 state.Parent = ReplicatedStorage
 
@@ -39,6 +42,7 @@ Net.event("IntroDone").OnServerEvent:Connect(function(p: Player)
 end)
 local baseHp = BASE_MAX_HP
 local running = 0 -- bumps on restart so old wave threads stop
+local lostRun = 0 -- the run whose stash fell; it can't be un-lost by a heal
 
 local function now(): number
 	return workspace:GetServerTimeNow()
@@ -54,6 +58,10 @@ EnemyService.onReward = function(amount: number)
 	Economy.addAll(amount)
 end
 UnitService.onHeal = function(amount: number)
+	local phase = state:GetAttribute("Phase")
+	if baseHp <= 0 or (phase ~= "Wave" and phase ~= "Intermission") then
+		return -- medics can't revive a fallen stash
+	end
 	baseHp = math.min(BASE_MAX_HP, baseHp + amount)
 end
 
@@ -102,12 +110,12 @@ local function runWave(run: number, n: number)
 	-- wait for the wave to be fully spawned and wiped (or the stash to fall)
 	task.wait(1)
 	while running == run and (spawning > 0 or EnemyService.count() > 0) do
-		if baseHp <= 0 then
+		if baseHp <= 0 or lostRun == run then
 			return false
 		end
 		task.wait(0.25)
 	end
-	if running ~= run then
+	if running ~= run or lostRun == run then
 		return false
 	end
 	local bonus = 40 + n * 12
@@ -157,6 +165,11 @@ local function gameLoop(run: number)
 		if n == Waves.Total then
 			state:SetAttribute("Phase", "Victory")
 			gameEvent:FireAllClients("Victory")
+			-- celebrate, then start a fresh game
+			task.wait(15)
+			if running == run then
+				GameService.restart()
+			end
 			return
 		end
 		state:SetAttribute("Phase", "Intermission")
@@ -172,28 +185,44 @@ function GameService.start()
 	task.spawn(gameLoop, running)
 end
 
-function GameService.gameOver(run: number)
-	if running ~= run then
-		return
-	end
-	state:SetAttribute("Phase", "GameOver")
-	gameEvent:FireAllClients("GameOver", state:GetAttribute("Wave"))
-	task.wait(7)
-	if running ~= run then
-		return
-	end
+function GameService.restart()
 	EnemyService.clear()
 	UnitService.clear()
 	Economy.resetAll()
 	GameService.start()
 end
 
+-- Called by the heartbeat the moment the stash falls, and by the wave loop; only the first runs.
+function GameService.gameOver(run: number)
+	if running ~= run or lostRun == run then
+		return
+	end
+	lostRun = run
+	state:SetAttribute("Phase", "GameOver")
+	gameEvent:FireAllClients("GameOver", state:GetAttribute("Wave"))
+	task.wait(7)
+	if running ~= run then
+		return
+	end
+	GameService.restart()
+end
+
+-- One service erroring must not stop the others (or the flushes and the game-over check).
+local lastWarn = 0
+local function safely(name: string, fn: (...any) -> (), ...)
+	local ok, err = pcall(fn, ...)
+	if not ok and os.clock() - lastWarn > 2 then
+		lastWarn = os.clock()
+		warn(`[100 Men] {name} failed: {err}`)
+	end
+end
+
 -- per-frame heartbeat for every service
 RunService.Heartbeat:Connect(function(dt)
-	EnemyService.step(dt)
-	UnitService.step()
-	EnemyService.flush()
-	UnitService.flush()
+	safely("EnemyService.step", EnemyService.step, dt)
+	safely("UnitService.step", UnitService.step)
+	safely("EnemyService.flush", EnemyService.flush)
+	safely("UnitService.flush", UnitService.flush)
 	local shown = math.floor(baseHp + 0.5)
 	if state:GetAttribute("BaseHp") ~= shown then
 		if shown < (state:GetAttribute("BaseHp") or shown) then

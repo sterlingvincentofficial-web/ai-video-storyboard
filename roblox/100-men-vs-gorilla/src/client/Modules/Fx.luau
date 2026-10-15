@@ -278,11 +278,13 @@ function Fx.confetti(pos: Vector3, count: number)
 end
 
 -- White hit flash on a model (pooled Highlights; Roblox caps how many can show at once).
+-- The Highlights live in our own folder and only adorn the model, so a model destroyed
+-- mid-flash (kill effects do that) never takes a pooled Highlight down with it.
 local flashPool: { Highlight } = {}
 local FLASH_MAX = 24
 local flashLive = 0
 function Fx.flash(model: Model, color: Color3?, time: number?)
-	if flashLive >= FLASH_MAX then
+	if flashLive >= FLASH_MAX or not model.Parent then
 		return
 	end
 	local h = table.remove(flashPool) or Instance.new("Highlight")
@@ -292,10 +294,11 @@ function Fx.flash(model: Model, color: Color3?, time: number?)
 	h.FillTransparency = 0.05
 	h.DepthMode = Enum.HighlightDepthMode.Occluded
 	h.Adornee = model
-	h.Parent = model
+	h.Enabled = true
+	h.Parent = folder
 	tween(h, time or 0.12, { FillTransparency = 1 })
 	task.delay((time or 0.12) + 0.02, function()
-		h.Parent = nil
+		h.Enabled = false -- pooled: never falls back to highlighting its parent folder
 		h.Adornee = nil
 		flashLive -= 1
 		table.insert(flashPool, h)

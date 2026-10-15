@@ -37,28 +37,33 @@ function Juice.sound(name: string, pos: Vector3?, pitch: number?, volume: number
 	s.SoundId = if def.Id then `rbxassetid://{def.Id}` else def.Fallback
 	s.Volume = def.Volume * (volume or 1)
 	s.PlaybackSpeed = (pitch or 1) * Fx.rand(0.94, 1.06)
+	local holder: BasePart? = nil
 	if pos then
-		local holder = Fx.part({ Size = Vector3.one * 0.1, Position = pos, Transparency = 1 })
+		holder = Fx.part({ Size = Vector3.one * 0.1, Position = pos, Transparency = 1 })
 		s.RollOffMinDistance = 20
 		s.RollOffMaxDistance = 260
 		s.Parent = holder
-		task.delay(4, function()
-			holder:Destroy()
-		end)
 	else
 		s.Parent = SoundService
 	end
 	s:Play()
-	s.Ended:Once(function()
-		playingCount[name] = math.max(0, (playingCount[name] or 1) - 1)
-		if s.Parent == SoundService then
-			s:Destroy()
-		end
-	end)
-	task.delay(4, function()
-		if s.Parent then
+	-- free the slot exactly once, whether the sound ends, never loads or outlives its holder
+	local released = false
+	local function release()
+		if not released then
+			released = true
 			playingCount[name] = math.max(0, (playingCount[name] or 1) - 1)
-			s:Destroy()
+		end
+	end
+	s.Ended:Once(release)
+	task.delay(4, function()
+		if s.IsPlaying and s.TimeLength > 0 then -- a long sound: let it finish
+			task.wait(math.min((s.TimeLength - s.TimePosition) / math.max(s.PlaybackSpeed, 0.1) + 0.1, 20))
+		end
+		release()
+		s:Destroy()
+		if holder then
+			holder:Destroy()
 		end
 	end)
 end

@@ -289,6 +289,9 @@ local function gearMesh(name: string): BasePart?
 		end
 	end
 	local src = gearModel and gearModel:FindFirstChild(name, true)
+	if src and not src:IsA("BasePart") then -- the importer may wrap a mesh in a Model of the same name
+		src = src:FindFirstChildWhichIsA("BasePart", true)
+	end
 	return src and (src :: BasePart):Clone()
 end
 

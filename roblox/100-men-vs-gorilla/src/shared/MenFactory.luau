@@ -238,7 +238,12 @@ function MenFactory.build(unitId: string, level: number): Model
 		custom.Name = `{unitId}_L{level}`
 		local root = custom.PrimaryPart :: BasePart
 		root.Anchored = true
-		root.CanQuery = true -- clicks/taps on the unit select it
+		-- clicks/taps anywhere on the man select him (the rig's parts start non-queryable)
+		for _, p in custom:GetDescendants() do
+			if p:IsA("BasePart") and (p == root or p.Transparency < 1) then
+				p.CanQuery = true
+			end
+		end
 		if def.Look.Aura then
 			sparkleAura(custom:FindFirstChild("UpperTorso") :: BasePart)
 		end

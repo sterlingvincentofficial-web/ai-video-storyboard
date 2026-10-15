@@ -279,8 +279,10 @@ end)
 -- ---------------------------------------------------------------- placement ghost
 
 local ghostRing = Fx.part({ Shape = Enum.PartType.Cylinder, Size = Vector3.new(0.15, 2, 2), Material = Enum.Material.Neon,
-	Transparency = 0.6, Parent = nil })
-local ghostBody = Fx.part({ Size = Vector3.new(2, 5, 1.2), Transparency = 0.45, Material = Enum.Material.Neon, Parent = nil })
+	Transparency = 0.6 })
+local ghostBody = Fx.part({ Size = Vector3.new(2, 5, 1.2), Transparency = 0.45, Material = Enum.Material.Neon })
+ghostRing.Parent = nil -- shown only while placing (Fx.part parents to ClientFx by default)
+ghostBody.Parent = nil
 local ghostPos: Vector3? = nil
 local ghostOk = false
 
@@ -291,9 +293,17 @@ local function mapRoot(): Instance
 	return workspace:FindFirstChild("Map") or workspace
 end
 
+-- A tap's position excludes the top-bar inset (ScreenPointToRay); the mouse location includes it.
+local function screenRay(screen: Vector2?): Ray
+	if screen then
+		return camera:ScreenPointToRay(screen.X, screen.Y)
+	end
+	local p = UserInputService:GetMouseLocation()
+	return camera:ViewportPointToRay(p.X, p.Y)
+end
+
 local function pointerRay(screen: Vector2?): RaycastResult?
-	local p = screen or UserInputService:GetMouseLocation()
-	local ray = camera:ViewportPointToRay(p.X, p.Y)
+	local ray = screenRay(screen)
 	raycastParams.FilterDescendantsInstances = { mapRoot() }
 	return workspace:Raycast(ray.Origin, ray.Direction * 600, raycastParams)
 end
@@ -391,7 +401,8 @@ rim(upButton)
 local sellButton = make("TextButton", { Size = UDim2.new(1, -24, 0, 36), Position = UDim2.fromOffset(12, 182),
 	BackgroundColor3 = ORANGE, Font = FONT, TextSize = 20, TextColor3 = INK, Text = "SELL", Parent = panel })
 local panelRing = Fx.part({ Shape = Enum.PartType.Cylinder, Size = Vector3.new(0.15, 2, 2), Material = Enum.Material.Neon,
-	Color = Color3.fromRGB(255, 220, 80), Transparency = 0.65, Parent = nil })
+	Color = Color3.fromRGB(255, 220, 80), Transparency = 0.65 })
+panelRing.Parent = nil -- shown while a man's panel is open
 local panelUid: number? = nil
 
 local function refreshPanel()
@@ -456,8 +467,7 @@ sellButton.Activated:Connect(function()
 end)
 
 local function unitUnder(screen: Vector2?): number?
-	local p = screen or UserInputService:GetMouseLocation()
-	local ray = camera:ViewportPointToRay(p.X, p.Y)
+	local ray = screenRay(screen)
 	local params = RaycastParams.new()
 	params.FilterType = Enum.RaycastFilterType.Include
 	params.FilterDescendantsInstances = { unitsFolder }
@@ -472,13 +482,13 @@ end
 -- ---------------------------------------------------------------- input
 
 UserInputService.InputChanged:Connect(function(input)
-	if selected and input.UserInputType == Enum.UserInputType.MouseMovement then
+	if selected and gui.Enabled and input.UserInputType == Enum.UserInputType.MouseMovement then
 		updateGhost()
 	end
 end)
 
 UserInputService.InputBegan:Connect(function(input, processed)
-	if processed then
+	if processed or not gui.Enabled then -- the intro hides the HUD: no placing men mid-cutscene
 		return
 	end
 	if input.UserInputType == Enum.UserInputType.Keyboard then
@@ -553,14 +563,19 @@ RunService.RenderStepped:Connect(function()
 	end
 end)
 
-ReplicatedStorage:WaitForChild("Enemies").ChildAdded:Connect(function(cfg)
+local function watchBoss(cfg: Instance)
 	local def = EnemyDefs[cfg:GetAttribute("Type") or ""]
 	if def and def.Boss then
 		bossId = tonumber(cfg.Name)
 		bossName.Text = string.upper(def.DisplayName)
 		bossFrame.Visible = true
 	end
-end)
+end
+local enemiesFolder = ReplicatedStorage:WaitForChild("Enemies")
+enemiesFolder.ChildAdded:Connect(watchBoss)
+for _, cfg in enemiesFolder:GetChildren() do -- joined mid-boss
+	watchBoss(cfg)
+end
 
 -- ---------------------------------------------------------------- intro hand-off
 
