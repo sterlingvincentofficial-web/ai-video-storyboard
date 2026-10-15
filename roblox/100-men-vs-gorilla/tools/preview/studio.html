@@ -663,7 +663,7 @@ const SCENES = {
 // ---------------------------------------------------------------- portraits
 function portraitUnit(unit) {
   newWorld({ noProps: true });
-  for (let l = 1; l <= 3; l++) makeMan(unit, l, V((l - 2) * 4.2, 0, 0), (l - 2) * -0.25);
+  for (let l = 1; l <= 3; l++) makeMan(unit, l, V((2 - l) * 4.2, 0, 0), (2 - l) * -0.25); // L1 on the left as the camera sees it
   for (let i = 0; i < 40; i++) stepOnce();
   cam(V(0, 4.6, -15), V(0, 2.9, 0)); render();
 }
@@ -683,6 +683,15 @@ window.setupScene = name => {
 };
 window.advance = n => { for (let i = 0; i < n; i++) stepOnce(); render(); return simT; };
 window.portraitUnit = portraitUnit;
+// the whole army in a row, one level, on the beach
+window.armyLineup = (level = 1) => {
+  newWorld({ noProps: true });
+  for (const [x, z] of [[-27, 8], [27, 9], [-33, 18], [34, 16]]) palm(x, z);
+  // left to right as the camera (at -Z) sees them: Brawler first, like the hotbar
+  CARD_ORDER.forEach(([unit], i) => makeMan(unit, level, V((4 - i) * 4.4, 0, Math.abs(i - 4) * 0.7), (i - 4) * 0.06));
+  for (let i = 0; i < 40; i++) stepOnce();
+  cam(V(0, 4.8, -21), V(0, 3, 0)); render();
+};
 window.portraitMonkey = portraitMonkey;
 // ---------------------------------------------------------------- intro cutscene (mirrors Cutscene.luau)
 // Plays tools/cutscene/intro.json on the real map (scene.json) with the real chopper (heli.json).
