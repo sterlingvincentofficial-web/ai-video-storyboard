@@ -307,23 +307,34 @@ def build_paths():
 
 def build_north():
     g = "Map_North"
-    # terraced cliff: 4 rows of 4-stud columns, heights from smooth noise, quantised to 2 studs
-    rows = [(CLIFF_FRONT, CLIFF_FRONT - 5, 8), (CLIFF_FRONT - 5, CLIFF_FRONT - 10, 14),
-            (CLIFF_FRONT - 10, CLIFF_FRONT - 15, 20), (CLIFF_FRONT - 15, -ISLAND_Z, 28)]
-    tops = {}
+    # terraced cliff: 5 stepped rows; column heights from smooth noise (quantised to 2 studs), and
+    # neighbouring columns of equal height merged into one chunky block
+    rows = [(CLIFF_FRONT, CLIFF_FRONT - 4, 6), (CLIFF_FRONT - 4, CLIFF_FRONT - 8, 11), (CLIFF_FRONT - 8, CLIFF_FRONT - 12, 16),
+            (CLIFF_FRONT - 12, CLIFF_FRONT - 16, 22), (CLIFF_FRONT - 16, -ISLAND_Z, 29)]
+    top_row = len(rows) - 1
+    tops, blocks = {}, []
     obj("T:cliff")
+    cols = [ix for ix in range(-ISLAND_X // 4, ISLAND_X // 4) if not -PLATEAU_X <= ix * 4 < PLATEAU_X]
     for r, (zf, zb, base) in enumerate(rows):
-        for ix in range(-ISLAND_X // 4, ISLAND_X // 4):
+        heights = {}
+        for ix in cols:
             x0 = ix * 4
-            if -PLATEAU_X <= x0 < PLATEAU_X:
-                continue
             n = 1.3 * math.sin(x0 * 0.11 + r * 1.7) + 0.8 * math.sin(x0 * 0.29 + r * 0.6)
-            h = base + 2 * round(n) + (2 if abs(x0) > 80 and r == 3 else 0)
-            tops[(ix, r)] = h
-            box(g, f"Cliff_{ix}_{r}", x0, x0 + 4, 0, h, zb, zf, R.choice(["rock", "rock_light", "rock_dark"]))
-            if r < 3 and R.random() < 0.4:
-                box(g, f"CliffGrass_{ix}_{r}", x0, x0 + 4, h, h + 0.5, zb, zf, R.choice(["moss", "grass"]))
-                tops[(ix, r)] = h + 0.5
+            heights[ix] = base + 2 * round(n) + (2 if abs(x0) > 80 and r == top_row else 0)
+        k = 0
+        while k < len(cols):
+            j = k
+            while j + 1 < len(cols) and cols[j + 1] == cols[j] + 1 and heights[cols[j + 1]] == heights[cols[k]] and j - k < 2:
+                j += 1
+            ix0, ix1, h = cols[k], cols[j], heights[cols[k]]
+            box(g, f"Cliff_{ix0}_{r}", ix0 * 4, ix1 * 4 + 4, 0, h, zb, zf, R.choice(["rock", "rock_light", "rock_dark"]))
+            grass = r < top_row and R.random() < 0.45
+            if grass:
+                box(g, f"CliffGrass_{ix0}_{r}", ix0 * 4, ix1 * 4 + 4, h, h + 0.5, zb, zf, R.choice(["moss", "grass"]))
+            blocks.append((r, ix0, ix1, h))
+            for ix in range(ix0, ix1 + 1):
+                tops[(ix, r)] = h + (0.5 if grass else 0)
+            k = j + 1
     # plateau the temple stands on (in a notch of the cliff), stone columns in two tones
     obj("T:plateau")
     for k in range(8):
@@ -394,13 +405,35 @@ def build_north():
         box(g, f"Moss{i + 1}", x0, x1, 24, 24.4, z0, z1, "moss")
 
     # palms and bushes on the cliff top / terraces
+    # the reference's cliff-top lookout: a shack and a satellite dish on the widest top block (east side)
+    r, ix0, ix1, h = max((bl for bl in blocks if bl[0] == top_row and bl[1] * 4 > PLATEAU_X), key=lambda bl: (bl[2] - bl[1], -bl[1]))
+    lx = ix0 * 4 + 3.2
+    lz = (rows[top_row][0] + rows[top_row][1]) / 2
+    obj("Lookout")
+    box(g, "LookoutFloor", lx - 2.6, lx + 2.6, h, h + 0.4, lz - 2.4, lz + 2.4, "wood")
+    for sx in (-1, 1):
+        box(g, f"LookoutWall{sx}", *sorted((lx + sx * 2.6, lx + sx * 2.1)), h + 0.4, h + 3.4, lz - 2.4, lz + 2.4, "wood_dark")
+    box(g, "LookoutBack", lx - 2.1, lx + 2.1, h + 0.4, h + 3.4, lz - 2.4, lz - 1.9, "wood")
+    for sx in (-1, 1):
+        box(g, f"LookoutFront{sx}", *sorted((lx + sx * 2.1, lx + sx * 0.8)), h + 0.4, h + 3.4, lz + 1.9, lz + 2.4, "wood")
+    box(g, "LookoutRoof", lx - 3.1, lx + 3.1, h + 3.4, h + 4.0, lz - 2.9, lz + 2.9, "trunk_ring")
+    if (ix1 - ix0 + 1) * 4 >= 9.6:
+        dx = lx + 5.4
+        obj("Dish")
+        box(g, "DishPost", dx - 0.3, dx + 0.3, h, h + 3.2, lz - 0.3, lz + 0.3, "metal")
+        smooth(g, "Dish", (0.35, 3.8, 3.8), (dx, h + 4.2, lz + 0.4), "white", shape="Cylinder", rot=(0, 90, 35))
+        smooth(g, "DishFeed", (0.3, 0.3, 0.3), (dx - 0.9, h + 5.0, lz + 1.2), "metal")
+    take("ground", lx, lz, 3)
+
     for i, x in enumerate((-100, -84, -60, -44, 44, 58, 80, 100)):
         ix = math.floor(x / 4)
-        palm(g, f"CliffPalm{i + 1}", ix * 4 + 2, -88, y=tops[(ix, 3)])
-    for i in range(14):
-        ix = R.choice([k for k in range(-ISLAND_X // 4, ISLAND_X // 4) if not -PLATEAU_X <= k * 4 < PLATEAU_X])
-        r = R.randint(0, 2)
-        x, z = ix * 4 + 2, rows[r][0] - 2.5
+        if ix0 <= ix <= ix1 + 1:
+            continue  # the lookout is there
+        palm(g, f"CliffPalm{i + 1}", ix * 4 + 2, -88, y=tops[(ix, top_row)])
+    for i in range(16):
+        ix = R.choice(cols)
+        r = R.randint(0, top_row - 1)
+        x, z = ix * 4 + 2, rows[r][0] - 2
         if (ix, r, "b") in tops:
             continue
         tops[(ix, r, "b")] = True
@@ -451,6 +484,44 @@ def scatter(g, n, tries, region, make):
     return placed
 
 
+def groves(n, tries, region, size, spread, make):
+    """Clustered planting like the reference: a few tight groups of 2-4, open sand in between.
+    Returns the trunk positions so bushes can sit at their feet instead of dotting the beach."""
+    trunks, placed = [], 0
+    for _ in range(tries):
+        if placed >= n:
+            break
+        cx, cz = R.uniform(region[0], region[1]), R.uniform(region[2], region[3])
+        want = R.randint(*size)
+        got = []
+        for _ in range(want * 30):
+            if len(got) >= want or placed >= n:
+                break
+            a, d = R.uniform(0, math.tau), R.uniform(0, spread) if got else 0
+            x, z = cx + math.cos(a) * d, cz + math.sin(a) * d
+            if make(x, z, placed):
+                got.append((x, z))
+                placed += 1
+        trunks += got
+    return trunks
+
+
+def foot_bushes(g, trunks, n, size):
+    """Bushes tucked against the trunks of a grove."""
+    placed = 0
+    for i in range(n * 40):
+        if placed >= n or not trunks:
+            break
+        tx, tz = R.choice(trunks)
+        a, d = R.uniform(0, math.tau), R.uniform(2.6, 4.2)
+        x, z, s = tx + math.cos(a) * d, tz + math.sin(a) * d, R.uniform(*size)
+        if not free(x, z, s * 0.75):
+            continue
+        bush(g, f"Bush{placed}", x, z, s)
+        take("ground", x, z, s * 0.75)
+        placed += 1
+
+
 def build_west():
     g = "Map_West"
     region = (-ISLAND_X + 6, -58, CLIFF_FRONT + 4, ISLAND_Z - 6)
@@ -470,14 +541,6 @@ def build_west():
             take("canopy", x, z, 5.4)
         return True
 
-    def bush_at(x, z, i):
-        s = R.uniform(2.4, 4)
-        if not free(x, z, s * 0.75):
-            return False
-        bush(g, f"Bush{i}", x, z, s)
-        take("ground", x, z, s * 0.75)
-        return True
-
     def rock_at(x, z, i):
         w, d = R.uniform(4, 6), R.uniform(4, 6)
         r = math.hypot(w, d) / 2
@@ -487,9 +550,9 @@ def build_west():
         take("ground", x, z, r)
         return True
 
-    scatter(g, 34, 3000, region, tree)
-    scatter(g, 8, 600, region, rock_at)
-    scatter(g, 30, 1500, (-ISLAND_X + 6, -52, CLIFF_FRONT + 4, ISLAND_Z - 6), bush_at)
+    trunks = groves(28, 400, region, (3, 5), 8, tree)
+    scatter(g, 5, 600, region, rock_at)
+    foot_bushes(g, trunks, 12, (2.4, 3.6))
 
 
 # ---------------------------------------------------------------- east: lagoon, dock, huts
@@ -673,16 +736,8 @@ def build_east():
         take("canopy", x, z, 5.4)
         return True
 
-    def bush_at(x, z, i):
-        s = R.uniform(2, 3.4)
-        if not free(x, z, s * 0.75):
-            return False
-        bush(g, f"Bush{i}", x, z, s)
-        take("ground", x, z, s * 0.75)
-        return True
-
-    scatter(g, 16, 2000, (46, ISLAND_X - 6, CLIFF_FRONT + 4, ISLAND_Z - 6), palm_at)
-    scatter(g, 14, 1500, (46, ISLAND_X - 6, CLIFF_FRONT + 4, ISLAND_Z - 6), bush_at)
+    trunks = groves(14, 400, (46, ISLAND_X - 6, CLIFF_FRONT + 4, ISLAND_Z - 6), (2, 3), 5.5, palm_at)
+    foot_bushes(g, trunks, 6, (2, 3))
 
 
 # ---------------------------------------------------------------- south: base camp

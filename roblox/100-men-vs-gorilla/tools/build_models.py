@@ -311,25 +311,32 @@ def build_platform():
 
 
 def _voxel_palm(b, rng, name, x, z, lean, h):
-    """Stacked trunk blocks with rings, crown of drooping block fronds."""
+    """Chunky cube palm like the reference: curving stacked-cube trunk, a crown with coconuts and
+    seven thick drooping fronds of studded cubes."""
     px, py = x, 0.0
+    curve = math.sin(math.radians(lean))
     for i in range(h):
         t = i / max(1, h - 1)
-        dx = math.sin(math.radians(lean)) * t * 0.35
-        b.add(f"{name}Trunk{i + 1}", (1.1, 1.0, 1.1), (px + dx, py + 0.5, z), "trunk_ring" if i % 2 else "trunk",
+        dx = curve * t * 0.32
+        w = 1.3 - 0.25 * t
+        b.add(f"{name}Trunk{i + 1}", (w, 1.0, w), (px + dx, py + 0.5, z), "trunk_ring" if i % 2 else "trunk",
               look=STUDS, rot=(0, (i * 13) % 30, 0))
         px, py = px + dx, py + 1.0
-    top = (px, py + 0.3, z)
-    b.add(name + "Crown", (1.6, 1.0, 1.6), top, "palm_dark", look=STUDS, rot=(0, 20, 0))
-    for f in range(6):
-        yaw = f * 60 + rng.uniform(-10, 10)
+    top = (px, py + 0.35, z)
+    b.add(name + "Crown", (1.7, 1.0, 1.7), top, "palm_dark", look=STUDS, rot=(0, 20, 0))
+    for k in range(3):
+        a = math.radians(k * 120 + 30)
+        b.add(f"{name}Coconut{k + 1}", (0.62, 0.62, 0.62), (top[0] + math.cos(a) * 0.75, top[1] - 0.55, top[2] - math.sin(a) * 0.75),
+              "trunk_ring", look=STUDS, rot=(0, k * 30, 0))
+    for f in range(7):
+        yaw = f * (360 / 7) + rng.uniform(-10, 10)
         for k in range(4):
-            reach = 1.2 + k * 1.1
-            drop = 0.12 * k * k
+            reach = 1.3 + k * 1.15
+            drop = 0.16 * k * k
             fx = top[0] + math.cos(math.radians(yaw)) * reach
             fz = top[2] - math.sin(math.radians(yaw)) * reach
-            b.add(f"{name}Frond{f + 1}_{k + 1}", (1.4, 0.45, 1.0 - k * 0.15), (fx, top[1] + 0.2 - drop, fz),
-                  "palm" if (f + k) % 3 else "palm_dark", look=STUDS, rot=(0, yaw, -10 - k * 12))
+            b.add(f"{name}Frond{f + 1}_{k + 1}", (1.45, 0.62, 1.15 - k * 0.16), (fx, top[1] + 0.25 - drop, fz),
+                  "palm" if (f + k) % 3 else "palm_dark", look=STUDS, rot=(0, yaw, -10 - k * 13))
 
 # ---------------------------------------------------------------- output
 
