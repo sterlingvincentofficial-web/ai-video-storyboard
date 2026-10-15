@@ -316,7 +316,7 @@ local function attack(entry)
 			end
 		end)
 	elseif kind == "Pebble" then
-		task.delay(0.14, function()
+		task.delay(0.16, function()
 			local lh = partOf(model, "LeftHand")
 			local from = if lh then lh.Position else muzzle(model, aim)
 			local pebble = gearMesh("Pebble") or Fx.part({ Shape = Enum.PartType.Ball, Size = Vector3.one * 0.45 })
@@ -324,7 +324,7 @@ local function attack(entry)
 			pebble.CanCollide = false
 			pebble.Color = if gold then Color3.fromRGB(255, 200, 40) else Color3.fromRGB(140, 140, 150)
 			pebble.Parent = Fx.folder
-			shoot(pebble, from, targetId, aim, math.max(0.05, travel - 0.14), 1.2, 20, function(at)
+			shoot(pebble, from, targetId, aim, math.max(0.05, travel - 0.16), 1.2, 20, function(at)
 				Fx.sparks(at, Color3.new(1, 1, 1), 4, 2.5)
 				Juice.sound("Hit", at, 1.4, 0.7)
 			end)

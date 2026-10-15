@@ -53,20 +53,19 @@ VARIANTS = {
     "Chucker": {  # throws bananas from range
         "body": MONKEY_BODY,
         "fur": (178, 112, 54), "cream": CREAM, "face": "goofy",
-        "extras": ["banana_hand", "bandolier"], "colors": {"banana": (255, 214, 40), "strap": (96, 60, 34),
-                                                         "banana_tip": (70, 48, 26)},
+        "extras": ["banana_hand"], "colors": {"banana": (255, 214, 40), "banana_tip": (70, 48, 26)},
     },
     "Brute": {  # armored tank
         "body": body(MONKEY_BODY, torso=(2.5, 1.5, 2.2), arm=(1.15, 1.15, 2.0), leg=(1.2, 1.2, 1.9),
                      head=(2.4, 2.0, 1.9)),
         "fur": (92, 58, 40), "cream": (236, 222, 160), "face": "angry",
-        "extras": ["helmet", "chestplate"], "colors": {"metal": (150, 156, 164), "rivet": (96, 100, 108)},
+        "extras": ["helmet"], "colors": {"metal": (150, 156, 164)},
     },
     "Baby": {  # tiny, comes in swarms
         "body": body(MONKEY_BODY, leg=(0.7, 0.7, 0.9), torso=(1.4, 1.0, 1.2), arm=(0.62, 0.62, 1.15),
                      head=(2.2, 1.9, 1.85), hand_cap=0.38, foot_cap=0.3, ear_r=0.4, radius=0.1),
         "fur": (156, 106, 70), "cream": (255, 240, 196), "face": "cute",
-        "extras": ["diaper"], "colors": {"diaper": (245, 245, 240), "pin": (120, 190, 240)},
+        "extras": ["diaper"], "colors": {"diaper": (245, 245, 240)},
     },
     "Ninja": {  # leaps over the front line
         "body": body(MONKEY_BODY, torso=(1.9, 1.15, 1.95)),
@@ -87,7 +86,7 @@ VARIANTS = {
     "Berserker": {
         "body": body(GORILLA_BODY, arm=(1.65, 1.65, 4.0)), "gorilla": True,
         "fur": (112, 42, 36), "cream": (150, 110, 104), "face": "gorilla_rage",
-        "extras": ["spike_pads"], "colors": {"spike": (60, 60, 66), "spike_tip": (220, 220, 226)},
+        "extras": ["spikes"], "colors": {"spike_tip": (226, 222, 210)},
     },
     "Alpha": {
         "body": GORILLA_BODY, "gorilla": True,
@@ -98,8 +97,7 @@ VARIANTS = {
         "body": body(GORILLA_BODY, torso=(3.8, 2.4, 2.8), arm=(1.75, 1.75, 4.1), head=(2.4, 2.1, 2.0)),
         "gorilla": True,
         "fur": (26, 24, 30), "cream": (96, 92, 104), "face": "gorilla_titan",
-        "extras": ["gold_armor", "crown"], "colors": {"gold": (250, 196, 40), "gem": (60, 200, 255),
-                                                      "metal": (60, 60, 66)},
+        "extras": ["gold_armor", "crown"], "colors": {"gold": (250, 196, 40), "gem": (60, 200, 255)},
     },
 }
 

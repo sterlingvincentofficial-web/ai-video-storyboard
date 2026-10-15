@@ -228,9 +228,11 @@ function makeMan(unit, level, pos, yaw) {
   const hat = gearMesh(L.hat, L.hatColor); if (hat) { hat.position.set(0, 1.22, 0); hat.scale.setScalar(1.2 / 1.24 * 1.04); neck.add(hat); }
   if (L.cross) { const c = gearMesh('MedicCross', '#dc2828'); c.position.set(0, 1.42, -0.62); neck.add(c); }
   if (L.badge) { const c = gearMesh(L.badge, GOLD); c.position.set(0, 1.27, -0.68); neck.add(c); }
+  if (L.hat === 'BananaHat') { const c = gearMesh('BananaStem', '#604222'); c.position.set(0, 1.22 + 0.42, 0); neck.add(c); }
   const hold = (side, items, colors) => (items || []).forEach((it, i) => {
     const g = gearMesh(it, colors[i]); if (!g) return;
     const grip = new THREE.Group(); grip.position.set(0, -1.04, 0); if (POINTED.has(it)) grip.rotation.x = it.startsWith('Axe') ? Math.PI : -Math.PI / 2;
+    if (it === 'Slingshot') g.scale.setScalar(1.7);
     grip.add(g); hands[side].add(grip);
   });
   hold('Right', L.held, L.heldColors || []); hold('Left', L.left, L.leftColors || []);
@@ -411,12 +413,46 @@ function dizzy(getPos, dur) {
 }
 function flash(m, color, dur = 0.12) { m.flashT = dur; m.flashColor = color ? C(color) : null; }
 
+// ---------------------------------------------------------------- health bars (EnemyView.luau)
+const MAXHP = { Monkey: 60, Speedy: 50, Chucker: 40, Brute: 600, Baby: 30, Ninja: 40, Silverback: 2400 };
+function hpColor(r) { return r > 0.6 ? '#6eeb46' : r > 0.3 ? '#ffcd28' : '#f53c2d'; }
+function attachBar(m) {
+  const c = document.createElement('canvas'); c.width = 256; c.height = 44;
+  const tex = new THREE.CanvasTexture(c); tex.colorSpace = THREE.SRGBColorSpace;
+  const sp = new THREE.Sprite(new THREE.SpriteMaterial({ map: tex, transparent: true, depthTest: false })); sp.renderOrder = 9; sp.visible = false;
+  scene.add(sp);
+  m.bar = { c, tex, sp, ratio: 1, trail: 1, hold: 0, pop: 0, shake: 0 };
+  every(dt => {
+    const b = m.bar; if (!m.alive && !m.outer.parent) { sp.visible = false; return; }
+    if (!sp.visible) return;
+    if (simT > b.hold && b.trail > b.ratio) b.trail = Math.max(b.ratio, b.trail - dt * 1.4);
+    const g = c.getContext('2d'); g.clearRect(0, 0, 256, 44);
+    const rr = (x, y, w, h, col) => { g.fillStyle = col; g.beginPath(); g.roundRect(x, y, Math.max(0, w), h, h / 2); g.fill(); };
+    rr(2, 2, 252, 40, '#0a0a0a'); rr(6, 6, 244, 32, '#181614');
+    rr(8, 8, 240 * b.trail, 28, '#ffffff'); rr(8, 8, 240 * b.ratio, 28, hpColor(b.ratio));
+    if (b.ratio > 0) { g.fillStyle = 'rgba(255,255,255,0.35)'; g.beginPath(); g.roundRect(10, 10, Math.max(0, 236 * b.ratio), 10, 5); g.fill(); }
+    g.fillStyle = 'rgba(24,22,20,0.65)'; for (let i = 1; i < 10; i++) g.fillRect(8 + 24 * i - 1, 8, 2, 28);
+    tex.needsUpdate = true;
+    b.pop = Math.max(0, b.pop - dt * 6);
+    const sc = 1 + 0.3 * b.pop, S = m.def.scale, head = monkeyHead(m);
+    sp.position.copy(head).add(V(0, 1.1 * S, 0));
+    if (simT < b.shake) sp.position.add(V(rnd(-0.08, 0.08), rnd(-0.05, 0.05), 0));
+    sp.scale.set(3.6 * S * sc, 0.62 * S * sc, 1);
+  });
+}
+function barHit(m, dmg, fatal) {
+  if (!m.bar) return;
+  const b = m.bar; m.hp = Math.max(fatal ? 0 : m.maxHp * 0.08, m.hp - dmg);
+  b.ratio = m.hp / m.maxHp; b.hold = simT + 0.3; b.pop = 1; b.shake = simT + 0.12; b.sp.visible = true;
+}
+
 // ---------------------------------------------------------------- hits + kill styles (KillFx.luau)
 function palette(m) { const d = m.def; const p = [d.fur, d.fur, d.fur, d.cream, d.cream]; if (d.accent) p.push(d.accent); return p; }
 function hit(m, dmg, crit) {
   if (!m.alive) return;
   const kick = (crit ? 2.2 : 1.2) / Math.max(1, m.def.scale);
   m.headX.v += (Math.random() - 0.5) * 30 * kick + 14 * kick; m.headZ.v += (Math.random() - 0.5) * 34 * kick; m.lean.v += 12 * kick;
+  barHit(m, dmg, false);
   flash(m, m.variant === 'Brute' ? '#c8dcff' : null);
   number(monkeyHead(m), dmg, crit);
 }
@@ -430,6 +466,7 @@ function shatter(m, power, budget = 1) {
 }
 function detachToWorld(obj) { scene.attach(obj); return obj; }
 function kill(m, kind, opts = {}) {
+  barHit(m, 1e9, true); if (m.bar) at(simT + 0.12, () => { m.bar.sp.visible = false; });
   m.alive = false; m.speed = 0;
   const pos = monkeyCenter(m);
   coins(pos.clone().add(V(0, 1, 0)), 4);
@@ -519,7 +556,8 @@ function cam(pos, look) { camBase = { pos, look }; }
 // ---------------------------------------------------------------- scenes
 const left = V(1, 0, 0), toLeft = V(-1, 0, 0);
 function walker(variant, x, z, speed, stopX, attackOnStop = true) {
-  const m = makeMonkey(variant, V(x, 0, z), V(-0.9, 0, 0.43).normalize()); m.speed = speed; m.dir = toLeft.clone(); m.stopX = stopX; m.attackOnStop = attackOnStop; return m;
+  const m = makeMonkey(variant, V(x, 0, z), V(-0.9, 0, 0.43).normalize()); m.speed = speed;
+  m.maxHp = m.hp = MAXHP[variant] || 60; attachBar(m); m.dir = toLeft.clone(); m.stopX = stopX; m.attackOnStop = attackOnStop; return m;
 }
 const YAW_RIGHT = -Math.PI / 2 - 0.45; // facing +X, cheated toward the camera
 const SCENES = {
@@ -529,14 +567,14 @@ const SCENES = {
       if (i < 2) hit(m, [18, 34][i], i === 1); else kill(m, 'Punch'); }); })); },
   Slingshot: () => { const u = makeMan('Slingshot', 3, V(-8, 0, 0), YAW_RIGHT); const m = walker('Speedy', 16, 0, 7, -50, false);
     cam(V(0, 5.5, 17), V(0, 2.5, 0));
-    [0.6, 1.3, 2.0].forEach((t, i) => at(t, () => { play(u, 'Pebble'); at(t + 0.14, () => {
+    [0.6, 1.3, 2.0].forEach((t, i) => at(t, () => { play(u, 'Pebble'); at(t + 0.16, () => {
       const p = new THREE.Mesh(new THREE.IcosahedronGeometry(0.22), mat('#ffc828')); shot(p, handPos(u, 'Left'), () => monkeyHead(m).add(V(0, -1.2, 0)), 0.3, 1.2, 20, to => {
         sparks(to, '#fff', 4, 2.5); if (i < 2) hit(m, [22, 22][i], false); else kill(m, 'Pebble'); }); }); })); },
   Lumberjack: () => { const u = makeMan('Lumberjack', 3, V(-6, 0, 0), YAW_RIGHT);
     const ms = [walker('Monkey', 9, -1.6, 8, -2.4), walker('Baby', 10.5, 1.5, 8, -2.6), walker('Monkey', 12, 0.2, 8, -1.2)];
     cam(V(-1, 6, 16), V(-1, 2.5, 0));
-    [1.3, 2.2].forEach((t, i) => at(t, () => { play(u, 'Chop'); at(t + 0.22, () => { const g = V(-2.4, 0.25, 0); ring(g, 7, '#fff0c8', 0.3, 0.3); poof(g, 3);
-      bricks(g, ['#eccd6e', '#d6b45c'], 6, 18, 0.7); shake(0.15); ms.forEach(m => { if (!m.alive) return; if (i === 0) hit(m, 65, true); else kill(m, 'Chop'); }); }); })); },
+    [1.3, 2.3].forEach((t, i) => at(t, () => { play(u, 'Chop'); at(t + 0.28, () => { const g = V(-2.4, 0.25, 0); ring(g, 7, '#fff0c8', 0.3, 0.3); poof(g, 3);
+      bricks(g, ['#eccd6e', '#d6b45c'], 6, 18, 0.7); shake(0.15); ms.forEach(m => { if (!m.alive) return; if (i === 0) hit(m, 35, true); else kill(m, 'Chop'); }); }); })); },
   Hunter: () => { const u = makeMan('Hunter', 3, V(-10, 0, 0), YAW_RIGHT); const m = walker('Brute', 18, 0, 5.5, -50, false);
     cam(V(0, 6, 20), V(1, 2.5, 0));
     [0.9, 2.2].forEach((t, i) => at(t, () => { play(u, 'Bullet'); const from = handPos(u).add(V(2.2, 0.4, 0)), to = monkeyHead(m).add(V(0, -1.3, 0));
@@ -572,7 +610,7 @@ const SCENES = {
     cam(V(0, 7, 17), V(0, 2.5, 0));
     at(0.7, () => { play(u, 'Rally'); ring(V(-7, 0.3, 2), 18, '#ff9628', 0.55, 0.35); comic(V(-7, 8, 2), 'CHARGE!', '#ff9628'); });
     [1.3, 1.55, 1.8].forEach((t, i) => at(t, () => { play(b1, 'Punch'); at(t + 0.1, () => { if (i < 2) hit(m1, 24, i === 1); else kill(m1, 'Punch'); }); }));
-    at(1.4, () => { play(b2, 'Chop'); at(1.62, () => { ring(V(2.2, 0.25, 2.6), 7, '#fff0c8', 0.3, 0.3); kill(m2, 'Chop'); shake(0.15); }); }); },
+    at(1.4, () => { play(b2, 'Chop'); at(1.68, () => { ring(V(2.2, 0.25, 2.6), 7, '#fff0c8', 0.3, 0.3); kill(m2, 'Chop'); shake(0.15); }); }); },
   Boss: () => { const h = makeMan('Hunter', 3, V(-12, 0, -3), YAW_RIGHT), g = makeMan('Grenadier', 3, V(-11, 0, 4), YAW_RIGHT); const m = walker('Silverback', 16, 0, 3.6, -50, false);
     cam(V(-2, 9, 26), V(2, 4, 0));
     const shots = [0.6, 1.4, 2.2];

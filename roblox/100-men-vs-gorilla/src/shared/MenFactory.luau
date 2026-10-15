@@ -30,6 +30,9 @@ local HOLD = {
 	AxeHandle = CFrame.Angles(math.pi, 0, 0), AxeHead = CFrame.Angles(math.pi, 0, 0),
 }
 
+-- Held items that read too small at gameplay distance.
+local HELD_SCALE = { Slingshot = 1.7 }
+
 local gearModel: Instance? = nil
 local gearFlip = false
 
@@ -105,6 +108,9 @@ local function dress(model: Model, look: Units.Look)
 		if look.Hat == "MedicCap" then
 			placeGear("MedicCross", head.CFrame * CFrame.new(0, head.Size.Y / 2 + 0.2 * s, -0.62 * s), s,
 				Color3.fromRGB(220, 40, 40), folder, head)
+		elseif look.Hat == "BananaHat" then
+			placeGear("BananaStem", head.CFrame * CFrame.new(0, head.Size.Y / 2 + 0.42 * s, 0), s,
+				Color3.fromRGB(96, 66, 34), folder, head)
 		elseif look.Hat == "OfficerCap" then
 			placeGear("OfficerBadge", head.CFrame * CFrame.new(0, head.Size.Y / 2 + 0.05 * s, -0.68 * s), s,
 				Color3.fromRGB(250, 196, 40), folder, head)
@@ -117,7 +123,7 @@ local function dress(model: Model, look: Units.Look)
 		local grip = hand.CFrame * CFrame.new(0, -hand.Size.Y * 0.3, 0)
 		for i, item in items do
 			local rot = HOLD[item] or CFrame.identity
-			placeGear(item, grip * rot, 1, (colors and colors[i]) or Color3.new(1, 1, 1), folder, hand)
+			placeGear(item, grip * rot, HELD_SCALE[item] or 1, (colors and colors[i]) or Color3.new(1, 1, 1), folder, hand)
 		end
 	end
 	hold(rHand, look.Held, look.HeldColors)

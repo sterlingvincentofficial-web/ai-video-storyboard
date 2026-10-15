@@ -5,6 +5,7 @@
 
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local RunService = game:GetService("RunService")
+local TweenService = game:GetService("TweenService")
 
 local Shared = ReplicatedStorage:WaitForChild("Shared")
 local EnemyDefs = require(Shared.Config.Enemies)
@@ -39,44 +40,100 @@ local function motor(model: Model, name: string): Motor6D?
 	return model:FindFirstChild(name, true) :: Motor6D?
 end
 
+-- Health bar: chunky outlined pill with segment ticks. The fill shifts green -> yellow -> red,
+-- a white "damage trail" lingers behind each hit and then drains, and the bar pops on every hit.
+local function hpColor(r: number): Color3
+	if r > 0.6 then
+		return Color3.fromRGB(110, 235, 70)
+	elseif r > 0.3 then
+		return Color3.fromRGB(255, 205, 40)
+	end
+	return Color3.fromRGB(245, 60, 45)
+end
+
 local function hpBar(view)
 	local head = view.model:FindFirstChild("Head") :: BasePart?
 	if not head or view.def.Boss then
-		return
+		return -- bosses use the big bar at the top of the screen
 	end
 	local bb = Instance.new("BillboardGui")
-	bb.Size = UDim2.fromScale(3.4 * view.def.Scale, 0.42)
-	bb.StudsOffsetWorldSpace = Vector3.new(0, head.Size.Y * 0.5 + 1.2, 0)
+	bb.Size = UDim2.fromScale(3.6 * view.def.Scale, 0.62)
+	bb.StudsOffsetWorldSpace = Vector3.new(0, head.Size.Y * 0.5 + 1.3, 0)
 	bb.AlwaysOnTop = true
-	bb.MaxDistance = 140
+	bb.MaxDistance = 150
 	bb.LightInfluence = 0
-	local back = Instance.new("Frame")
-	back.Size = UDim2.fromScale(1, 1)
-	back.BackgroundColor3 = Color3.fromRGB(20, 24, 20)
-	back.BorderSizePixel = 0
-	back.Parent = bb
-	local fill = Instance.new("Frame")
-	fill.Size = UDim2.fromScale(1, 1)
-	fill.BackgroundColor3 = Color3.fromRGB(80, 230, 60)
-	fill.BorderSizePixel = 0
-	fill.Parent = back
-	for i = 1, 9 do -- segment ticks
-		local tick = Instance.new("Frame")
-		tick.Size = UDim2.new(0, 1, 1, 0)
-		tick.Position = UDim2.fromScale(i / 10, 0)
-		tick.BackgroundColor3 = Color3.fromRGB(20, 24, 20)
-		tick.BorderSizePixel = 0
-		tick.ZIndex = 2
-		tick.Parent = back
-	end
+	local holder = Instance.new("Frame")
+	holder.Size = UDim2.fromScale(1, 1)
+	holder.AnchorPoint = Vector2.new(0.5, 0.5)
+	holder.Position = UDim2.fromScale(0.5, 0.5)
+	holder.BackgroundColor3 = Color3.fromRGB(24, 22, 20)
+	holder.BorderSizePixel = 0
+	holder.Parent = bb
+	local corner = Instance.new("UICorner")
+	corner.CornerRadius = UDim.new(0.45, 0)
+	corner.Parent = holder
 	local stroke = Instance.new("UIStroke")
-	stroke.Thickness = 1.5
-	stroke.Parent = back
+	stroke.Thickness = 2.5
+	stroke.Color = Color3.fromRGB(10, 10, 10)
+	stroke.Parent = holder
+	local pad = Instance.new("UIPadding")
+	pad.PaddingLeft, pad.PaddingRight = UDim.new(0, 2), UDim.new(0, 2)
+	pad.PaddingTop, pad.PaddingBottom = UDim.new(0, 2), UDim.new(0, 2)
+	pad.Parent = holder
+	local function bar(color: Color3, z: number): Frame
+		local f = Instance.new("Frame")
+		f.Size = UDim2.fromScale(1, 1)
+		f.BackgroundColor3 = color
+		f.BorderSizePixel = 0
+		f.ZIndex = z
+		local c = Instance.new("UICorner")
+		c.CornerRadius = UDim.new(0.45, 0)
+		c.Parent = f
+		f.Parent = holder
+		return f
+	end
+	local trail = bar(Color3.fromRGB(255, 255, 255), 1)
+	local fill = bar(hpColor(1), 2)
+	local shine = Instance.new("UIGradient") -- glossy top highlight
+	shine.Rotation = 90
+	shine.Transparency = NumberSequence.new(0)
+	shine.Color = ColorSequence.new({
+		ColorSequenceKeypoint.new(0, Color3.new(1, 1, 1)),
+		ColorSequenceKeypoint.new(0.45, Color3.fromRGB(235, 235, 235)),
+		ColorSequenceKeypoint.new(1, Color3.fromRGB(170, 170, 170)),
+	})
+	shine.Parent = fill
+	for i = 1, 9 do
+		local tick = Instance.new("Frame")
+		tick.Size = UDim2.new(0, 2, 1, 0)
+		tick.Position = UDim2.fromScale(i / 10, 0)
+		tick.BackgroundColor3 = Color3.fromRGB(24, 22, 20)
+		tick.BackgroundTransparency = 0.35
+		tick.BorderSizePixel = 0
+		tick.ZIndex = 3
+		tick.Parent = holder
+	end
+	local scale = Instance.new("UIScale")
+	scale.Parent = holder
 	bb.Adornee = head
 	bb.Enabled = false
 	bb.Parent = view.model
-	view.bar = bb
-	view.barFill = fill
+	view.bar, view.barFill, view.barTrail, view.barScale, view.barHolder = bb, fill, trail, scale, holder
+	view.trailRatio, view.trailHold = 1, 0
+end
+
+-- Called when a monkey's health changes: snap the fill, pop the bar, let the trail linger.
+local function hpChanged(view, ratio: number)
+	if not view.barFill then
+		return
+	end
+	view.bar.Enabled = true
+	view.barFill.Size = UDim2.fromScale(ratio, 1)
+	view.barFill.BackgroundColor3 = hpColor(ratio)
+	view.barScale.Scale = 1.3
+	TweenService:Create(view.barScale, TweenInfo.new(0.18, Enum.EasingStyle.Back), { Scale = 1 }):Play()
+	view.trailHold = os.clock() + 0.3
+	view.shakeUntil = os.clock() + 0.12
 end
 
 local function create(cfg: Configuration)
@@ -355,9 +412,22 @@ RunService.RenderStepped:Connect(function(dt)
 
 		-- health bar
 		local hp = cfg:GetAttribute("Hp") or 0
-		if v.barFill and hp ~= v.lastHp then
-			v.lastHp = hp
-			v.barFill.Size = UDim2.fromScale(math.clamp(hp / (cfg:GetAttribute("MaxHp") or 1), 0, 1), 1)
+		if v.barFill then
+			local ratio = math.clamp(hp / (cfg:GetAttribute("MaxHp") or 1), 0, 1)
+			if hp ~= v.lastHp then
+				v.lastHp = hp
+				hpChanged(v, ratio)
+			end
+			if clock > v.trailHold and v.trailRatio > ratio then
+				v.trailRatio = math.max(ratio, v.trailRatio - dt * 1.4)
+			elseif v.trailRatio < ratio then
+				v.trailRatio = ratio
+			end
+			v.barTrail.Size = UDim2.fromScale(v.trailRatio, 1)
+			local shaking = clock < (v.shakeUntil or 0)
+			v.barHolder.Position = if shaking
+				then UDim2.new(0.5, math.random(-3, 3), 0.5, math.random(-2, 2))
+				else UDim2.fromScale(0.5, 0.5)
 		end
 		-- net
 		local netted = (cfg:GetAttribute("Netted") or 0) > t

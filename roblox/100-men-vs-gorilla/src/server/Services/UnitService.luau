@@ -323,7 +323,7 @@ local function attack(u, t: number, list)
 	end
 	local travel
 	if kind == "Punch" or kind == "Chop" then
-		travel = if kind == "Chop" then 0.22 else 0.1
+		travel = if kind == "Chop" then 0.28 else 0.1
 	else
 		local dist = (target.pos - u.pos).Magnitude
 		travel = dist / (u.unit.ProjectileSpeed or 60)

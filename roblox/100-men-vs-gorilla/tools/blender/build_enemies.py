@@ -197,11 +197,8 @@ def extras_for(v, part, geo):
                 out.append(soft_box(f"BandTail{s}", (0.16, 0.08, 0.7), (hx + s * 0.18, hy + hd / 2 + 0.12, top - 0.6),
                                     0.04, swatch="headband", rot=(math.radians(-25), 0, math.radians(s * 18))))
         if "helmet" in ex:
-            out.append(soft_box("Helmet", (hw + 0.26, hd + 0.26, 0.8), (hx, hy, top - 0.12), 0.22, swatch="metal"))
-            out.append(soft_box("HelmetBrim", (hw + 0.36, 0.5, 0.16), (hx, hy - hd / 2 - 0.08, top - 0.48), 0.06,
-                                swatch="metal"))
-            for k in range(5):
-                out.append(ball(f"Rivet{k}", 0.07, (hx - 0.8 + k * 0.4, hy - hd / 2 - 0.15, top - 0.1), "rivet", segs=8))
+            # a pot helmet that hugs the top of the head and stops above the brows
+            out.append(soft_box("Helmet", (hw + 0.16, hd + 0.16, 0.75), (hx, hy, top), 0.3, swatch="metal"))
         if "ninja_band" in ex:
             band_z = hz + 0.18 * (hh / 1.9)
             for s in (-1, 1):
@@ -231,27 +228,18 @@ def extras_for(v, part, geo):
                 t = (k - 1) * 0.55
                 bx, bz = cx + t * math.sin(math.radians(38)), cz + t * math.cos(math.radians(38))
                 out += extra_banana((bx - 0.25, front - 0.12, bz), along=(1, 0, 0.1), length=0.55)
-        if "chestplate" in ex:
-            out.append(soft_box("Chestplate", (tw * 0.88, 0.2, th * 0.62), (cx, front - 0.04, cz + th * 0.12), 0.08,
-                                swatch="metal"))
-            for k in range(4):
-                out.append(ball(f"PlateRivet{k}", 0.06, (cx + (-1 if k < 2 else 1) * tw * 0.36, front - 0.15,
-                                                       cz + th * (0.36 if k % 2 else -0.12)), "rivet", segs=8))
         if "diaper" in ex:
-            out.append(soft_box("Diaper", (tw + 0.12, td + 0.12, th * 0.5), (cx, cy, cz - th * 0.3), 0.12, swatch="diaper"))
-            out.append(soft_box("Pin", (0.3, 0.06, 0.1), (cx + tw * 0.3, front - 0.1, cz - th * 0.18), 0.03, swatch="pin"))
+            out.append(soft_box("Diaper", (tw + 0.08, td + 0.08, th * 0.5), (cx, cy, cz - th * 0.3), 0.14, swatch="diaper"))
         if "cape" in ex:
             out.append(soft_box("Cape", (tw * 0.92, 0.1, th + 1.3), (cx, cy + td / 2 + 0.08, cz - 0.6), 0.04, swatch="cape"))
             for s in (-1, 1):
                 out.append(ball(f"CapeClasp{s}", 0.16, (cx + s * tw * 0.36, front - 0.05, cz + th * 0.42), "gold", segs=12))
         if "gold_armor" in ex:
-            out.append(soft_box("GoldPlate", (tw * 0.9, 0.24, th * 0.55), (cx, front - 0.06, cz + th * 0.16), 0.12,
-                                swatch="gold"))
-            out.append(ball("ChestGem", 0.24, (cx, front - 0.2, cz + th * 0.2), "gem", scale=(1, 0.5, 1)))
-            out.append(soft_box("Belt", (tw + 0.14, td + 0.14, 0.4), (cx, cy, cz - th / 2 + 0.25), 0.1, swatch="metal"))
+            out.append(soft_box("GoldPlate", (tw * 0.55, 0.16, th * 0.36), (cx, front - 0.05, cz - th * 0.02), 0.08, swatch="gold"))
+            out.append(ball("ChestGem", 0.16, (cx, front - 0.14, cz - th * 0.02), "gem", scale=(1, 0.5, 1)))
     if part in ("LeftArm", "RightArm"):
         ax, ay, top, bottom = geo["arm"]
-        aw = v["body"]["arm"][0]
+        aw, ad = v["body"]["arm"][0], v["body"]["arm"][1]
         if part == "RightArm" and "banana_hand" in ex:
             out += extra_banana((ax, ay - aw / 2 - 0.05, bottom + 0.3), along=(0, -1, 0.5), length=2.0)
         if part == "RightArm" and "boulder" in ex:
@@ -262,13 +250,12 @@ def extras_for(v, part, geo):
                 vert.co *= 1 + RNG.uniform(-0.14, 0.14)
             bake(rock)
             out.append(paint(rock, "rock", smooth=False))
-        if "spike_pads" in ex or "gold_armor" in ex:
-            sw = "gold" if "gold_armor" in ex else "spike"
-            out.append(soft_box("ShoulderPad", (aw + 0.4, aw + 0.4, 0.7), (ax, ay, top - 0.1), 0.16, swatch=sw))
-            if "spike_pads" in ex:
-                for k in range(3):
-                    out.append(cylinder(f"Spike{k}", 0.16, 0.6, (ax, ay - 0.4 + k * 0.4, top + 0.5), swatch="spike_tip",
-                                        bevel=0, r2=0.0, verts=8))
+        if "gold_armor" in ex:  # pads that fit the arm, sitting on the shoulder
+            out.append(soft_box("ShoulderPad", (aw + 0.14, ad + 0.14, 0.55), (ax, ay, top - 0.2), 0.16, swatch="gold"))
+        if "spikes" in ex:  # bone spikes straight out of the shoulder
+            for k in range(3):
+                out.append(cylinder(f"Spike{k}", 0.15, 0.55, (ax, ay - 0.45 + k * 0.45, top + 0.22), swatch="spike_tip",
+                                    bevel=0, r2=0.0, verts=8))
     return out
 
 # ---------------------------------------------------------------- one variant

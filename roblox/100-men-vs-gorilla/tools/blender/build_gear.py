@@ -196,8 +196,14 @@ def item_officer_badge():
 
 
 def item_banana_hat():
-    pts = [(0.75, 0.0, -0.2), (0.6, -0.05, 0.45), (0, -0.1, 0.75), (-0.6, -0.05, 0.45), (-0.75, 0.0, -0.2)]
-    return tube(pts, 0.32, end_r=0.45)
+    """Banana-costume hood: a rounded yellow cap over the head."""
+    hood = dome(HEAD + 0.1, 0.75, -0.3)
+    rim = cyl(HEAD + 0.12, 0.14, (0, 0, -0.32), verts=40)
+    return join([hood, rim])
+
+
+def item_banana_stem():
+    return cyl(0.11, 0.4, (0, 0, 0.2), verts=10, r2=0.08)
 
 
 def item_slingshot():
@@ -323,6 +329,7 @@ ITEMS = {
     "ZooCap": (item_zoo_cap, "Hat"),
     "OfficerCap": (item_officer_cap, "Hat"),
     "BananaHat": (item_banana_hat, "Hat"),
+    "BananaStem": (item_banana_stem, "Hat"),
     "Slingshot": (item_slingshot, "Grip"),
     "AxeHandle": (item_axe_handle, "Grip"),
     "AxeHead": (item_axe_head, "Grip"),
