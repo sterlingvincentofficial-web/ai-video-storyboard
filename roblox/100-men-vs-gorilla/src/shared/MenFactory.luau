@@ -6,6 +6,7 @@
 
 local CollectionService = game:GetService("CollectionService")
 local Players = game:GetService("Players")
+local ReplicatedStorage = game:GetService("ReplicatedStorage")
 
 local Gear = require(script.Parent.RigData.Gear)
 local Units = require(script.Parent.Config.Units)
@@ -171,6 +172,7 @@ local function dress(model: Model, look: Units.Look)
 	end
 end
 
+-- (Avatar fallback, used until Men.fbx has been imported.)
 -- Builds an avatar wearing a Look (no unit behaviour attached). Not parented.
 function MenFactory.buildLook(name: string, look: Units.Look): Model
 	local desc = Instance.new("HumanoidDescription")
@@ -191,12 +193,60 @@ function MenFactory.buildLook(name: string, look: Units.Look): Model
 	return model
 end
 
+-- The custom army rigs (ReplicatedStorage.MenRigs, built by the server from Men.fbx), if imported.
+local function customRig(variant: string): Model?
+	local rigs = ReplicatedStorage:FindFirstChild("MenRigs")
+	local template = rigs and rigs:FindFirstChild(variant)
+	return if template then (template :: Model):Clone() else nil
+end
+
+local function sparkleAura(part: BasePart)
+	local att = Instance.new("Attachment")
+	att.Name = "AuraAttachment"
+	att.Parent = part
+	local sparkle = Instance.new("ParticleEmitter")
+	sparkle.Name = "Aura"
+	sparkle.Texture = "rbxasset://textures/particles/sparkles_main.dds"
+	sparkle.Color = ColorSequence.new(Color3.fromRGB(255, 220, 90))
+	sparkle.LightEmission = 1
+	sparkle.Size = NumberSequence.new({ NumberSequenceKeypoint.new(0, 0.5), NumberSequenceKeypoint.new(1, 0) })
+	sparkle.Lifetime = NumberRange.new(0.6, 1)
+	sparkle.Rate = 6
+	sparkle.Speed = NumberRange.new(1, 2)
+	sparkle.SpreadAngle = Vector2.new(180, 180)
+	sparkle.Parent = att
+end
+
+-- A cutscene actor ("Pilot", "Brawler", ...): the custom rig's level 1 if imported, else an avatar.
+function MenFactory.squadMember(name: string, look: Units.Look): Model
+	local model = customRig(`{name}_L1`)
+	if model then
+		model.Name = name
+		return model
+	end
+	return MenFactory.buildLook(name, look)
+end
+
 -- Builds a unit model at a level. Not parented; caller places it.
 function MenFactory.build(unitId: string, level: number): Model
 	local unit = Units[unitId]
 	assert(unit, `Unknown unit "{unitId}"`)
 	local def = unit.Levels[level]
 	assert(def, `{unitId} has no level {level}`)
+	local custom = customRig(`{unitId}_L{level}`)
+	if custom then
+		custom.Name = `{unitId}_L{level}`
+		local root = custom.PrimaryPart :: BasePart
+		root.Anchored = true
+		root.CanQuery = true -- clicks/taps on the unit select it
+		if def.Look.Aura then
+			sparkleAura(custom:FindFirstChild("UpperTorso") :: BasePart)
+		end
+		custom:SetAttribute("Unit", unitId)
+		custom:SetAttribute("Level", level)
+		CollectionService:AddTag(custom, MenFactory.TAG)
+		return custom
+	end
 	local model = MenFactory.buildLook(`{unitId}_L{level}`, def.Look)
 
 	for _, p in model:GetDescendants() do
@@ -215,6 +265,9 @@ function MenFactory.build(unitId: string, level: number): Model
 end
 
 function MenFactory.playIdle(model: Model)
+	if model:GetAttribute("CustomRig") then
+		return -- UnitView animates the custom rigs' idle itself
+	end
 	local humanoid = model:FindFirstChildOfClass("Humanoid")
 	if not humanoid then
 		return

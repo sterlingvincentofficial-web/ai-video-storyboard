@@ -1,7 +1,8 @@
 -- Server entry: builds the enemy rig templates from the imported meshes, hooks up the army's
 -- gear, then starts the wave loop.
 --
--- One-time setup in Studio: File > Import 3D -> assets/enemies/Enemies.fbx and assets/men/MenGear.fbx.
+-- One-time setup in Studio: File > Import 3D -> assets/enemies/Enemies.fbx, assets/men/Men.fbx and
+-- assets/men/MenGear.fbx (pebbles/nets for projectiles, and the avatar fallback's gear).
 -- Leave the imported models where they land (or in ReplicatedStorage.Assets) and press Play.
 
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
@@ -44,6 +45,19 @@ else
 end
 rigs.Parent = ReplicatedStorage
 
+-- the army's custom rigs (Men.fbx); without them MenFactory falls back to Roblox avatars
+local MenRig = require(Shared.MenRig)
+local menImport = MenRig.findImport(searchIn)
+if menImport then
+	stash(menImport)
+	local menRigs = Instance.new("Folder")
+	menRigs.Name = "MenRigs"
+	MenRig.buildAll(menImport, menRigs)
+	menRigs.Parent = ReplicatedStorage
+else
+	warn("[100 Men] Men.fbx not imported yet - the army uses plain avatars. File > Import 3D -> assets/men/Men.fbx")
+end
+
 if MenFactory.setGear(searchIn) then
 	stash(MenFactory.gear())
 else
@@ -63,9 +77,9 @@ local PILOT = {
 	HatColor = Color3.fromRGB(88, 102, 56),
 }
 local ok, err = pcall(function()
-	MenFactory.buildLook("Pilot", PILOT).Parent = squad
+	MenFactory.squadMember("Pilot", PILOT).Parent = squad
 	for _, unitId in { "Brawler", "Slingshot", "Lumberjack" } do
-		MenFactory.buildLook(unitId, Units[unitId].Levels[1].Look).Parent = squad
+		MenFactory.squadMember(unitId, Units[unitId].Levels[1].Look).Parent = squad
 	end
 end)
 if not ok then

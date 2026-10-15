@@ -96,6 +96,17 @@ local function toCFrame(v: { number }): CFrame
 	return CFrame.new(v[4], v[5], v[6]) * CFrame.Angles(v[1], v[2], v[3])
 end
 
+-- The custom army rigs have no Animator idle, so they breathe here (same motion as the preview).
+local function idlePose(t: number, seed: number): { [string]: CFrame }
+	local b = math.sin(t * 2.2 + seed) * 0.03
+	return {
+		Root = CFrame.new(0, b * 0.6, 0),
+		Neck = CFrame.Angles(b, 0, 0),
+		RightShoulder = CFrame.Angles(0, 0, 0.06 + b),
+		LeftShoulder = CFrame.Angles(0, 0, -0.06 - b),
+	}
+end
+
 type AnimState = {
 	motors: { [string]: Motor6D },
 	kind: string,
@@ -182,7 +193,8 @@ RunService.Stepped:Connect(function(_, dt)
 		end
 		local target = if now < st.engagedUntil then 1 else 0
 		st.w += (target - st.w) * math.min(1, dt * 10)
-		if st.w < 0.01 and not st.clip then
+		local custom = model:GetAttribute("CustomRig") == true
+		if st.w < 0.01 and not st.clip and not custom then
 			continue -- fully idle: leave the Animator's idle alone
 		end
 		local kind = st.clipKind or st.kind
@@ -196,10 +208,19 @@ RunService.Stepped:Connect(function(_, dt)
 		if K.bounce and pose.Root then
 			pose.Root[5] += math.sin(now * math.pi * 2 * K.bounce[2]) * K.bounce[1]
 		end
-		for joint, v in pose do
-			local m = st.motors[joint]
-			if m then
-				m.Transform = m.Transform:Lerp(toCFrame(v), st.w)
+		if custom then
+			local idle = idlePose(now, (model:GetAttribute("Uid") or 0) * 1.7)
+			for joint, m in st.motors do
+				local base = idle[joint] or CFrame.identity
+				local v = pose[joint]
+				m.Transform = if v then base:Lerp(toCFrame(v), st.w) else base
+			end
+		else
+			for joint, v in pose do
+				local m = st.motors[joint]
+				if m then
+					m.Transform = m.Transform:Lerp(toCFrame(v), st.w)
+				end
 			end
 		end
 	end

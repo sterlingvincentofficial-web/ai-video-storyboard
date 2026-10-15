@@ -327,22 +327,22 @@ return {
 		Pilot = {
 			kind = "man",
 			look = "Pilot",
-			scale = 0.85,
+			scale = 0.8,
 		},
 		Brawler = {
 			kind = "man",
 			unit = "Brawler",
-			scale = 0.85,
+			scale = 0.8,
 		},
 		Slingshot = {
 			kind = "man",
 			unit = "Slingshot",
-			scale = 0.85,
+			scale = 0.8,
 		},
 		Lumberjack = {
 			kind = "man",
 			unit = "Lumberjack",
-			scale = 0.85,
+			scale = 0.8,
 		},
 		D1 = {
 			kind = "monkey",
@@ -414,7 +414,7 @@ return {
 			{
 				t = 0,
 				rel = "heli",
-				pos = { -1.485, 1.59, -2.9 },
+				pos = { -1.485, 1.68, -2.9 },
 				yaw = 0,
 				pose = "Pilot",
 			},
@@ -453,7 +453,7 @@ return {
 			{
 				t = 0,
 				rel = "heli",
-				pos = { 1.485, 1.59, -2.9 },
+				pos = { 1.485, 1.68, -2.9 },
 				yaw = 0,
 				pose = "Knuckles",
 			},
@@ -505,7 +505,7 @@ return {
 			{
 				t = 0,
 				rel = "heli",
-				pos = { -2.6, 1.59, 2.2 },
+				pos = { -2.6, 1.68, 2.2 },
 				yaw = -90,
 				pose = "Sit",
 			},
@@ -557,7 +557,7 @@ return {
 			{
 				t = 0,
 				rel = "heli",
-				pos = { -2.6, 1.59, -0.1 },
+				pos = { -2.6, 1.68, -0.1 },
 				yaw = -90,
 				pose = "HugAxe",
 			},

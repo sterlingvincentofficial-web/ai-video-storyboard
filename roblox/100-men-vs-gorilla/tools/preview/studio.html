@@ -20,6 +20,7 @@ const camera = new THREE.PerspectiveCamera(45, W / H, 0.1, 400);
 const loader = new GLTFLoader();
 const enemiesGlb = await loader.loadAsync('Enemies.glb');
 const gearGlb = await loader.loadAsync('MenGear.glb');
+const menGlb = await loader.loadAsync('Men.glb').catch(() => null);
 const rnd = (a, b) => a + Math.random() * (b - a);
 const randUnit = () => new THREE.Vector3(rnd(-1, 1), rnd(-1, 1), rnd(-1, 1)).normalize();
 const C = (hex) => new THREE.Color(hex);
@@ -198,7 +199,38 @@ function box(w, h, d, color, pos, parent) {
 }
 function joint(parent, pivot, parentPivot) { const g = new THREE.Group(); g.position.copy(pivot.clone().sub(parentPivot)); parent.add(g); return g; }
 const V = (x, y, z) => new THREE.Vector3(x, y, z);
+// The army's custom rigs (Men.glb, built by tools/blender/build_men.py), laid out like MenRig.luau:
+// joint groups at the Roblox-space pivots, each part mesh turned a half turn like the imported
+// MeshParts, so poses use the same joint names and signs as the game.
+const MEN_JOINTS = { LowerTorso: ['', 'Root'], UpperTorso: ['LowerTorso', 'Waist'], Head: ['UpperTorso', 'Neck'],
+  RightUpperArm: ['UpperTorso', 'RightShoulder'], RightLowerArm: ['RightUpperArm', 'RightElbow'], LeftUpperArm: ['UpperTorso', 'LeftShoulder'],
+  LeftLowerArm: ['LeftUpperArm', 'LeftElbow'], RightUpperLeg: ['LowerTorso', 'RightHip'], RightLowerLeg: ['RightUpperLeg', 'RightKnee'],
+  LeftUpperLeg: ['LowerTorso', 'LeftHip'], LeftLowerLeg: ['LeftUpperLeg', 'LeftKnee'] };
+function makeManRig(unit, level, pos, yaw) {
+  const variant = `${unit}_L${level}`, lt = menGlb && menGlb.scene.getObjectByName(`${variant}_LowerTorso`);
+  if (!lt) return null;
+  const origin = V(lt.position.x, 0, 0);
+  const pivot = name => { const n = menGlb.scene.getObjectByName(`${variant}_${name}`); return V(n.position.x - origin.x, n.position.y, -n.position.z); };
+  const root = new THREE.Group(); root.position.copy(pos); root.rotation.y = yaw; scene.add(root);
+  const groups = {}, joints = {};
+  const order = ['LowerTorso', 'UpperTorso', 'Head', 'RightUpperArm', 'RightLowerArm', 'LeftUpperArm', 'LeftLowerArm', 'RightUpperLeg', 'RightLowerLeg', 'LeftUpperLeg', 'LeftLowerLeg'];
+  for (const name of order) {
+    const [parent, joint] = MEN_JOINTS[name], g = new THREE.Group();
+    const p = pivot(name); g.position.copy(parent ? p.clone().sub(pivot(parent)) : p);
+    (parent ? groups[parent] : root).add(g);
+    const mesh = menGlb.scene.getObjectByName(`${variant}_${name}`).clone(true); mesh.position.set(0, 0, 0); mesh.rotation.set(0, Math.PI, 0);
+    mesh.traverse(o => { if (o.isMesh) { o.castShadow = true; o.receiveShadow = true; } });
+    g.add(mesh); groups[name] = g; joints[joint] = g;
+  }
+  const man = { unit, level, root, joints, hands: { Right: joints.RightElbow, Left: joints.LeftElbow }, gripY: -0.93, anim: null, alt: false, auraT: 0,
+    L: lookFor(unit === 'Pilot' ? 'Pilot' : unit, level), kind: KIND[unit], w: 0, engagedUntil: -1, cycleI: 0, rootBase: joints.Root.position.clone(), custom: true };
+  if (level >= 3) every(dt => { man.auraT -= dt; if (man.auraT <= 0) { man.auraT = 0.12; const p = root.position.clone().add(V(rnd(-1.2, 1.2), rnd(1, 5), rnd(-1.2, 1.2))); sparkle(p); } });
+  every(dt => animMan(man, dt));
+  MEN.push(man);
+  return man;
+}
 function makeMan(unit, level, pos, yaw) {
+  const rig = makeManRig(unit, level, pos, yaw); if (rig) return rig;
   const L = lookFor(unit, level);
   const root = new THREE.Group(); root.position.copy(pos); root.rotation.y = yaw; scene.add(root);
   const P0 = V(0, 0, 0);
@@ -246,7 +278,7 @@ function makeMan(unit, level, pos, yaw) {
   MEN.push(man);
   return man;
 }
-function handPos(man, side = 'Right') { const v = new THREE.Vector3(); man.hands[side].localToWorld(v.set(0, -1.1, 0)); return v; }
+function handPos(man, side = 'Right') { const v = new THREE.Vector3(); man.hands[side].localToWorld(v.set(0, man.gripY ?? -1.1, 0)); return v; }
 
 // ---- combat animation: same data + player as UnitAnims.luau / UnitView.luau
 const ANIM = await (await fetch('unit_anims.json')).json();

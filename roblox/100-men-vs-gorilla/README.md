@@ -7,14 +7,16 @@ and gorilla bosses trying to steal your Banana Stash. You don't fight; your army
 1. Open `100MenVsGorilla.rbxlx` (File → Open from File).
 2. **Import the meshes once:** Avatar/Home tab → **Import 3D** →
    - `assets/enemies/Enemies.fbx` (all 11 monkeys and gorillas, textures embedded)
-   - `assets/men/MenGear.fbx` (hats, weapons, badges, projectiles)
+   - `assets/men/Men.fbx` (the whole army: 9 units x 3 levels + the intro's pilot, textures embedded)
+   - `assets/men/MenGear.fbx` (projectiles like pebbles and nets)
 
    Leave them where they land; the server tidies them into `ReplicatedStorage.Assets`.
 3. Press **Play**. The first wave starts after 12 seconds. Pick a man on the hotbar (or keys 1-9),
    click the sand to place him, click a man to upgrade or sell him. Q / right-click cancels.
 4. **Save the place** so the imports stay.
 
-Before the imports, the game still runs with block stand-ins for the monkeys and gear-less men.
+Before the imports, the game still runs with block stand-ins for the monkeys and plain Roblox
+avatars for the men.
 
 **Optional:**
 - Sounds: upload `assets/sfx/*.wav` (Asset Manager → Bulk Import) and paste the IDs into
@@ -69,7 +71,10 @@ by `tools/preview/studio.html` for preview videos.
 | `tools/blender/enemy_defs.py` | Every enemy variant: proportions, colors, face, extras. |
 | `tools/blender/enemy_textures.py` | Paints each variant's atlas (Pillow). |
 | `tools/blender/build_enemies.py` | Builds `Enemies.fbx` + `RigData/Enemies.luau` (Blender `bpy`). |
-| `tools/blender/build_gear.py` | Builds `MenGear.fbx` + `RigData/Gear.luau`. |
+| `tools/blender/men_defs.py` | The army: every unit's outfit, hat, face, weapon and 3 levels. |
+| `tools/blender/men_textures.py` | Paints each army variant's face/shirt atlas (Pillow). |
+| `tools/blender/build_men.py` | Builds `Men.fbx` (jointed toy figures, brick-built weapons) + `RigData/Men.luau`. |
+| `tools/blender/build_gear.py` | Builds `MenGear.fbx` (projectiles, and the avatar fallback's gear) + `RigData/Gear.luau`. |
 | `tools/clothing/make_templates.py` | Optional Shirt/Pants templates. |
 | `tools/sfx/make_sfx.py` | Synthesizes the sound pack. |
 | `tools/cutscene/intro.json` | The intro timeline; `build_intro.py` turns it into `Config/Intro.luau`, `mix_audio.py` mixes a preview soundtrack. |
@@ -82,7 +87,8 @@ by `tools/preview/studio.html` for preview videos.
 python3 tools/build_map.py
 python3 tools/cutscene/build_intro.py
 python3 tools/blender/enemy_textures.py
-python tools/blender/build_enemies.py && python tools/blender/build_gear.py   # venv with bpy
+python3 tools/blender/men_textures.py
+python tools/blender/build_enemies.py && python tools/blender/build_men.py && python tools/blender/build_gear.py   # venv with bpy
 python3 tools/sfx/make_sfx.py
 rojo build -o 100MenVsGorilla.rbxlx
 ```

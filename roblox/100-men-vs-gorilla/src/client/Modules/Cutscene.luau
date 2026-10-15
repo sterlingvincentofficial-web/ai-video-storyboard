@@ -580,7 +580,7 @@ function Cutscene.play()
 				model = template:Clone()
 				;(model :: Model):ScaleTo(def.scale or 1)
 				local root = (model :: Model):FindFirstChild("HumanoidRootPart") :: BasePart
-				-- root height above the soles, measured on the rig itself
+				-- root height above the soles: custom rigs carry it, avatars are measured
 				local soles = math.huge
 				for _, foot in { "LeftFoot", "RightFoot" } do
 					local f = (model :: Model):FindFirstChild(foot) :: BasePart?
@@ -589,7 +589,9 @@ function Cutscene.play()
 					end
 				end
 				a.root = root
-				a.offset = CFrame.new(0, if soles < math.huge then root.Position.Y - soles else 3 * (def.scale or 1), 0)
+				local rootHeight = template:GetAttribute("RootHeight")
+				a.offset = CFrame.new(0, if rootHeight then rootHeight * (def.scale or 1)
+					elseif soles < math.huge then root.Position.Y - soles else 3 * (def.scale or 1), 0)
 			end
 		else
 			local template = rigs:FindFirstChild(def.variant)

@@ -52,10 +52,10 @@
   {"t": 32.5, "rel": "player", "pos": [0, 8, 14], "lookRel": "player", "look": [0, 2, -8], "fov": 70}
  ],
  "actors": {
-  "Pilot": {"kind": "man", "look": "Pilot", "scale": 0.85},
-  "Brawler": {"kind": "man", "unit": "Brawler", "scale": 0.85},
-  "Slingshot": {"kind": "man", "unit": "Slingshot", "scale": 0.85},
-  "Lumberjack": {"kind": "man", "unit": "Lumberjack", "scale": 0.85},
+  "Pilot": {"kind": "man", "look": "Pilot", "scale": 0.8},
+  "Brawler": {"kind": "man", "unit": "Brawler", "scale": 0.8},
+  "Slingshot": {"kind": "man", "unit": "Slingshot", "scale": 0.8},
+  "Lumberjack": {"kind": "man", "unit": "Lumberjack", "scale": 0.8},
   "D1": {"kind": "monkey", "variant": "Monkey"},
   "D2": {"kind": "monkey", "variant": "Speedy"},
   "D3": {"kind": "monkey", "variant": "Baby"},
@@ -75,7 +75,7 @@
  },
  "tracks": {
   "Pilot": [
-   {"t": 0, "rel": "heli", "pos": [-1.485, 1.59, -2.9], "yaw": 0, "pose": "Pilot"},
+   {"t": 0, "rel": "heli", "pos": [-1.485, 1.68, -2.9], "yaw": 0, "pose": "Pilot"},
    {"t": 16.6, "pose": "Panic"},
    {"t": 21.6, "hide": true},
    {"t": 25.0, "show": true, "cut": true, "rel": "wreckFlat", "pos": [2.6, 4.6, 0.9], "yaw": -90, "pose": "Blind"},
@@ -83,7 +83,7 @@
    {"t": 27.0, "rel": "wreckFlat", "pos": [7.4, 0, 5.4], "face": true}
   ],
   "Brawler": [
-   {"t": 0, "rel": "heli", "pos": [1.485, 1.59, -2.9], "yaw": 0, "pose": "Knuckles"},
+   {"t": 0, "rel": "heli", "pos": [1.485, 1.68, -2.9], "yaw": 0, "pose": "Knuckles"},
    {"t": 16.6, "pose": "Panic"},
    {"t": 21.6, "hide": true},
    {"t": 23.2, "show": true, "cut": true, "rel": "wreckFlat", "pos": [2.7, 4.6, 1.2], "yaw": -90, "pitch": 0, "pose": "Spread"},
@@ -92,7 +92,7 @@
    {"t": 25.5, "rel": "wreckFlat", "pos": [13.6, 0, -4.4], "yaw": -150, "pitch": 720, "arc": 1.6, "pose": "Dizzy"}
   ],
   "Slingshot": [
-   {"t": 0, "rel": "heli", "pos": [-2.6, 1.59, 2.2], "yaw": -90, "pose": "Sit"},
+   {"t": 0, "rel": "heli", "pos": [-2.6, 1.68, 2.2], "yaw": -90, "pose": "Sit"},
    {"t": 16.6, "pose": "Panic"},
    {"t": 21.6, "hide": true},
    {"t": 23.6, "show": true, "cut": true, "rel": "wreckFlat", "pos": [2.7, 4.6, 0.5], "yaw": -90, "pitch": 0, "pose": "Spread"},
@@ -101,7 +101,7 @@
    {"t": 25.55, "rel": "wreckFlat", "pos": [14.6, 0, -0.6], "yaw": -143, "pitch": 720, "arc": 1.6, "pose": "Dizzy"}
   ],
   "Lumberjack": [
-   {"t": 0, "rel": "heli", "pos": [-2.6, 1.59, -0.1], "yaw": -90, "pose": "HugAxe"},
+   {"t": 0, "rel": "heli", "pos": [-2.6, 1.68, -0.1], "yaw": -90, "pose": "HugAxe"},
    {"t": 16.6, "pose": "Panic"},
    {"t": 21.6, "hide": true},
    {"t": 24.0, "show": true, "cut": true, "rel": "wreckFlat", "pos": [2.7, 4.6, 1.4], "yaw": -90, "pitch": 0, "pose": "Spread"},

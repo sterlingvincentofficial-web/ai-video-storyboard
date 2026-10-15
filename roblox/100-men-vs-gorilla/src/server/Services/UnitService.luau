@@ -97,9 +97,9 @@ end
 
 local function spawnModel(u, cf: CFrame)
 	local model = MenFactory.build(u.unitId, u.level)
-	local humanoid = model:FindFirstChildOfClass("Humanoid") :: Humanoid
+	local humanoid = model:FindFirstChildOfClass("Humanoid")
 	local root = model:FindFirstChild("HumanoidRootPart") :: BasePart
-	local height = humanoid.HipHeight + root.Size.Y / 2
+	local height = model:GetAttribute("RootHeight") or ((humanoid :: Humanoid).HipHeight + root.Size.Y / 2)
 	model:PivotTo(cf + Vector3.new(0, height, 0))
 	model:SetAttribute("Uid", u.uid)
 	model:SetAttribute("Owner", u.owner.UserId)
