@@ -2,6 +2,10 @@
 
 Wave-based defense: place men, upgrade them, survive monkey waves and gorilla bosses.
 
+**Art style:** classic Roblox bricks. Map parts are Plastic with Studs surfaces (LEGO-baseplate sand,
+stair-stepped studded cliffs), mint water, lime shoreline strips, voxel palms. Characters are blocky R6
+rigs with the classic Head mesh and smooth surfaces. See `docs/previews/`.
+
 ## Open in Studio
 - **Quickest:** open `100MenVsGorilla_StyleTest.rbxlx` in Roblox Studio (File → Open from File).
 - **Live sync:** install [Rojo](https://rojo.space) (VS Code extension or CLI + Studio plugin), run `rojo serve`
