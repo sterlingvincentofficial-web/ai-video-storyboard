@@ -78,6 +78,7 @@ by `tools/preview/studio.html` for preview videos.
 | `tools/clothing/make_templates.py` | Optional Shirt/Pants templates. |
 | `tools/sfx/make_sfx.py` | Synthesizes the sound pack. |
 | `tools/cutscene/intro.json` | The intro timeline; `build_intro.py` turns it into `Config/Intro.luau`, `mix_audio.py` mixes a preview soundtrack. |
+| `tools/preview/` | three.js previews without Studio: `index.html` (the map), `studio.html` (combat scenes, the intro, army lineups, gameplay stills with `hud.js` mirroring the HUD), `grade.js` (the Lighting colour grade). |
 | `src/shared/Config/` | Enemy stats, unit levels, wave recipes. |
 | `src/server/Services/` | Economy, enemies (data-only, path-based), units (targeting/attacks), game loop. |
 | `src/client/Modules/` | Enemy rendering + animation, army animation, kill effects, juice, HUD. |
