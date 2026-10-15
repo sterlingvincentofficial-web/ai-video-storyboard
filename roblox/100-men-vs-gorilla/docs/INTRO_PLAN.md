@@ -55,3 +55,23 @@ one beat: men, monkeys, banana stash, gorilla.
 2. Flying chopper asset + shots 1, 2, 7 (the flight and the crash): the backbone.
 3. Monkeys and banana (shots 3–6), men tumble (8), gorilla + title (9), hand-off to HUD (10).
 4. Preview renders of every shot for your review before we polish timings.
+
+## Build prompt (run when the user says "go")
+
+First redo the two sloppy spots on the map:
+- **Crash site:** turn the flat disc with random debris into a real crash. Add a gouge trench plowed toward the helipad, sand berms pushed up around the nose, and a snapped rotor blade stuck upright in the sand. Spill the squad's cargo crates from the open door, add a small fire with smoke on the engine, and give the whole wreck a cleaner, chunkier helicopter model.
+- **Lagoon:** make the pond sit down in stepped sand and stone banks instead of flat tiles. Rebuild the dock as one solid boardwalk on pilings, with rope railings, that properly connects both stilt huts with ladders. Add lily pads and reeds, and tie the rope fence into the dock.
+
+Then build the 32-second skippable intro:
+1. Squad inside the chopper.
+2. Flyover past the islet.
+3. The idol's eyes ignite and monkeys pour down the stairs.
+4. Monkeys raid the Banana Stash.
+5. A slow-motion banana splats onto the windshield.
+6. Mayday spin.
+7. Crash just short of the helipad, landing exactly on the map's wreck.
+8. The men tumble out into a pile.
+9. THE Gorilla roars from the temple, then the title stamp.
+10. Swoop into the HUD with "NEXT WAVE IN 10".
+
+Build it as a data-driven camera and event timeline. Reuse the existing Fx, rigs and sounds, with the server holding wave 1 until everyone finishes or skips. Show preview renders of every shot for review.
