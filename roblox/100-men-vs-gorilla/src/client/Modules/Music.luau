@@ -91,7 +91,7 @@ end
 
 function Music.stinger(name: string)
 	local track = stingers[name]
-	if track and Music.enabled then
+	if track and Music.enabled and not suppressed then
 		track.sound.Volume = track.volume
 		track.sound.TimePosition = 0
 		track.sound:Play()

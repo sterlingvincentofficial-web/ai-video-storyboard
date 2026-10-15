@@ -32,6 +32,7 @@ local unitFxEvent = Net.event("UnitFx")
 local units = {} -- uid -> unit
 local nextUid = 0
 local generation = 0 -- bumps when the game restarts and every man is cleared
+local building: { [Player]: boolean } = {} -- players with a placement build in progress
 local pendingAttacks = {}
 local scheduled = {} -- { at, fn }
 
@@ -144,7 +145,13 @@ function UnitService.place(player: Player, unitId: string, pos: Vector3): (boole
 	if Economy.get(player) < cost then
 		return false, "Not enough cash"
 	end
+	-- one build at a time per player (the avatar fallback's build is a rate-limited web call)
+	if building[player] then
+		return false, "Hold on, still placing"
+	end
+	building[player] = true
 	local built, model, height = pcall(buildModel, unitId, 1)
+	building[player] = nil
 	if not built then
 		warn(`[100 Men] couldn't build {unitId}: {model}`)
 		return false, "Couldn't place him, try again"

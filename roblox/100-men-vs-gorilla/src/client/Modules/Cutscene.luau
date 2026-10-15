@@ -447,7 +447,11 @@ local function buildUi()
 		make("UIAspectRatioConstraint", { AspectRatio = Brand.LogoAspect, Parent = ui.logo })
 		ui.logoScale = make("UIScale", { Parent = ui.logo })
 		task.spawn(function() -- fetch it now so it's ready by the title card ~29 s in
-			pcall(ContentProvider.PreloadAsync, ContentProvider, { ui.logo })
+			pcall(ContentProvider.PreloadAsync, ContentProvider, { ui.logo }, function(_, status)
+				if status == Enum.AssetFetchStatus.Success then
+					ui.logoReady = true
+				end
+			end)
 		end)
 	end
 	ui.skip = make("TextButton", { Size = UDim2.fromOffset(150, 40), Position = UDim2.new(1, -20, 1, -16), AnchorPoint = Vector2.new(1, 1),
@@ -830,7 +834,7 @@ function Cutscene.play()
 		Juice.sound("Title")
 		Juice.shake(0.45)
 		-- the logo only if it has loaded (a wrong id or one still in moderation falls back to text)
-		if ui.logo and ui.logo.IsLoaded then
+		if ui.logo and (ui.logoReady or ui.logo.IsLoaded) then
 			ui.logo.Visible = true
 			ui.logo.ImageTransparency = 0
 			ui.logoScale.Scale = 3
