@@ -7560,13 +7560,16 @@ function Cutscene.play()
 	local nextEvent = 1
 	local events = Intro.events
 	local finished = false
+	local keyConn: RBXScriptConnection? = nil
 
 	local function finish()
 		if finished then
 			return
 		end
 		finished = true
-		keyConn:Disconnect()
+		if keyConn then
+			keyConn:Disconnect()
+		end
 		RunService:UnbindFromRenderStep("IntroCutscene")
 		if rotorSound then
 			rotorSound:Destroy()
@@ -7596,7 +7599,7 @@ function Cutscene.play()
 	end
 
 	ui.skip.Activated:Connect(finish)
-	local keyConn = UserInputService.InputBegan:Connect(function(input, processed)
+	keyConn = UserInputService.InputBegan:Connect(function(input, processed)
 		if not processed and (input.KeyCode == Enum.KeyCode.Space or input.KeyCode == Enum.KeyCode.Return) then
 			finish()
 		end
