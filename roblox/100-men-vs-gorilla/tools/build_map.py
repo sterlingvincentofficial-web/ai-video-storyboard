@@ -1109,7 +1109,7 @@ def main():
     build_base()       # base first so its props reserve their footprints
     build_east()
     build_west()
-    build_decor()
+    # (no scattered decor: the reference keeps the open sand clean for placing men)
     all_parts = [p for b in M.groups.values() for p in b.parts]
     bad, fights = check_overlaps(all_parts)
     for (a, b), (pa, pb) in sorted(bad.items()):

@@ -8,13 +8,14 @@
 import * as THREE from 'three';
 import { GLTFLoader } from './node_modules/three/examples/jsm/loaders/GLTFLoader.js';
 import { mergeGeometries } from './node_modules/three/examples/jsm/utils/BufferGeometryUtils.js';
+import { makeComposer } from './grade.js';
 
 const W = 960, H = 540, DT = 1 / 60;
 const font = new FontFace('LG', 'url(LuckiestGuy.woff2)'); await font.load(); document.fonts.add(font);
 
 const renderer = new THREE.WebGLRenderer({ antialias: true, preserveDrawingBuffer: true });
 renderer.setSize(W, H); renderer.shadowMap.enabled = true; renderer.shadowMap.type = THREE.PCFSoftShadowMap;
-renderer.outputColorSpace = THREE.SRGBColorSpace; renderer.toneMapping = THREE.ACESFilmicToneMapping; renderer.toneMappingExposure = 1.1;
+renderer.outputColorSpace = THREE.SRGBColorSpace; renderer.toneMapping = THREE.NeutralToneMapping; renderer.toneMappingExposure = 1.3;
 document.body.appendChild(renderer.domElement);
 const camera = new THREE.PerspectiveCamera(45, W / H, 0.1, 400);
 const loader = new GLTFLoader();
@@ -37,7 +38,7 @@ function studTexture() {
 const STUD = studTexture();
 function skyTexture() {
   const c = document.createElement('canvas'); c.width = 4; c.height = 256; const g = c.getContext('2d');
-  const gr = g.createLinearGradient(0, 0, 0, 256); gr.addColorStop(0, '#2f8fd0'); gr.addColorStop(0.6, '#6cc9c0'); gr.addColorStop(1, '#a6e8c4');
+  const gr = g.createLinearGradient(0, 0, 0, 256); gr.addColorStop(0, '#47bdb6'); gr.addColorStop(0.6, '#78d6c0'); gr.addColorStop(1, '#a8e6c4');
   g.fillStyle = gr; g.fillRect(0, 0, 4, 256); const t = new THREE.CanvasTexture(c); t.colorSpace = THREE.SRGBColorSpace; return t;
 }
 function faceTexture() {
@@ -59,7 +60,7 @@ function newWorld(opts = {}) {
   sun.shadow.mapSize.set(2048, 2048); Object.assign(sun.shadow.camera, { left: -40, right: 40, top: 40, bottom: -40, near: 1, far: 120 });
   sun.shadow.bias = -0.0005; scene.add(sun);
   const groundMap = STUD.clone(); groundMap.repeat.set(120, 120); groundMap.needsUpdate = true;
-  const ground = new THREE.Mesh(new THREE.PlaneGeometry(120, 120), new THREE.MeshStandardMaterial({ color: C('#eccd6e'), map: groundMap, roughness: 0.8 }));
+  const ground = new THREE.Mesh(new THREE.PlaneGeometry(120, 120), new THREE.MeshStandardMaterial({ color: C('#f8d666'), map: groundMap, roughness: 0.8 }));
   ground.rotation.x = -Math.PI / 2; ground.receiveShadow = true; scene.add(ground);
   if (!opts.noProps) {
     // a few map props for context: palms and the path strip
@@ -584,8 +585,10 @@ function stepOnce() {
 function render() {
   if (camBase) { camera.position.copy(camBase.pos); camera.lookAt(camBase.look); const s = trauma * trauma, t = simT * 22;
     camera.rotation.x += Math.sin(t * 1.3) * 0.035 * s; camera.rotation.y += Math.sin(t * 1.7 + 2) * 0.035 * s; camera.rotation.z += Math.sin(t * 2.1 + 4) * 0.05 * s; }
-  renderer.render(scene, camera);
+  if (!COMPOSER) COMPOSER = makeComposer(renderer, scene, camera, W, H);
+  COMPOSER.setScene(scene); COMPOSER.render();
 }
+let COMPOSER = null;
 function cam(pos, look) { camBase = { pos, look }; }
 
 // ---------------------------------------------------------------- scenes
