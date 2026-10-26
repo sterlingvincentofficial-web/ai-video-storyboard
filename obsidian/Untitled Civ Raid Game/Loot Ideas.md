@@ -1,34 +1,31 @@
 ---
 tags: [game, design, loot]
 ---
-# Loot Ideas (what we steal)
-Back to [[00 Home]] · Related: [[Legendary Rulers]], [[Civilization]]
+# Loot: Eggs
+Back to [[00 Home]] · Related: [[Legendary Rulers]], [[Spending and Upgrades]]
 
-Eggs are what everybody else does. Below are options that fit a **civilization** game better. They can be combined.
+**Decision: we steal eggs.** Eggs make sense because **units hatch out of them, each with a % chance**. Every raid is a chance at a great unit.
 
-## Option A: Relics (strongest fit)
-Each ruler guards famous treasures that would make sense for them: **Napoleon's bicorne hat**, **Cleopatra's crown**, **Excalibur**, **Caesar's laurel wreath**, a Viking king's horned helm (fun, even if not historically accurate).
-- Relics go on display in your **Museum or Treasury** and each gives a **permanent bonus**, for example "+10% money/sec" or "+15% troop speed."
-- Rarity tiers (common → legendary), and **collecting a ruler's full set** gives an extra set bonus.
-- Visible on your plot, so other players see what you've stolen.
+## How eggs work
+- Every ruler guards **their own eggs**, themed to them (Napoleon's eggs hatch Napoleon-era units).
+- Your carrier grabs the egg and the army brings it home (see [[Battle System]]).
+- At home the egg **hatches into a unit**, rolled from that egg's odds.
+- Harder rulers and farther zones have better eggs with better odds.
 
-## Option B: Blueprints / inventions
-Steal plans that **unlock new buildings or troop types**: the Romans' aqueduct plans, a cannon design from Napoleon, a mysterious flying-machine sketch.
-- Ties raiding directly to your civilization's progress and to the [[Ages]].
+## Example odds: Napoleon's Egg (placeholder numbers)
+| Unit | Type | Chance |
+|---|---|---|
+| Line Infantry | Fighter | 55% |
+| Field Medic | Medic | 20% |
+| Courier | Carrier | 15% |
+| Hussar | Fast fighter | 8% |
+| Grand Marshal | **Commander** | 2% |
 
-## Option C: Resources (the everyday loot)
-Carts of **gold, food, stone, iron** taken from the ruler's camp.
-- Small, constant rewards that come with every raid, alongside a rare chance at a Relic or Blueprint.
+Every egg shows its odds before you raid, so players can pick what to go for. Showing odds is also how Roblox expects random rewards to be handled.
 
-## Option D: Recruits
-Some raids **free prisoners or recruit soldiers who switch sides** and join your civilization as workers or troops.
-- Keep it as recruiting or rescuing, never kidnapping.
+## Egg rarity tiers (draft)
+Common → Rare → Epic → Legendary → Mythic (event eggs only).
 
-## Option E: Wonder pieces
-Steal **parts of a wonder** (pyramid stones, colosseum arches) and assemble the full wonder on your plot for a huge bonus.
-
-## Eggs (if we keep them)
-They could still exist as **mystery chests** that open into a random Relic, Recruit or Blueprint. That's optional; the theme doesn't need them.
-
-## Recommendation
-**Resources on every raid + a chance at Relics + Blueprints for progression.** Wonder pieces as a late-game goal. Decide in [[Open Questions]].
+## Still to decide → [[Open Questions]]
+- Do eggs only hatch troops, or can some hatch civilians or workers too?
+- What happens to duplicate units: merge them into an upgrade, or keep them as extra units?

@@ -14,7 +14,7 @@ You rule a small civilization on your plot. It makes money every second. You spe
 - [[Core Loop]]: how the whole game fits together
 - [[Battle System]]: sending troops, waves, retreating
 - [[Civilization]]: buildings, citizens, needs, builders, money per second
-- [[Loot Ideas]]: what we steal (eggs and alternatives)
+- [[Loot Ideas]]: eggs and hatch odds
 - [[Spending and Upgrades]]: everything money can buy
 - [[Ages]]: the advance-through-history progression
 - [[Legendary Rulers]]: who we raid, plus the rules for picking them
@@ -26,6 +26,10 @@ You rule a small civilization on your plot. It makes money every second. You spe
 - **No present-day politicians.** Historical or legendary rulers only. See [[Legendary Rulers]].
 - **Players command, they don't grab.** Troops do the stealing; the player directs them. See [[Battle System]].
 - **The civilization is the money engine.** Money per second comes from your citizens and buildings. See [[Civilization]].
-- **Ages are the big progression.** See [[Ages]].
+- **Ages are the big progression, and nothing resets.** Every placed building becomes level 1 of its next-Age version. Troops upgrade separately through their own tree. See [[Ages]].
+- **We steal eggs.** Units hatch from them with % odds. See [[Loot Ideas]].
+- **The base is the main game.** Watching raids is optional. See [[Civilization]].
+- **Robux items are permanent** and never replaced.
+- **No PvP for now** (parked, kept in mind).
 - **The name waits** until the flow is figured out.
 - **Style gets designed in Claude Design**, not picked at random. See [[Style and Map]].

@@ -23,7 +23,7 @@ The game's best idea is that **raids and city-building happen at the same time**
 - Send troops, then walk with them and command them in [[Battle System]].
 - Or let them march and go run your city: build a hospital, houses, morale buildings. See [[Civilization]].
 
-Players who like action follow their troops. Players who like building stay home. Either way there's always something to do, so nobody plays one round and logs off.
+**The base is the main part of the game.** You're always at your city unless you choose to go watch a raid. Raids run in the background while you build, so there's always something to do and nobody plays one round and logs off.
 
 ## Loops by time scale
 | Time | What the player does |

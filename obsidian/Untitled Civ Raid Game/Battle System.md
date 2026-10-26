@@ -9,15 +9,15 @@ Back to [[00 Home]] · Related: [[Spending and Upgrades]], [[Legendary Rulers]]
 ## Flow of one raid
 1. **Army slots.** Troops you assign to army slots line up in formation at the **front of your plot**, so everyone can see your army.
 2. **Send Troops.** Click it and the **world map** opens. Pick a zone, like Napoleon's Camp. Each zone shows its difficulty, number of waves, and the loot you'd get.
-3. **March.** Troops walk across the real map. You can **walk along and follow them**, or stay home and manage your civilization.
+3. **March.** Troops walk across the real map. **Staying home is the normal thing**, because the base is the main game (see [[Civilization]]). Following your troops to watch is **optional**.
 4. **Commands during the march:**
    - **Retreat**: everyone heads home, at any time.
    - **Change target**: send them to a different zone.
    - Later ideas: *Hold position*, *Charge*, *Protect the carrier*.
-5. **Arrival.** The ruler is asleep, for example Napoleon dozing on his chair, and so are his guards. One of your troops **picks up the loot**.
+5. **Arrival.** The ruler is asleep, for example Napoleon dozing on his chair, and so are his guards. A **carrier** grabs the egg first; any troop can carry if no carrier is left. See [[Spending and Upgrades]].
 6. **Alarm.** The ruler and guards **wake up**, and **Wave 1** fights your troops right there.
 7. **Escape.** Win wave 1 and your troops **run home with the loot**. The ruler then **sends wave 2 after you**, and wave 3 if there is one.
-8. **Home.** The loot crosses into your plot and is safe. It goes to your Treasury or Museum (see [[Loot Ideas]]).
+8. **Home.** The egg crosses into your plot, is safe, and **hatches into a unit** (see [[Loot Ideas]]).
 
 ## Health and getting knocked out
 - Every troop, guard and ruler has a **health bar**.
@@ -50,6 +50,9 @@ Back to [[00 Home]] · Related: [[Spending and Upgrades]], [[Legendary Rulers]]
 - Rulers' camps **respawn their loot on a timer**, which gives a reason to come back.
 - After you raid a ruler, their next waves get a bit tougher, so they keep up with the player's power.
 
+## Commanders in battle
+While a commander is alive, the troops around them get a damage and speed boost. If the commander goes down, the boost is lost. Protecting the commander is the second thing to watch after the carrier.
+
 ## Open questions → [[Open Questions]]
-- Can other players raid **your** plot (PvP), or are only rulers raided (PvE)?
+- PvP is parked for now; only rulers get raided.
 - Can friends combine armies on one raid?
